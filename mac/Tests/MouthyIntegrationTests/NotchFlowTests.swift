@@ -831,3 +831,40 @@ func notchFlowTransitionsFrameByFrame() throws {
     }
     #expect(problems.isEmpty, "\(problems.count) problems: \(problems.prefix(16).joined(separator: "; "))")
 }
+
+/// Replays pointer traces recorded while a person used the notch with a real trackpad (lines "<seconds> ptr <x>,<y> ...",
+/// global display coordinates from the top left). Synthetic pointer events skip macOS's own stops at the notch's edges;
+/// recorded ones carry them. Every place the pointer rested at the notch for 0.35 s or more must be inside the hover
+/// target, so the hub opens there. `MOUTHY_TEST_POINTER_TRACE=<file>[:<file>...]`, on the Mac the traces were recorded on.
+@MainActor @Test(.enabled(if: ProcessInfo.processInfo.environment["MOUTHY_TEST_POINTER_TRACE"] != nil))
+func notchHoverReplaysRecordedPointerTraces() throws {
+    let paths = ProcessInfo.processInfo.environment["MOUTHY_TEST_POINTER_TRACE"]!.split(separator: ":").map(String.init)
+    let screen = try #require(NotchGeometry.notchedScreen())
+    let primaryTop = try #require(NSScreen.screens.first).frame.maxY
+    let target = NotchHub.homeHover(NotchGeometry.on(screen).closed)
+    let notchLeft = try #require(screen.auxiliaryTopLeftArea).maxX, notchRight = try #require(screen.auxiliaryTopRightArea).minX
+    var rests: [String] = [], missed: [String] = []
+    for path in paths {
+        var samples: [(t: Double, x: Double, y: Double)] = []
+        for line in try String(contentsOfFile: path, encoding: .utf8).split(separator: "\n") {
+            let parts = line.split(separator: " ")
+            guard parts.count >= 3, parts[1] == "ptr", let t = Double(parts[0]) else { continue }
+            let xy = parts[2].split(separator: ",")
+            guard xy.count == 2, let x = Double(xy[0]), let y = Double(xy[1]) else { continue }
+            if let last = samples.last, last.x == x, last.y == y { continue }
+            samples.append((t, x, y))
+        }
+        // The recorder writes a line only when something changes, so a rest is the time until the next sample.
+        for (index, sample) in samples.enumerated() where index + 1 < samples.count {
+            let rest = samples[index + 1].t - sample.t
+            guard rest >= 0.35, sample.y >= 0, sample.y <= 34, sample.x >= notchLeft - 20, sample.x <= notchRight + 20 else { continue }
+            let label = "\(URL(fileURLWithPath: path).lastPathComponent) +\(String(format: "%.2f", sample.t)) s at \(Int(sample.x)),\(Int(sample.y)) for \(String(format: "%.2f", rest)) s"
+            rests.append(label)
+            if !NSMouseInRect(NSPoint(x: sample.x, y: primaryTop - sample.y), target, false) { missed.append(label) }
+        }
+    }
+    print("POINTER REPLAY \(rests.count) rests at the notch, \(rests.count - missed.count) inside the hover target")
+    rests.forEach { print("  \(missed.contains($0) ? "OUTSIDE" : "inside ") \($0)") }
+    #expect(!rests.isEmpty)
+    #expect(missed.isEmpty, "\(missed)")
+}

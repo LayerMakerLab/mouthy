@@ -50,14 +50,15 @@ Every engine runs on your own computer. A model downloads once, when you choose 
 
 ## Highlights
 
+- **Only your voice (Mac).** Train your voice once (three short sentences) and Mouthy turns down a TV, music and other people while you dictate. Mouthy keeps a voiceprint, never the recording.
 - **Types anywhere.** Text goes into whatever app has focus, with spacing and capitals fitted to what is already there (Mac and Windows).
 - **Enter sends, Escape cancels.** Press Enter while talking to send what you have said so far and keep going.
-- **Speech only types.** Nothing you say can send, click or run anything.
+- **Speech only types.** Nothing you say can send, click or run anything in other apps.
 - **Spoken punctuation and fixes.** "comma", "new paragraph", and "scratch that" to drop the last sentence.
 - **Modes.** Different styles per app or website, for example plain text for chat and code formatting in your editor.
 - **Meetings.** Records your microphone and the call's audio, then writes a transcript.
 - **For AI agents.** Claude Code and other agents can ask you a question and hear your spoken answer.
-- **Notch hub (Mac).** Timers, notes, music and your calendar in a panel that opens from the notch.
+- **Notch hub (Mac).** Hover the notch while you talk to watch your words appear. Timers, notes, music and your calendar live there too.
 
 Full list: [Features](docs/features.md).
 
