@@ -24,6 +24,8 @@ final class LocalStore {
         }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                attributes: [.posixPermissions: 0o700])
+        // Owner-only even when the folder already existed, so a file is never readable by others before its chmod.
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let url = directory.appendingPathComponent(name)
         try encoder.encode(value).write(to: url, options: .atomic)

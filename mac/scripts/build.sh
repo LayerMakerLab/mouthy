@@ -99,12 +99,19 @@ if [[ -n "$identity" && -n "${MOUTHY_SIGNING_KEYCHAIN:-}" ]]; then
     [[ -n "${MOUTHY_SIGNING_KEYCHAIN_PASSWORD_FILE:-}" ]] && security unlock-keychain -p "$(<"$MOUTHY_SIGNING_KEYCHAIN_PASSWORD_FILE")" "$MOUTHY_SIGNING_KEYCHAIN"
     keychain_args=(--keychain "$MOUTHY_SIGNING_KEYCHAIN")
 fi
-for library in "$sherpa_dir"/*.dylib; do codesign --force "${keychain_args[@]}" --sign "${identity:--}" "$library"; done
+# Signed like the notarized release (package-mac.sh): hardened runtime and the same entitlements, so Dev and every
+# local build hit the same permission rules the downloaded app does.
+for library in "$sherpa_dir"/*.dylib; do codesign --force --options runtime "${keychain_args[@]}" --sign "${identity:--}" "$library"; done
 # Inside out: Sparkle's Autoupdate and Updater.app, then the framework, then the app.
 for part in "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle"; do
-    codesign --force "${keychain_args[@]}" --sign "${identity:--}" --preserve-metadata=entitlements "$part"
+    codesign --force --options runtime "${keychain_args[@]}" --sign "${identity:--}" --preserve-metadata=entitlements "$part"
 done
-codesign --force "${keychain_args[@]}" --sign "${identity:--}" --identifier "$bundle_id" "$app"
+# A local identity has no Team ID, so library validation would refuse the bundled Sparkle and sherpa-onnx; local builds
+# alone allow their own bundled libraries. Every privacy entitlement stays exactly the release's.
+entitlements="build/Mouthy-local.entitlements"
+cp Resources/Mouthy.entitlements "$entitlements"
+/usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "$entitlements"
+codesign --force --options runtime --entitlements "$entitlements" "${keychain_args[@]}" --sign "${identity:--}" --identifier "$bundle_id" "$app"
 codesign --verify --deep --strict "$app"
 printf 'Built %s (signed: %s)\n' "$app" "${identity:-ad-hoc}"
 if [[ -z "$identity" ]]; then

@@ -6,7 +6,7 @@ import MouthyNotch
 
 @MainActor @Test func dictateHeroPoseFollowsState() {
     #expect(DictateHero.pose(phase: .idle, agentQuestion: nil, cheering: false, firstRun: false) == .sleep)
-    #expect(DictateHero.pose(phase: .idle, agentQuestion: nil, cheering: false, firstRun: true) == .wave)
+    #expect(DictateHero.pose(phase: .idle, agentQuestion: nil, cheering: false, firstRun: true) == .listen)
     #expect(DictateHero.pose(phase: .idle, agentQuestion: nil, cheering: true, firstRun: true) == .cheer)
     #expect(DictateHero.pose(phase: .preparing, agentQuestion: nil, cheering: false, firstRun: false) == .listen)
     #expect(DictateHero.pose(phase: .listening, agentQuestion: nil, cheering: false, firstRun: false) == .listen)

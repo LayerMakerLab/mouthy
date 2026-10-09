@@ -32,13 +32,18 @@ public enum CodeDictation {
         return joinSymbols(tokens)
     }
 
-    /// Words and punctuation, keeping punctuation as separate tokens.
+    /// Words, line breaks and punctuation, keeping punctuation as separate tokens. Punctuation inside a word
+    /// (index.html, 3.5) stays part of it; only punctuation before a space or the end is split off.
     static func tokenize(_ text: String) -> [String] {
         var tokens: [String] = []
         var current = ""
-        for c in text {
-            if c.isWhitespace { if !current.isEmpty { tokens.append(current); current = "" } }
-            else if ",.;:!?".contains(c) { if !current.isEmpty { tokens.append(current); current = "" }; tokens.append(String(c)) }
+        let chars = Array(text)
+        for (index, c) in chars.enumerated() {
+            if c.isNewline { if !current.isEmpty { tokens.append(current); current = "" }; tokens.append("\n") }
+            else if c.isWhitespace { if !current.isEmpty { tokens.append(current); current = "" } }
+            else if ",.;:!?".contains(c), index + 1 == chars.count || chars[index + 1].isWhitespace {
+                if !current.isEmpty { tokens.append(current); current = "" }; tokens.append(String(c))
+            }
             else { current.append(c) }
         }
         if !current.isEmpty { tokens.append(current) }
@@ -117,6 +122,7 @@ public enum CodeDictation {
                 continue
             }
             let token = tokens[i]
+            if token == "\n" { trimSpace(); out += token; glueNext = true; i += 1; continue }
             if ",.;:!?".contains(token) { out += token; glueNext = false; i += 1; continue }
             space(); out += token; glueNext = false; i += 1
         }

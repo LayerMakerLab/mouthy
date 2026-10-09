@@ -350,7 +350,7 @@ final class TextDelivery {
             text = SmartInsertion.adjust(text, before: context.before, after: context.after)
         }
         let expected = expectedValue(afterInserting: text, into: before, range: range)
-        await waitForModifierRelease()
+        guard await waitForModifierRelease() else { return "Ready to copy. Release the modifier keys to paste." }
         // Focus may have moved while modifiers were held: check again right before the keystrokes.
         guard stillFocused(pid: app.processIdentifier, field: field) else { return "Ready to copy. Focus changed before pasting." }
         guard paste(text, keyCode: pasteKey, pid: app.processIdentifier) else { return "Text copied. Paste it into your app." }
@@ -405,17 +405,22 @@ final class TextDelivery {
             for representation in representations where bytes + representation.1.count <= limit {
                 kept.append(representation); bytes += representation.1.count
             }
+            // An item whose readable data was all too large to keep would vanish from the clipboard: refuse instead.
+            // Data that can no longer be read (its app quit) is already gone and blocks nothing.
+            if !representations.isEmpty, kept.isEmpty { return nil }
             if !kept.isEmpty { snapshot.append(kept) }
         }
         return snapshot
     }
     private static var pastedChangeCount = 0
-    /// Waits briefly for held shortcut modifiers to be released so ⌘V is not read as another chord.
-    static func waitForModifierRelease() async {
+    /// Waits briefly for held shortcut modifiers to be released so ⌘V is not read as another chord; false when they
+    /// are still held after a second (pasting then could run another app's command).
+    static func waitForModifierRelease() async -> Bool {
         let held: CGEventFlags = [.maskControl, .maskAlternate, .maskShift, .maskCommand]
         for _ in 0..<20 where !CGEventSource.flagsState(.hidSystemState).intersection(held).isEmpty {
             try? await Task.sleep(for: .milliseconds(50))
         }
+        return CGEventSource.flagsState(.hidSystemState).intersection(held).isEmpty
     }
     /// nspasteboard.org markers: clipboard managers that follow the convention skip transient items and treat
     /// auto-generated ones as not copied by the person.

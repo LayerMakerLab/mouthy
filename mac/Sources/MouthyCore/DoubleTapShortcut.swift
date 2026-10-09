@@ -26,7 +26,7 @@ public struct DoubleTapShortcut {
     }
     public mutating func update(isDown: Bool, timestamp: TimeInterval) -> Bool {
         if isDown {
-            guard pressedAt == nil else { return false }
+            // A press always starts fresh: a release lost to secure input must not cost the next double tap.
             pressedAt = timestamp
             return false
         }

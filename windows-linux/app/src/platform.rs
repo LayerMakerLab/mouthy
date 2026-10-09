@@ -41,8 +41,12 @@ impl FocusedApp {
 pub fn title_matches_site(title: &str, site: &str) -> bool {
     let site = site.trim().trim_start_matches("https://").trim_start_matches("http://").trim_start_matches("www.");
     let label = site.split('/').next().unwrap_or(site);
-    let name = label.split('.').next().unwrap_or(label);
-    !name.is_empty() && (title.to_lowercase().contains(&label.to_lowercase()) || title.to_lowercase().contains(&name.to_lowercase()))
+    let name = label.split('.').next().unwrap_or(label).to_lowercase();
+    let title = title.to_lowercase();
+    // The full address anywhere, or the site's name as a whole word of three letters or more: "x" in "Firefox" or
+    // "mail" in "Gmail" is no match.
+    !label.is_empty() && (title.contains(&label.to_lowercase())
+        || (name.chars().count() >= 3 && title.split(|c: char| !c.is_alphanumeric()).any(|word| word == name)))
 }
 
 pub use imp::*;
@@ -69,12 +73,23 @@ fn checked_windows_input(expected: &FocusedApp, current: Option<&FocusedApp>, pa
 #[allow(dead_code)]
 enum Saved { Text(String), Image(arboard::ImageData<'static>), Empty }
 
+#[cfg(windows)]
+fn clipboard_holds_other() -> bool {
+    unsafe { windows::Win32::System::DataExchange::CountClipboardFormats() > 0 }
+}
+#[cfg(not(windows))]
+#[allow(dead_code)]
+fn clipboard_holds_other() -> bool { false }
+
 #[allow(dead_code)]
 impl Saved {
-    fn take(clipboard: &mut arboard::Clipboard) -> Self {
-        if let Ok(text) = clipboard.get_text() { return Self::Text(text); }
-        if let Ok(image) = clipboard.get_image() { return Self::Image(image.to_owned_img()); }
-        Self::Empty
+    /// None when the clipboard holds something that cannot be put back (files copied in Explorer, for example):
+    /// pasting through it would wipe that for good, so the caller refuses and keeps the text for Copy.
+    fn take(clipboard: &mut arboard::Clipboard) -> Option<Self> {
+        if let Ok(text) = clipboard.get_text() { return Some(Self::Text(text)); }
+        if let Ok(image) = clipboard.get_image() { return Some(Self::Image(image.to_owned_img())); }
+        if clipboard_holds_other() { return None; }
+        Some(Self::Empty)
     }
     /// Restores only while the clipboard still holds our text, so a later copy by the person wins.
     fn restore(self, clipboard: &mut arboard::Clipboard, ours: &str) {
@@ -149,7 +164,8 @@ mod imp {
         checked_focused_input(app, || Ok(()))
             .map_err(|reason| format!("Not pasted: {reason}"))?;
         let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
-        let previous = Saved::take(&mut clipboard);
+        let previous = Saved::take(&mut clipboard)
+            .ok_or("Not pasted: the clipboard holds something Mouthy can't put back, such as copied files.")?;
         clipboard.set_text(text.to_string()).map_err(|e| e.to_string())?;
         std::thread::sleep(Duration::from_millis(40));
         let sent = checked_focused_input(app, || {
@@ -308,7 +324,8 @@ mod imp {
     pub fn paste(text: &str, app: &FocusedApp) -> Result<(), String> {
         if !wayland() {
             let mut clipboard = arboard::Clipboard::new().map_err(|_| "The clipboard is not available.".to_string())?;
-            let previous = Saved::take(&mut clipboard);
+            let previous = Saved::take(&mut clipboard)
+                .ok_or("The clipboard holds something Mouthy can't put back, such as copied files.")?;
             clipboard.set_text(text.to_string()).map_err(|e| e.to_string())?;
             std::thread::sleep(Duration::from_millis(60));
             let sent = x11_chord(app.is_terminal());
@@ -429,6 +446,8 @@ mod tests {
         assert!(title_matches_site("Pull requests · GitHub — Mozilla Firefox", "github.com"));
         assert!(title_matches_site("Inbox - mail.google.com - Chrome", "mail.google.com"));
         assert!(!title_matches_site("Notes - Chrome", "github.com"));
+        assert!(!title_matches_site("New Tab — Mozilla Firefox", "x.com"));
+        assert!(!title_matches_site("Gmail - Chrome", "mail.google.com"));
     }
 
     #[test]

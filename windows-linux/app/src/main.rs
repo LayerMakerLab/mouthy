@@ -84,14 +84,13 @@ fn set_phase(app: &AppHandle, phase: Phase) {
     let _ = app.emit("phase", phase);
     // The island hangs from the top center of the main display and only exists while Mouthy works.
     if phase == Phase::Idle || !state(app).settings.lock().show_overlay {
-        // Let the check/attention mark and the slide back up finish, then destroy the web view.
-        if app.get_webview_window("overlay").is_some() {
-            let app = app.clone();
-            std::thread::spawn(move || {
-                std::thread::sleep(Duration::from_millis(2_300));
-                if *state(&app).phase.lock() == Phase::Idle { if let Some(o) = app.get_webview_window("overlay") { let _ = o.close(); } }
-            });
-        }
+        // Let the check/attention mark and the slide back up finish, then destroy the web view. Always scheduled: after
+        // a quick tap the show thread may still be building the window, which must not be left on screen.
+        let app = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(2_300));
+            if *state(&app).phase.lock() == Phase::Idle { if let Some(o) = app.get_webview_window("overlay") { let _ = o.close(); } }
+        });
     } else {
         let app = app.clone();
         std::thread::spawn(move || {
@@ -109,6 +108,8 @@ fn set_phase(app: &AppHandle, phase: Phase) {
                 let _ = overlay.show();
             }
         }
+        // The session may have ended while the window was being built: never leave it behind.
+        if *state(&app).phase.lock() == Phase::Idle { let _ = overlay.close(); }
         });
     }
 }
@@ -292,13 +293,21 @@ fn split(app: &AppHandle) {
     let session = st.session.lock().clone();
     let engine = session.mode.as_ref().and_then(|m| m.engine).unwrap_or(settings.core.engine);
     let result = (|| -> Result<String, String> {
-        let raw = recognize(app, &samples, engine, &settings)?;
+        // Linux binds Enter to this split for the whole session: when there is nothing to send, Enter goes on to the app.
+        let raw = match recognize(app, &samples, engine, &settings) {
+            Ok(raw) => raw,
+            Err(e) => { if cfg!(target_os = "linux") { pass_and_rearm(app, generation); } return Err(e); }
+        };
         let mut text = mouthy_core::process(&raw, &settings.core.replacements, settings.core.punctuation_commands);
         if settings.core.remove_fillers { text = mouthy_core::remove_fillers(&text); }
         if session.mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); }
-        if !text.chars().any(|c| c.is_alphanumeric()) { return Ok("Listening…".into()); }
-        // Escape during recognition cancels the session; nothing may be pasted or sent after that.
-        let current = || st.generation.load(Ordering::SeqCst) == generation && *st.phase.lock() == Phase::Listening;
+        if !text.chars().any(|c| c.is_alphanumeric()) {
+            if cfg!(target_os = "linux") { pass_and_rearm(app, generation); }
+            return Ok("Listening…".into());
+        }
+        // Escape during recognition cancels the session; nothing may be pasted or sent after that. A stop that gave up
+        // waiting for this split does not: its audio is already taken, so dropping it here would lose those words.
+        let current = || st.generation.load(Ordering::SeqCst) == generation;
         if !current() { return Ok("Cancelled. Nothing was inserted.".into()); }
         let mut target = platform::focused().unwrap_or_default();
         if target.is_self() && !session.app.is_self() { platform::focus(&session.app); target = session.app.clone(); }
@@ -338,7 +347,7 @@ fn stop(app: &AppHandle) {
     // The moment the person asked to stop: audio recorded after it is key clicks or music resuming.
     let cut_at = Instant::now();
     enter_key::stop();
-    // Let an Enter split finish first so pieces arrive in order.
+    // Let an Enter split finish first so pieces arrive in order (the finish below waits for a slower one).
     for _ in 0..150 { if !st.splitting.load(Ordering::SeqCst) { break; } std::thread::sleep(Duration::from_millis(20)); }
     let Some(recording) = st.recording.lock().take() else { return };
     let _ = app.global_shortcut().unregister(escape());
@@ -352,6 +361,8 @@ fn stop(app: &AppHandle) {
     let generation = st.generation.load(Ordering::SeqCst);
     let app = app.clone();
     std::thread::spawn(move || {
+        // A split still recognizing pastes its words first; the final text never pastes alongside it.
+        for _ in 0..3_000 { if !state(&app).splitting.load(Ordering::SeqCst) { break; } std::thread::sleep(Duration::from_millis(20)); }
         let result = finish(&app, samples, generation);
         if state(&app).generation.load(Ordering::SeqCst) != generation { return; }
         if let Err(error) = result { set_status(&app, error); }
@@ -533,9 +544,15 @@ fn paste_last(app: &AppHandle) {
 fn ask(app: &AppHandle, questions: Vec<String>) -> String {
     let st = state(app);
     if !st.settings.lock().agent_voice { return "Spoken answers for agents are turned off in Mouthy settings.".into(); }
-    if *st.phase.lock() != Phase::Idle || st.agent.lock().is_some() { return "Mouthy is busy with another dictation. Ask again in a moment.".into(); }
+    let busy = || "Mouthy is busy with another dictation. Ask again in a moment.".to_string();
+    if *st.phase.lock() != Phase::Idle { return busy(); }
     let (tx, rx) = mpsc::channel();
-    *st.agent.lock() = Some(tx);
+    // Check and claim the slot under one lock: two agents asking at once must not swap answers.
+    {
+        let mut slot = st.agent.lock();
+        if slot.is_some() { return busy(); }
+        *slot = Some(tx);
+    }
     beep(true);
     set_status(app, format!("Agent question: {} — speak, then press your shortcut to send.", questions.join(" ")));
     start(app, None, true);
@@ -641,11 +658,12 @@ fn snapshot(app: AppHandle) -> Snapshot {
 #[tauri::command]
 fn save_settings(app: AppHandle, settings: AppSettings) -> Vec<String> {
     let st = state(&app);
-    let login_changed = st.settings.lock().launch_at_login != settings.launch_at_login;
+    let before = st.settings.lock().clone();
+    let login_changed = before.launch_at_login != settings.launch_at_login;
     *st.settings.lock() = settings.clone();
     let _ = store::save("settings.json", &settings);
     if login_changed { set_launch_at_login(settings.launch_at_login); }
-    sync_settings(&app);
+    sync_settings(&app, &store::Removed::between(&before, &settings));
     if let (Some(tray), Ok(menu)) = (app.tray_by_id("mouthy"), tray_menu(&app)) { let _ = tray.set_menu(Some(menu)); }
     register_shortcuts(&app)
 }
@@ -749,10 +767,10 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 }
 
 /// Merges the sync folder's file into settings and writes the union back.
-fn sync_settings(app: &AppHandle) {
+fn sync_settings(app: &AppHandle, removed: &store::Removed) {
     let st = state(app);
     let mut settings = st.settings.lock().clone();
-    match store::sync(&mut settings) {
+    match store::sync_with(&mut settings, removed) {
         Ok(true) => { let _ = store::save("settings.json", &settings); *st.settings.lock() = settings; let _ = app.emit("history", ()); }
         Ok(false) => {}
         Err(e) => set_status(app, format!("Sync skipped: {e}")),
@@ -794,6 +812,17 @@ fn pass_return(app: &AppHandle) {
     let target = platform::focused().unwrap_or_default();
     enter_key::stop();
     if let Err(reason) = platform::press_return(&target) { set_status(app, format!("Return was not sent: {reason}")); }
+}
+
+/// Passes Enter to the app and binds it again while the same session still listens.
+fn pass_and_rearm(app: &AppHandle, generation: u64) {
+    pass_return(app);
+    let st = state(app);
+    let phase = st.phase.lock();
+    if *phase == Phase::Listening && st.generation.load(Ordering::SeqCst) == generation {
+        let enter_app = app.clone();
+        enter_key::start(move || { let a = enter_app.clone(); std::thread::spawn(move || split(&a)); });
+    }
 }
 
 fn handle_args(app: &AppHandle, args: &[String]) {
@@ -934,7 +963,7 @@ fn main() {
             }
             // Sync now and every ten minutes (a small file in a folder the machines share).
             let sync_app = handle.clone();
-            std::thread::spawn(move || loop { sync_settings(&sync_app); std::thread::sleep(Duration::from_secs(600)); });
+            std::thread::spawn(move || loop { sync_settings(&sync_app, &store::Removed::default()); std::thread::sleep(Duration::from_secs(600)); });
             let agent_app = handle.clone();
             let enabled_app = handle.clone();
             if let Err(problem) = agent::serve(move |questions| ask(&agent_app, questions), move || state(&enabled_app).settings.lock().agent_voice) {

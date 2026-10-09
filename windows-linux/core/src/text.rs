@@ -60,7 +60,8 @@ pub fn lowercase_first_word(text: &str) -> String {
     }
     let word: String = text[index..].chars().take_while(|c| c.is_alphabetic() || *c == '\'' || *c == '’').collect();
     let rest_lower = word.chars().skip(1).all(|c| c.is_lowercase() || c == '\'' || c == '’');
-    if word.chars().count() <= 1 || !rest_lower || word.starts_with("I'") || word.starts_with("I’") || PROPER_WORDS.contains(&word.as_str()) {
+    let article = word == "A" && text[index..].chars().nth(1).is_some_and(char::is_whitespace);
+    if (word.chars().count() <= 1 && !article) || !rest_lower || word.starts_with("I'") || word.starts_with("I’") || PROPER_WORDS.contains(&word.as_str()) {
         return text.to_string();
     }
     let mut out = String::with_capacity(text.len());
@@ -117,6 +118,12 @@ fn backtrack_pattern() -> &'static Regex {
     P.get_or_init(|| Regex::new(r"(?i)(?:scratch that|delete that|strike that)").unwrap())
 }
 
+/// Spoken sentence ends, still words here: spoken punctuation is applied after backtracking.
+fn spoken_end_pattern() -> &'static Regex {
+    static P: OnceLock<Regex> = OnceLock::new();
+    P.get_or_init(|| Regex::new(r"(?i)(?:period|full stop|question mark|exclamation point|exclamation mark|new line|new paragraph)").unwrap())
+}
+
 /// "scratch that / delete that / strike that" removes the sentence spoken before it.
 pub fn backtrack(text: &str) -> String {
     let mut out = text.to_string();
@@ -139,11 +146,25 @@ pub fn backtrack(text: &str) -> String {
             .rev()
             .find(|(_, c)| SENTENCE_ENDS.contains(c) || *c == '\n')
             .map_or(0, |(i, c)| i + c.len_utf8());
+        // "Buy milk period buy eggs scratch that": a spoken sentence end is a boundary too, unless it closes the
+        // very sentence being scratched.
+        let spoken = word_matches(trimmed, spoken_end_pattern()).into_iter()
+            // "The grace period ends": spoken punctuation keeps "period" a word after these, so it is no boundary.
+            .filter(|&(s, _)| {
+                if trimmed[s..].to_lowercase().starts_with("new ") { return true; }
+                let previous = trimmed[..s].split(|c: char| !c.is_alphabetic()).filter(|w| !w.is_empty()).next_back().unwrap_or("").to_lowercase();
+                !ORDINARY_PREDECESSORS.contains(&previous.as_str())
+            })
+            .map(|(_, e)| match trimmed[e..].chars().next() { Some(c) if ".,!?".contains(c) => e + c.len_utf8(), _ => e })
+            .filter(|&e| e < trimmed.len())
+            .last();
+        let spoken_boundary = spoken.is_some_and(|e| e > cut);
+        let cut = if spoken_boundary { spoken.unwrap() } else { cut };
         let kept = out[..cut].to_string();
         let mut tail = out[end..].trim_start_matches(' ').to_string();
         // What follows now opens the sentence the command removed.
         let kept_visible = kept.trim_end_matches([' ', '\t']).chars().next_back();
-        if kept_visible.is_none_or(|c| c == '\n' || SENTENCE_ENDS.contains(&c)) {
+        if spoken_boundary || kept_visible.is_none_or(|c| c == '\n' || SENTENCE_ENDS.contains(&c)) {
             tail = capitalize_first_word(&tail);
         }
         let joiner = if kept.is_empty() || kept.ends_with(char::is_whitespace) || tail.is_empty() { "" } else { " " };

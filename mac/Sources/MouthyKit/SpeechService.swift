@@ -263,7 +263,9 @@ final class SpeechService {
     func split() async throws -> String {
         if provider != .apple {
             await stopLiveTicker()
-            defer { startLiveTicker(token: sessionID) }
+            // Only this session's ticker restarts; a split that outlives its session must not start one for the next.
+            let token = sessionID
+            defer { if sessionID == token { startLiveTicker(token: token) } }
             let samples = parakeet.takeSamples()
             // The preview showed the audio just taken; clear it so finishing never mistakes sent words for unsent ones.
             onPreview?("")

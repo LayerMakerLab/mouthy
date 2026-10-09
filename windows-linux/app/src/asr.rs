@@ -181,7 +181,13 @@ pub fn transcribe(loaded: &mut Loaded, samples: &[f32]) -> String {
     match &mut loaded.recognizer {
         Recognizer::Parakeet(r) => r.transcribe(16_000, samples).trim().to_string(),
         // Only Whisper emits non-speech annotations.
-        Recognizer::Whisper(r) => clean(&r.transcribe(16_000, samples).text),
+        // Whisper hears at most 30 s at a time and drops the rest: longer audio goes in 25 s pieces cut at quiet points.
+        Recognizer::Whisper(r) => crate::meetings::chunks(samples, 16_000 * 25)
+            .into_iter()
+            .map(|(a, b)| clean(&r.transcribe(16_000, &samples[a..b]).text))
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join(" "),
     }
 }
 

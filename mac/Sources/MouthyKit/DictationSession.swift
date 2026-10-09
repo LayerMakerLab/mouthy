@@ -45,6 +45,7 @@ public enum DictationError: Error, Sendable, Equatable {
 
     private let speech = SpeechService()
     private var limit: Task<Void, Never>?
+    private var teardown: Task<Void, Never>?
     private var pendingStop: Task<String?, Never>?
 
     public init(configuration: DictationConfiguration = DictationConfiguration()) {
@@ -60,6 +61,12 @@ public enum DictationError: Error, Sendable, Equatable {
     public func start() async throws {
         guard !isRunning else { return }
         partialText = ""; phase = .preparing
+        // A cancel or failure just before still tears the last session down; starting under it would lose this one.
+        while let pending = teardown {
+            await pending.value
+            if teardown == pending { teardown = nil }
+        }
+        guard phase == .preparing else { return }
         guard await MicrophonePermission.request() else { return fail(.microphoneDenied) }
         ParakeetRecognizer.modelDirectory = configuration.modelDirectory
         guard SpeechModels.isInstalled(configuration.engine, modelDirectory: configuration.modelDirectory) else { return fail(.modelNotInstalled) }
@@ -88,11 +95,14 @@ public enum DictationError: Error, Sendable, Equatable {
         let task = Task<String?, Never> { [self] in
             do {
                 let raw = try await speech.finish(cutAt: cut)
+                // Cancelled while transcribing: the host asked for nothing.
+                guard phase == .transcribing else { return nil }
                 let text = Self.shape(raw, with: configuration)
                 phase = text.isEmpty ? .idle : .finished(text)
                 return text.isEmpty ? nil : text
             } catch {
-                fail(.engine(error.localizedDescription)); return nil
+                if phase == .transcribing { fail(.engine(error.localizedDescription)) }
+                return nil
             }
         }
         pendingStop = task
@@ -104,7 +114,7 @@ public enum DictationError: Error, Sendable, Equatable {
         limit?.cancel(); limit = nil
         guard isRunning else { return }
         phase = .idle; level = 0; partialText = ""
-        Task { await speech.cancel() }
+        teardown = Task { await speech.cancel() }
     }
 
     /// The same cleanup Mouthy applies before delivery: backtrack, replacements, spoken punctuation,
@@ -118,7 +128,7 @@ public enum DictationError: Error, Sendable, Equatable {
     private func fail(_ error: DictationError) {
         limit?.cancel(); limit = nil
         level = 0; phase = .failed(error)
-        Task { await speech.cancel() }
+        teardown = Task { await speech.cancel() }
     }
 }
 

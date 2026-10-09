@@ -29,10 +29,14 @@ const SYMBOLS: &[(&str, &str, Fit)] = &[
 fn tokenize(text: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current = String::new();
-    for c in text.chars() {
-        if c.is_whitespace() {
+    let chars: Vec<char> = text.chars().collect();
+    for (index, &c) in chars.iter().enumerate() {
+        if c == '\n' || c == '\r' {
             if !current.is_empty() { tokens.push(std::mem::take(&mut current)); }
-        } else if ",.;:!?".contains(c) {
+            if c == '\n' { tokens.push("\n".to_string()); }
+        } else if c.is_whitespace() {
+            if !current.is_empty() { tokens.push(std::mem::take(&mut current)); }
+        } else if ",.;:!?".contains(c) && chars.get(index + 1).map_or(true, |next| next.is_whitespace()) {
             if !current.is_empty() { tokens.push(std::mem::take(&mut current)); }
             tokens.push(c.to_string());
         } else {
@@ -124,6 +128,7 @@ fn join_symbols(tokens: &[String]) -> String {
             continue;
         }
         let token = &tokens[i];
+        if token == "\n" { trim(&mut out); out.push('\n'); glue_next = true; i += 1; continue; }
         if token.len() == 1 && ",.;:!?".contains(token.as_str()) { out.push_str(token); glue_next = false; i += 1; continue; }
         if !out.is_empty() && !out.ends_with(' ') && !glue_next { out.push(' '); }
         out.push_str(token); glue_next = false; i += 1;

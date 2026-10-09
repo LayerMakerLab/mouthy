@@ -85,7 +85,7 @@ private func makeModel() -> AppModel {
 /// Three screens to the first dictation: hello with the microphone, Accessibility, then Try it, which finishes.
 @Test func onboardingReachesTheFirstDictationInThreeScreens() {
     #expect(OnboardingStep.allCases.map(\.title) == ["Hello. I'm Mouthy.", "Let me type for you", "Say something"])
-    #expect(OnboardingStep.allCases.map(\.pose) == [.wave, .type, .listen])
+    #expect(OnboardingStep.allCases.map(\.pose) == [.cheer, .type, .listen])
     #expect(OnboardingStep.hello.previous == nil && OnboardingStep.tryIt.next == nil)
     #expect(OnboardingStep.hello.next == .accessibility && OnboardingStep.accessibility.next == .tryIt)
 }

@@ -126,14 +126,42 @@ private let renderGate = ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"
     return (hub, MorphingNotch(hub: hub, geometry: geometry, panel: NotchGeometry.openSize), geometry)
 }
 
-/// The strips over other displays are hover targets only: they draw nothing, so the hub's shape is the one
-/// surface on every display and the pill can never sit under (or beside) the band.
+/// Hover targets are no windows at all: nothing of Mouthy sits under the pointer at the notch or a display's top
+/// edge while the hub is closed, so the pointer and clicks there behave as if Mouthy were not running. They fire
+/// enter and exit once per crossing.
 @MainActor @Test func notchFlowStripsDrawNothing() throws {
     let screen = try #require(NSScreen.screens.first)
-    let strip = NotchStrip(frame: NotchGeometry.strip(on: screen.frame), screen: screen)
+    let frame = NotchGeometry.strip(on: screen.frame)
+    let strip = NotchStrip(frame: frame, screen: screen)
     defer { strip.close() }
-    let content = try #require(strip.contentView)
-    #expect(content.subviews.isEmpty, "a strip hosts \(content.subviews.count) views")
+    #expect(!((strip as AnyObject) is NSWindow))
+    let before = NSApp?.windows.count ?? 0
+    strip.orderFrontRegardless()
+    #expect((NSApp?.windows.count ?? 0) == before, "a hover target must not open a window")
+    var entered = 0, exited = 0
+    strip.onEnter = { entered += 1 }; strip.onExit = { exited += 1 }
+    let inside = NSPoint(x: frame.midX, y: frame.midY), outside = NSPoint(x: frame.midX, y: frame.minY - 50)
+    strip.pointerMoved(to: outside); strip.pointerMoved(to: inside); strip.pointerMoved(to: inside)
+    strip.pointerMoved(to: outside); strip.pointerMoved(to: outside)
+    #expect(entered == 1 && exited == 1)
+
+    // A file dragged in opens the drop tab once per drag; a text drag or a drag from before the press does not.
+    var dropped = 0
+    strip.onDrag = { dropped += 1 }
+    let drag = NSPasteboard(name: NSPasteboard.Name("mouthy-test-drag-\(UUID().uuidString)"))
+    defer { drag.releaseGlobally() }
+    drag.clearContents(); drag.setString("text", forType: .string)
+    strip.pressed(at: outside, drag: drag)
+    drag.clearContents(); drag.setString("words", forType: .string)
+    strip.dragged(to: inside, drag: drag)
+    #expect(dropped == 0, "a text drag must not open the drop tab")
+    strip.pressed(at: outside, drag: drag)
+    strip.dragged(to: inside, drag: drag)
+    #expect(dropped == 0, "nothing new was dragged since the press")
+    drag.clearContents(); drag.writeObjects([URL(fileURLWithPath: NSTemporaryDirectory()) as NSURL])
+    strip.dragged(to: outside, drag: drag)
+    strip.dragged(to: inside, drag: drag); strip.dragged(to: inside, drag: drag)
+    #expect(dropped == 1)
 }
 
 /// On a display without a notch the music pill is the hub's own shape at rest: dictation, its result and the way
@@ -228,6 +256,16 @@ private let renderGate = ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"
 @MainActor @Test func notchFlowDictationArrivesAtOnceOnAnotherDisplay() {
     #expect(NotchHub.arrivesAtOnce(dictating: true))
     #expect(!NotchHub.arrivesAtOnce(dictating: false))
+}
+
+/// While the frontmost app's menus reach the notch, macOS stops a real pointer at the notch's lower edge; the hover
+/// target reaches below it so that pointer opens the hub.
+@MainActor @Test func notchFlowHoverReachesBelowTheNotchEdge() {
+    // macOS stops a real pointer at the notch's lower edge; the hover target reaches below it so that pointer opens it.
+    let notch = NSRect(x: 659, y: 950, width: 193, height: 32)
+    let hover = NotchHub.homeHover(notch)
+    #expect(hover.maxY == notch.maxY && hover.minY < notch.minY - 1 && hover.width == notch.width)
+    #expect(NSMouseInRect(NSPoint(x: notch.midX, y: notch.minY - 1), hover, false))
 }
 
 /// Playing music keeps the band over a running timer (a missing cover is what read as broken); a meeting outranks

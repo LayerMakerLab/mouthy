@@ -83,6 +83,18 @@
       "before": "Done.",
       "after": "",
       "expected": " $15 is fine."
+    },
+    {
+      "text": "A dog.",
+      "before": "I saw",
+      "after": " ran.",
+      "expected": " a dog"
+    },
+    {
+      "text": "A4 paper.",
+      "before": "Print on",
+      "after": " today.",
+      "expected": " A4 paper"
     }
   ],
   "backtrack": [
@@ -109,6 +121,22 @@
     {
       "text": "One. Two scratch that three.",
       "expected": "One. Three."
+    },
+    {
+      "text": "Buy milk period buy eggs scratch that",
+      "expected": "Buy milk period"
+    },
+    {
+      "text": "Buy milk period buy eggs period scratch that",
+      "expected": "Buy milk period"
+    },
+    {
+      "text": "First line new line second thing scratch that third thing",
+      "expected": "First line new line Third thing"
+    },
+    {
+      "text": "The grace period ends Friday scratch that",
+      "expected": ""
     }
   ],
   "spokenPunctuation": [
@@ -239,6 +267,18 @@
       "replacements": [],
       "punctuation": true,
       "expected": "So maybe Nvidia parakeet or something like that that like sleeps when it's silent, but it. when it, it's, when it, it, you"
+    },
+    {
+      "text": "Buy milk period buy eggs scratch that",
+      "replacements": [],
+      "punctuation": true,
+      "expected": "Buy milk."
+    },
+    {
+      "text": "The grace period ends Friday scratch that",
+      "replacements": [],
+      "punctuation": true,
+      "expected": ""
     }
   ],
   "trigger": [
@@ -344,6 +384,14 @@
     {
       "text": "Plain sentence, nothing special.",
       "expected": "Plain sentence, nothing special."
+    },
+    {
+      "text": "first line\nsecond line",
+      "expected": "first line\nsecond line"
+    },
+    {
+      "text": "open index.html in version 3.5.",
+      "expected": "open index.html in version 3.5."
     }
   ]
 }

@@ -559,7 +559,10 @@ final class AppModel: ObservableObject {
     /// even with no live text yet (Parakeet and Whisper preview late); a split with no words presses Return
     /// itself, so Enter still reaches the app exactly once. Returns false (Enter passes through) otherwise.
     func sendAndContinue() -> Bool {
-        splitNow(endWithReturn: true)
+        // A Return while the last send is still being recognized or pasted is swallowed: passed through, it would
+        // submit the field before those words arrive.
+        if phase == .listening, splitting { return true }
+        return splitNow(endWithReturn: true)
     }
 
     /// Takes the speech since the last split without stopping the session and sends it.
@@ -997,12 +1000,13 @@ final class AppModel: ObservableObject {
         finishAgent("(Mouthy could not record an answer: \(message))")
         isFailing = true
         if output.isEmpty && !liveText.isEmpty { output = liveText }
-        let failedOperation = operation
+        let failedOperation = operation, failedSplit = splitTask
         generation = UUID(); let failure = generation
         operation?.cancel(); splitTask?.cancel(); watchdog?.cancel(); timer?.invalidate(); timer = nil
         phase = .finishing; status = message
         Task {
-            await failedOperation?.value; await speech.cancel()
+            // Like cancel: a split still decoding holds the recognizer until it ends.
+            await failedOperation?.value; await failedSplit?.value; await speech.cancel()
             // A cancel or new run that started meanwhile owns the phase now.
             guard generation == failure else { return }
             phase = .failed; overlay?.hide(); level = 0

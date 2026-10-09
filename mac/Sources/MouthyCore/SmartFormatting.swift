@@ -50,8 +50,10 @@ public enum SmartInsertion {
     static func lowercasingFirstWord(_ text: String) -> String {
         guard let index = text.firstIndex(where: { !$0.isWhitespace }), text[index].isUppercase else { return text }
         let word = text[index...].prefix { $0.isLetter || $0 == "'" || $0 == "’" }
-        // Keep "I", acronyms, mixed case (iPhone, McDonald) and recognized names.
-        guard word.count > 1, word.dropFirst().allSatisfy({ $0.isLowercase || $0 == "'" || $0 == "’" }),
+        // Keep "I", acronyms, mixed case (iPhone, McDonald) and recognized names; the article "A" (a word on its own,
+        // not A4 or A/B) is lowercased.
+        let article = word == "A" && text[index...].dropFirst().first?.isWhitespace == true
+        guard word.count > 1 || article, word.dropFirst().allSatisfy({ $0.isLowercase || $0 == "'" || $0 == "’" }),
               !word.hasPrefix("I'"), !word.hasPrefix("I’"), !isName(String(word), in: text) else { return text }
         return text.replacingCharacters(in: index...index, with: text[index].lowercased())
     }
@@ -95,6 +97,9 @@ public enum Fillers {
 public enum Backtrack {
     static let pattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])(?:scratch that|delete that|strike that)(?![\\p{L}\\p{N}_])[.,!?]?", options: [.caseInsensitive])
 
+    /// Spoken sentence ends, still words here: spoken punctuation is applied after backtracking.
+    static let spokenEnd = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])(?:period|full stop|question mark|exclamation point|exclamation mark|new line|new paragraph)(?![\\p{L}\\p{N}_])[.,!?]?", options: [.caseInsensitive])
+
     /// Each command removes the sentence (or clause after the last sentence end) spoken before it.
     public static func apply(_ text: String) -> String {
         var output = text
@@ -106,11 +111,27 @@ public enum Backtrack {
             if let boundary = trimmedHead.dropFirst().firstIndex(where: { SmartInsertion.sentenceEnds.contains($0) || $0 == "\n" }) {
                 cut = boundary.base
             }
+            // "Buy milk period buy eggs scratch that": a spoken sentence end is a boundary too, unless it closes the
+            // very sentence being scratched.
+            var spokenBoundary = false
+            let spokenHead = String(trimmedHead.reversed())
+            let ends = spokenEnd.matches(in: spokenHead, range: NSRange(spokenHead.startIndex..., in: spokenHead))
+                .filter { match in
+                    guard match.range.upperBound < (spokenHead as NSString).length, let range = Range(match.range, in: spokenHead) else { return false }
+                    // "The grace period ends": spoken punctuation keeps "period" a word after these, so it is no boundary.
+                    if spokenHead[range].lowercased().hasPrefix("new ") { return true }
+                    let previous = spokenHead[..<range.lowerBound].split(whereSeparator: { !$0.isLetter }).last.map { $0.lowercased() } ?? ""
+                    return !SpokenPunctuation.ordinaryPredecessors.contains(previous)
+                }
+            if let last = ends.last, let range = Range(last.range, in: spokenHead) {
+                let spokenCut = output.index(head.startIndex, offsetBy: spokenHead.distance(from: spokenHead.startIndex, to: range.upperBound))
+                if spokenCut > cut { cut = spokenCut; spokenBoundary = true }
+            }
             var tail = String(output[range.upperBound...].drop { $0 == " " })
             let kept = String(output[..<cut])
             // What follows now opens the sentence the command removed.
             let keptVisible = kept.last { $0 != " " && $0 != "\t" }
-            if keptVisible == nil || keptVisible == "\n" || SmartInsertion.sentenceEnds.contains(keptVisible!) {
+            if spokenBoundary || keptVisible == nil || keptVisible == "\n" || SmartInsertion.sentenceEnds.contains(keptVisible!) {
                 tail = SmartInsertion.capitalizingFirstWord(tail)
             }
             output = kept + (kept.isEmpty || kept.last!.isWhitespace || tail.isEmpty ? "" : " ") + tail

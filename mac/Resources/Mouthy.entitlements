@@ -8,5 +8,8 @@
     <!-- The notch asks Spotify and Music what is playing at launch (they only broadcast changes). -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>
+    <!-- The notch's Calendar tab reads events and reminders through EventKit, which the hardened runtime blocks without this. -->
+    <key>com.apple.security.personal-information.calendars</key>
+    <true/>
 </dict>
 </plist>

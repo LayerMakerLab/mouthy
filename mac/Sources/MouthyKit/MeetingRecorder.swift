@@ -153,8 +153,10 @@ final class MeetingAudioSink: NSObject, SCStreamOutput, SCStreamDelegate, @unche
                 try stream.addStreamOutput(sink, type: .microphone, sampleHandlerQueue: queue)
                 self.stream = stream
                 try await stream.startCapture()
+                // Stopped while starting: stop() found a stream that had not started yet, so this one must stop itself
+                // or the microphone stays on.
+                guard generation == token else { try? await stream.stopCapture(); return }
                 try Task.checkCancellation()
-                guard generation == token else { return }
                 working = false; recording = true; message = "Recording microphone + system audio to \(destination.lastPathComponent)."
                 onState?(true, false, message)
                 limit = Task { [weak self] in

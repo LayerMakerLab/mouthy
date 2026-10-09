@@ -235,13 +235,16 @@ final class LiveTranscriber {
     static func newWords(after heardEnd: Int) -> Int { heardEnd - rate * 2 / 25 }
 
     /// Ends the current part (mid-dictation send) and starts over on fresh audio.
+    /// The positions reset even when recognizing fails: the taken audio is gone either way, and positions left
+    /// pointing into it would skip the words said after the split.
     func split(_ taken: [Float]) async throws -> String {
-        let result = try await finish(taken)
-        pauses = SpeechPauses(); parts = []; committed = 0; lastPartSpeechEnd = 0; ready = nil; previewedAt = 0; failed = false
-        judgedUntil = 0
-        speakerJob?.cancel(); speakerJob = nil; speakersFed = 0; speakersAt = 0
-        speakers = speakers.map { SpeakerTrack(print: $0.print) }
-        return result
+        defer {
+            pauses = SpeechPauses(); parts = []; committed = 0; lastPartSpeechEnd = 0; ready = nil; previewedAt = 0; failed = false
+            judgedUntil = 0
+            speakerJob?.cancel(); speakerJob = nil; speakersFed = 0; speakersAt = 0
+            speakers = speakers.map { SpeakerTrack(print: $0.print) }
+        }
+        return try await finish(taken)
     }
 
     /// Lets work in flight finish (the recognizer can't be interrupted mid-pass) and drops its results.

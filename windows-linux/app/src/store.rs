@@ -68,7 +68,27 @@ impl UsageStats {
 
 /// Merges "Mouthy Sync.json" in the sync folder with these settings (vocabulary and replacements; the
 /// Mac-only modes in the file are preserved) and writes the union back. Returns true if settings changed.
-pub fn sync(settings: &mut AppSettings) -> Result<bool, String> {
+/// Words and replacement phrases the person removed in the settings window since the last sync.
+#[derive(Default)]
+pub struct Removed { pub words: Vec<String>, pub phrases: Vec<String> }
+
+impl Removed {
+    /// What `before` had that `after` no longer has.
+    pub fn between(before: &AppSettings, after: &AppSettings) -> Self {
+        let words = |s: &AppSettings| s.core.vocabulary.split([',', '\n']).map(|w| w.trim().to_lowercase()).filter(|w| !w.is_empty()).collect::<Vec<_>>();
+        let (old, new) = (words(before), words(after));
+        let phrases = |s: &AppSettings| s.core.replacements.iter().map(|r| r.phrase.to_lowercase()).collect::<Vec<_>>();
+        let (old_phrases, new_phrases) = (phrases(before), phrases(after));
+        Self {
+            words: old.into_iter().filter(|w| !new.contains(w)).collect(),
+            phrases: old_phrases.into_iter().filter(|p| !new_phrases.contains(p)).collect(),
+        }
+    }
+}
+
+/// Merges the shared file into `settings` and writes the result back. Entries in `removed` are not merged back in,
+/// so a word or replacement removed here is removed from the file too; anything another machine added stays.
+pub fn sync_with(settings: &mut AppSettings, removed: &Removed) -> Result<bool, String> {
     if settings.sync_folder.trim().is_empty() { return Ok(false); }
     let file = PathBuf::from(&settings.sync_folder).join("Mouthy Sync.json");
     let mut doc: serde_json::Value = match std::fs::read(&file) {
@@ -77,10 +97,10 @@ pub fn sync(settings: &mut AppSettings) -> Result<bool, String> {
     };
     let mut words: Vec<String> = settings.core.vocabulary.split([',', '\n']).map(|w| w.trim().to_string()).filter(|w| !w.is_empty()).collect();
     let before = (words.clone(), settings.core.replacements.clone());
-    for word in doc["vocabulary"].as_array().cloned().unwrap_or_default().iter().filter_map(|w| w.as_str()) {
+    for word in doc["vocabulary"].as_array().cloned().unwrap_or_default().iter().filter_map(|w| w.as_str()).filter(|w| !removed.words.contains(&w.to_lowercase())) {
         if !words.iter().any(|w| w.eq_ignore_ascii_case(word)) { words.push(word.to_string()); }
     }
-    for rule in doc["replacements"].as_array().cloned().unwrap_or_default() {
+    for rule in doc["replacements"].as_array().cloned().unwrap_or_default().into_iter().filter(|r| !r["phrase"].as_str().is_some_and(|p| removed.phrases.contains(&p.to_lowercase()))) {
         let (Some(phrase), Some(replacement)) = (rule["phrase"].as_str(), rule["replacement"].as_str()) else { continue };
         if !settings.core.replacements.iter().any(|r| r.phrase.eq_ignore_ascii_case(phrase)) {
             settings.core.replacements.push(mouthy_core::Replacement { phrase: phrase.into(), replacement: replacement.into() });
@@ -170,16 +190,38 @@ mod tests {
         std::fs::write(folder.join("Mouthy Sync.json"), r#"{"version":1,"vocabulary":["Zephyr"],"replacements":[{"id":"A1B2C3D4-0000-0000-0000-000000000000","phrase":"sig","replacement":"Thank you"}],"macModes":[{"name":"Code"}]}"#).unwrap();
         let mut settings = AppSettings { sync_folder: folder.to_string_lossy().into(), ..Default::default() };
         settings.core.vocabulary = "Nimbus".into();
-        assert!(sync(&mut settings).unwrap());
+        assert!(sync_with(&mut settings, &Removed::default()).unwrap());
         assert_eq!(settings.core.vocabulary, "Nimbus\nZephyr");
         assert_eq!(settings.core.replacements[0].phrase, "sig");
         let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(folder.join("Mouthy Sync.json")).unwrap()).unwrap();
         assert_eq!(doc["macModes"][0]["name"], "Code");
         assert_eq!(doc["replacements"][0]["id"], "A1B2C3D4-0000-0000-0000-000000000000");
-        assert!(!sync(&mut settings).unwrap());
+        assert!(!sync_with(&mut settings, &Removed::default()).unwrap());
         std::fs::write(folder.join("Mouthy Sync.json"), "not json").unwrap();
-        assert!(sync(&mut settings).is_err());
+        assert!(sync_with(&mut settings, &Removed::default()).is_err());
         assert_eq!(std::fs::read_to_string(folder.join("Mouthy Sync.json")).unwrap(), "not json");
+        let _ = std::fs::remove_dir_all(folder);
+    }
+    #[test]
+    fn a_settings_save_removes_what_the_person_removed_and_keeps_other_machines_additions() {
+        let folder = std::env::temp_dir().join(format!("mouthy-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&folder).unwrap();
+        // Orion and "brb" came from another machine since this one last synced.
+        std::fs::write(folder.join("Mouthy Sync.json"), r#"{"version":1,"vocabulary":["Nimbus","Zephyr","Orion"],"replacements":[{"id":"A1","phrase":"sig","replacement":"Thank you"},{"id":"B2","phrase":"brb","replacement":"be right back"}],"macModes":[{"name":"Code"}]}"#).unwrap();
+        let mut before = AppSettings { sync_folder: folder.to_string_lossy().into(), ..Default::default() };
+        before.core.vocabulary = "Nimbus\nZephyr".into();
+        before.core.replacements = vec![mouthy_core::Replacement { phrase: "sig".into(), replacement: "Thank you".into() }];
+        let mut after = before.clone();
+        after.core.vocabulary = "Nimbus".into();
+        after.core.replacements.clear();
+        let removed = Removed::between(&before, &after);
+        sync_with(&mut after, &removed).unwrap();
+        assert_eq!(after.core.vocabulary, "Nimbus\nOrion");
+        assert_eq!(after.core.replacements.iter().map(|r| r.phrase.as_str()).collect::<Vec<_>>(), ["brb"]);
+        let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(folder.join("Mouthy Sync.json")).unwrap()).unwrap();
+        assert_eq!(doc["vocabulary"], serde_json::json!(["Nimbus", "Orion"]));
+        assert_eq!(doc["replacements"][0]["phrase"], "brb");
+        assert_eq!(doc["macModes"][0]["name"], "Code");
         let _ = std::fs::remove_dir_all(folder);
     }
     #[cfg(unix)]

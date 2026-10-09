@@ -153,7 +153,8 @@ import SwiftUI
 
     /// The global shortcut: opens the hub with keyboard focus, or closes it.
     public func toggleFromKeyboard() {
-        guard panel != nil, dictation == nil else { return }
+        // Hidden for a full-screen app it does not open, so nothing may be left marked as opened from the keyboard.
+        guard panel != nil, dictation == nil, !hiddenForFullScreen else { return }
         if isOpen { setOpen(false); return }
         hoverScreen = NotchGeometry.pointerScreen()
         keyboardOpen = true
@@ -436,7 +437,8 @@ import SwiftUI
 
     func setOpen(_ open: Bool) {
         // While dictating the band is the surface, unless a tab shows the dictation (then it opens on that tab).
-        guard open != isOpen, panel != nil, !(open && dictation != nil && !opensDuringDictation) else { return }
+        // Hidden for a full-screen app, it never opens unseen (and would still take the mouse when that app leaves).
+        guard open != isOpen, panel != nil, !(open && (hiddenForFullScreen || (dictation != nil && !opensDuringDictation))) else { return }
         if open {
             if dictation != nil, let id = dictationTabID { selectedID = id }
             hopTask?.cancel(); hopTask = nil; hopping = false
@@ -541,7 +543,7 @@ import SwiftUI
         homeTracker?.orderOut(nil); homeTracker = nil
         let home = NotchGeometry.notchedScreen()
         if let home {
-            let tracker = NotchStrip(frame: NotchGeometry.on(home).closed, screen: home)
+            let tracker = NotchStrip(frame: Self.homeHover(NotchGeometry.on(home).closed), screen: home)
             tracker.onEnter = { [weak self] in self?.hoverScreen = home; self?.hover(true) }
             tracker.onExit = { [weak self] in self?.hover(false) }
             tracker.onDrag = { [weak self] in
@@ -599,6 +601,14 @@ import SwiftUI
         return nil
     }
 
+    /// While the frontmost app's menus reach the notch (most apps; Finder is the exception), macOS stops a real pointer
+    /// at the notch's lower edge: it never gets inside. The hover target reaches a few points below that edge so the
+    /// pointer pushed up against the notch opens the hub. It is no window, so nothing under it is blocked.
+    static let homeHoverReach: CGFloat = 6
+    static func homeHover(_ frame: NSRect) -> NSRect {
+        NSRect(x: frame.minX, y: frame.minY - homeHoverReach, width: frame.width, height: frame.height + homeHoverReach)
+    }
+
     /// Hover targets follow the shape: over the notch, the pill or the band wherever the hub is drawn, otherwise
     /// the bare notch and an invisible strip at the top of each other display.
     private func refreshStrips() {
@@ -607,7 +617,7 @@ import SwiftUI
             let geometry = NotchGeometry.on(homeTracker.display)
             // The tracker covers the whole band whenever the band shows something (a compact tab, the dictation
             // level, a result, a peek), so hovering the ears expands it; the panel itself ignores the mouse while closed.
-            let frame = panelScreen == homeTracker.display ? trackerFrame(on: geometry) : geometry.closed
+            let frame = Self.homeHover(panelScreen == homeTracker.display ? trackerFrame(on: geometry) : geometry.closed)
             if homeTracker.frame != frame { homeTracker.setFrame(frame, display: false) }
         }
         for strip in strips {
@@ -745,54 +755,87 @@ final class NotchPanel: NSPanel {
 /// strip, or the pill's or band's frame while the hub draws there). Hovering it opens the hub on that display.
 /// Pointer and drags come from AppKit tracking, never polling. Sits just under the hub and draws nothing, so the
 /// hub's one shape is the only surface.
-final class NotchStrip: NSPanel {
+/// A hover target with no window. Any window over the notch, even an invisible one, changes what the pointer does
+/// there (it can stop the pointer at the notch and takes clicks meant for what is under it), so the closed hub
+/// leaves the notch bare and watches the pointer instead: enter and exit as it crosses `frame`, a click inside opens
+/// like a hover, and a file dragged inside opens the drop tab. Mouse moves only, never a timer: idle costs nothing.
+@MainActor final class NotchStrip {
     var onEnter: (() -> Void)?
     var onExit: (() -> Void)?
     var onDrag: (() -> Void)?
     let display: NSScreen
+    private(set) var frame: NSRect
+    private(set) var isVisible = false
+    private var inside = false
+    private var dragCount = NSPasteboard(name: .drag).changeCount
+    private var monitors: [Any] = []
 
     init(frame: NSRect, screen: NSScreen) {
+        self.frame = frame
         self.display = screen
-        super.init(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        isOpaque = false; backgroundColor = .clear; hasShadow = false
-        collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
-        level = NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 1)
-        hidesOnDeactivate = false
-        let view = StripView(frame: NSRect(origin: .zero, size: frame.size))
-        view.strip = self
-        view.autoresizingMask = [.width, .height]
-        contentView = view
-    }
-    override var canBecomeKey: Bool { false }
-    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
-    override func setFrame(_ frameRect: NSRect, display flag: Bool) {
-        super.setFrame(frameRect, display: flag)
-        contentView?.frame = NSRect(origin: .zero, size: frameRect.size)
     }
 
-    final class StripView: NSView {
-        weak var strip: NotchStrip?
-        override init(frame: NSRect) {
-            super.init(frame: frame)
-            registerForDraggedTypes([.fileURL])
+    func setFrame(_ frameRect: NSRect, display flag: Bool) {
+        frame = frameRect
+        if isVisible { pointerMoved(to: NSEvent.mouseLocation) }
+    }
+
+    func orderFrontRegardless() {
+        guard !isVisible else { return }
+        isVisible = true
+        let kinds: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDown, .leftMouseDragged]
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: kinds, handler: { [weak self] event in
+            let type = event.type
+            MainActor.assumeIsolated { self?.handle(type) }
+        }) { monitors.append(global) }
+        if let local = NSEvent.addLocalMonitorForEvents(matching: kinds, handler: { [weak self] event in
+            let type = event.type
+            MainActor.assumeIsolated { self?.handle(type) }
+            return event
+        }) { monitors.append(local) }
+        inside = NSMouseInRect(NSEvent.mouseLocation, frame, false)
+    }
+
+    func orderOut(_ sender: Any?) {
+        guard isVisible else { return }
+        isVisible = false
+        monitors.forEach(NSEvent.removeMonitor); monitors = []
+        if inside { inside = false; onExit?() }
+    }
+
+    func close() { orderOut(nil) }
+
+    private func handle(_ type: NSEvent.EventType) {
+        let point = NSEvent.mouseLocation
+        switch type {
+        case .leftMouseDown: pressed(at: point, drag: NSPasteboard(name: .drag))
+        case .leftMouseDragged: dragged(to: point, drag: NSPasteboard(name: .drag))
+        default:
+            pointerMoved(to: point)
         }
-        required init?(coder: NSCoder) { nil }
-        override func updateTrackingAreas() {
-            trackingAreas.forEach(removeTrackingArea)
-            addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
-            super.updateTrackingAreas()
-        }
-        // Nearly invisible but not fully clear, so the window server delivers events to the bare strip.
-        override func draw(_ dirtyRect: NSRect) { NSColor.black.withAlphaComponent(0.003).setFill(); bounds.fill() }
-        override func mouseEntered(with event: NSEvent) { MainActor.assumeIsolated { strip?.onEnter?() } }
-        override func mouseExited(with event: NSEvent) { MainActor.assumeIsolated { strip?.onExit?() } }
-        override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
-            MainActor.assumeIsolated { strip?.onDrag?() }
-            return []
-        }
-        // Clicks fall through the hosting view to here; a click opens the hub like a hover would.
-        override func hitTest(_ point: NSPoint) -> NSView? { frame.contains(point) ? self : nil }
-        override func mouseDown(with event: NSEvent) { MainActor.assumeIsolated { strip?.onEnter?() } }
+    }
+
+    /// A press inside opens like a hover; it also marks where a drag that follows begins. Internal for tests.
+    func pressed(at point: NSPoint, drag: NSPasteboard) {
+        dragCount = drag.changeCount
+        if NSMouseInRect(point, frame, false) { inside = true; onEnter?() }
+    }
+
+    /// Only a file drag that started after the press opens the drop tab, once; dragging a window or selecting text up
+    /// here does nothing. Internal for tests.
+    func dragged(to point: NSPoint, drag: NSPasteboard) {
+        guard NSMouseInRect(point, frame, false), drag.changeCount != dragCount,
+              drag.types?.contains(.fileURL) == true else { return }
+        dragCount = drag.changeCount
+        onDrag?()
+    }
+
+    /// Fires enter or exit when the pointer crosses the frame. Internal for tests.
+    func pointerMoved(to point: NSPoint) {
+        let now = NSMouseInRect(point, frame, false)
+        guard now != inside else { return }
+        inside = now
+        if now { onEnter?() } else { onExit?() }
     }
 }
 

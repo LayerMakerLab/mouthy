@@ -254,14 +254,16 @@ actor ParakeetRecognizer {
 
 }
 
-/// Releases idle speech models when macOS reports memory pressure. Loaded models cost memory, not CPU.
+/// Releases idle speech models only when macOS is critically short of memory. A warning alone keeps them: macOS can
+/// sit at warning for hours while another app holds most of the memory, and releasing there made every dictation load
+/// the model first.
 enum ModelMemory {
     nonisolated(unsafe) private static var source: DispatchSourceMemoryPressure?
     private static let lock = NSLock()
     static func watch() {
         lock.withLock {
             guard source == nil else { return }
-            let created = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .global(qos: .utility))
+            let created = DispatchSource.makeMemoryPressureSource(eventMask: [.critical], queue: .global(qos: .utility))
             created.setEventHandler {
                 Task {
                     await ParakeetRecognizer.shared.releaseIfIdle()

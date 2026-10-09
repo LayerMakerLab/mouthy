@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2
+
+- The notch opens when you push the pointer up against it, and Mouthy no longer keeps invisible windows at the top of the screen.
+- Words said after a failed mid-dictation send are no longer lost.
+- Mouthy never pastes over a clipboard it can't put back, and waits for modifier keys to be released before pasting.
+- A quick second Return while a message is being sent no longer submits it early.
+- Stopping a meeting while it is still starting turns the microphone off.
+- Code dictation keeps line breaks and names like index.html; "scratch that" stops at a spoken "period" or "new line".
+- Windows and Linux: Whisper keeps dictations longer than 30 seconds, pasting no longer wipes copied files, Enter works on Linux when there is nothing to send, and removed vocabulary stays removed when syncing.
+
 ## 0.1.1
 
 - Setup opens whenever macOS hasn't been asked about the microphone yet, and lets you pick which microphone to use.
