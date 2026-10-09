@@ -10,18 +10,18 @@ import MouthyNotch
 /// while the model is loaded and the view is on screen: on disappear the entity is removed and the view torn
 /// down, so nothing renders while hidden. Without the model, or if it fails to load, the 2D pose stays.
 struct Giraffe3DView: View {
-    var fallbackPose: MascotPose = .wave
+    var fallbackPose: MascotPose = .cheer
     var size: CGFloat = 260
     /// The model to show. Nil uses the bundled giraffe; tests pass a missing or broken file to exercise the fallback.
     var modelURL: URL?
     private var usesBundledModel = true
 
-    init(fallbackPose: MascotPose = .wave, size: CGFloat = 260) {
+    init(fallbackPose: MascotPose = .cheer, size: CGFloat = 260) {
         self.fallbackPose = fallbackPose; self.size = size
     }
 
     /// Shows a specific model file (nil = none), for tests.
-    init(fallbackPose: MascotPose = .wave, size: CGFloat = 260, modelURL: URL?) {
+    init(fallbackPose: MascotPose = .cheer, size: CGFloat = 260, modelURL: URL?) {
         self.fallbackPose = fallbackPose; self.size = size; self.modelURL = modelURL; usesBundledModel = false
     }
 

@@ -213,7 +213,7 @@ struct CalendarView: View {
     @ObservedObject var model: CalendarTab
     var body: some View {
         if CalendarTab.asksTogether(calendar: model.calendarAccess, reminders: model.reminderAccess) {
-            NotchEmptyState(pose: .wave, title: "Your next few days",
+            NotchEmptyState(pose: .listen, title: "Your next few days",
                             message: "Calendar and Reminders stay on this Mac.",
                             actionTitle: "Allow Calendar & Reminders") { model.requestBoth() }
         } else {

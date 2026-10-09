@@ -18,7 +18,7 @@ struct AboutView: View {
                     Circle()
                         .fill(RadialGradient(colors: [MouthyTheme.glow.opacity(0.22), .clear], center: .center, startRadius: 0, endRadius: 150))
                         .frame(width: 300, height: 300)
-                    Giraffe3DView(fallbackPose: .wave, size: 210)
+                    Giraffe3DView(fallbackPose: .cheer, size: 210)
                 }
                 .frame(height: 220)
 

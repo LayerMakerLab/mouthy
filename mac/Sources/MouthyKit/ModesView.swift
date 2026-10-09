@@ -93,7 +93,7 @@ struct ModesView: View {
                 .padding(.horizontal, MouthyTheme.Layout.pageHorizontal)
                 .padding(.top, MouthyTheme.Layout.pageTop)
             VStack(spacing: 14) {
-                MascotView(pose: .wave, size: 140)
+                MascotView(pose: .cheer, size: 140)
                 Text("One mode so far: Settings")
                     .font(.system(size: 20, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.cream)
                 Text("A mode is a style, an engine and a result for one app, website, shortcut or trigger word.")

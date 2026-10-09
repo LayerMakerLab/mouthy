@@ -11,7 +11,7 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
 
     var pose: MascotPose {
         switch self {
-        case .hello: .wave
+        case .hello: .cheer
         case .accessibility: .type
         case .tryIt: .listen
         }
@@ -96,7 +96,7 @@ struct OnboardingView: View {
         if step == .tryIt {
             if model.phase == .preparing || model.phase == .listening { return .listen }
             if model.phase == .finishing || model.phase == .delivering { return .type }
-            return practice.isEmpty ? .wave : .cheer
+            return practice.isEmpty ? .listen : .cheer
         }
         return step.pose
     }
@@ -114,7 +114,7 @@ struct OnboardingView: View {
                 .offset(y: 118)
             Group {
                 if step == .hello {
-                    Giraffe3DView(fallbackPose: .wave, size: 250)
+                    Giraffe3DView(fallbackPose: .cheer, size: 250)
                         .transition(.opacity)
                 } else {
                     MascotView(pose: stagePose, size: 250,
@@ -185,8 +185,20 @@ struct OnboardingView: View {
     private func content(for step: OnboardingStep) -> some View {
         switch step {
         case .hello:
-            checkRow("Microphone", granted: model.microphoneAllowed,
-                     pending: model.microphoneRequestPending ? "Allow Mouthy in the dialog." : "Needed to hear you.")
+            VStack(alignment: .leading, spacing: 14) {
+                checkRow("Microphone", granted: model.microphoneAllowed,
+                         pending: model.microphoneRequestPending ? "Allow Mouthy in the dialog." : "Needed to hear you.")
+                // Once allowed, pick which microphone to use; the next screens show it hears you.
+                if model.microphoneAllowed {
+                    HStack(spacing: 10) {
+                        Text("Use").font(MouthyType.caption).foregroundStyle(MouthyTheme.cream2)
+                        WarmPicker("Microphone", selection: $model.preferences.inputDeviceUID,
+                                   options: [("", "System default")] + model.inputDevices.map { ($0.id, $0.name) }, fullWidth: true)
+                            .onChange(of: model.preferences.inputDeviceUID) { model.savePreferences() }
+                    }
+                    .onAppear { Task { await model.refreshCapabilities() } }
+                }
+            }
         case .accessibility:
             checkRow("Accessibility", granted: model.accessibilityAllowed,
                      pending: "Turn Mouthy on in System Settings, then come back.")

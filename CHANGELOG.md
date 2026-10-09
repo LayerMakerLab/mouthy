@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Setup opens whenever macOS hasn't been asked about the microphone yet, and lets you pick which microphone to use.
+- A microphone request that macOS never answers no longer leaves Mouthy waiting; it opens the Microphone settings instead.
+- Faster capture and lower idle CPU, and safer typing on Windows (from the performance pass).
+- The mascot no longer appears in the waving pose.
+
 ## 0.1.0
 
 First public release.

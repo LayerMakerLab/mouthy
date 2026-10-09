@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import MouthyCore
 import MouthyNotch
+import AVFoundation
 
 struct MouthyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
@@ -58,7 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Mascot.install()
         model.prewarmSpeech()
         MouthyTabs.setHub(enabled: model.preferences.notchHub)
-        if !model.preferences.onboarded { showOnboarding() }
+        // First run, or macOS has never been asked about the microphone for this copy of Mouthy (a reinstall, or a
+        // reset permission): setup gets it going instead of leaving the person in Settings.
+        if !model.preferences.onboarded || AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined { showOnboarding() }
         model.syncNow(quiet: true)
     }
     /// mouthy://toggle | start | stop | cancel | paste-last | open — for Shortcuts,

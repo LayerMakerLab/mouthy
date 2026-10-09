@@ -87,6 +87,16 @@ final class SpeechService {
         }
     }
 
+    /// The same question, but never waits longer than `timeout`: macOS can leave a request unanswered (no dialog shown,
+    /// for example after the app's permission was reset while it ran). nil means macOS gave no answer in time.
+    static func permission(timeout: Duration) async -> Bool? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Bool?, Never>) in
+            let once = ResumeOnce(continuation)
+            Task { once.resume(await permission()) }
+            Task { try? await Task.sleep(for: timeout); once.resume(nil) }
+        }
+    }
+
     static func transcriber(locale: String, install: Bool, status: @escaping (String) -> Void) async throws -> SpeechTranscriber {
         try Task.checkCancellation()
         guard SpeechTranscriber.isAvailable else { throw MouthyFailure("Apple speech recognition is unavailable on this Mac.") }
@@ -142,7 +152,7 @@ final class SpeechService {
 
     func start(locale: String, vocabulary: String, inputDeviceUID: String = "", provider: SpeechEngine = .apple, whisperModel: WhisperModel = .baseEnglish, whisperLanguage: String = "auto", translate: Bool = false, status: @escaping (String) -> Void) async throws {
         try Task.checkCancellation()
-        guard await Self.permission() else { throw MouthyFailure("Microphone access is off. Enable Mouthy in System Settings → Privacy & Security → Microphone.") }
+        guard await Self.permission(timeout: .seconds(10)) == true else { throw MouthyFailure("Microphone access is off. Enable Mouthy in System Settings → Privacy & Security → Microphone.") }
         try Task.checkCancellation()
         self.provider = provider
         self.whisperModel = whisperModel; self.whisperLanguage = whisperLanguage; self.translate = translate; self.vocabulary = vocabulary
@@ -455,5 +465,16 @@ private actor SpeechModelWarmup {
             await WhisperRecognizer.shared.releaseIfIdle()
             await VoiceActivity.shared.releaseIfIdle()
         }
+    }
+}
+
+/// Resumes a continuation exactly once, whichever answer comes first.
+final class ResumeOnce<T: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T, Never>?
+    init(_ continuation: CheckedContinuation<T, Never>) { self.continuation = continuation }
+    func resume(_ value: T) {
+        lock.lock(); let c = continuation; continuation = nil; lock.unlock()
+        c?.resume(returning: value)
     }
 }

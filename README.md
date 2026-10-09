@@ -14,7 +14,7 @@ Press a shortcut, speak, press it again. Your words appear wherever your cursor 
 
 **Mac** (macOS 26 or later, Apple silicon or Intel)
 
-1. Download `Mouthy-0.1.0-mac.zip` from [Releases](https://github.com/LayerMakerLab/mouthy/releases/latest), open it and drag **Mouthy** into Applications.
+1. Download the Mac ZIP from [Releases](https://github.com/LayerMakerLab/mouthy/releases/latest), open it and drag **Mouthy** into Applications.
 2. Open Mouthy. The welcome screens ask for the microphone and for Accessibility, which lets Mouthy type into other apps.
 3. Double-tap the right ⌘, talk, and double-tap it again. ⌃⌥Space and Hold Fn are in Settings → Shortcut. Press Return while you talk to send what you've said so far; Mouthy keeps listening (it asks for Input Monitoring the first time).
 
@@ -22,14 +22,14 @@ Updates arrive on their own: Mouthy checks once a day, downloads a new version i
 
 **Windows** (64-bit)
 
-1. Download `Mouthy-0.1.0-windows-x64.zip`, unzip it, right-click `install-windows.ps1` and choose *Run with PowerShell*.
+1. Download the Windows ZIP from [Releases](https://github.com/LayerMakerLab/mouthy/releases/latest), unzip it, right-click `install-windows.ps1` and choose *Run with PowerShell*.
 2. Press Ctrl+Alt+Space, talk, and press it again.
 
 Mouthy isn't code-signed on Windows yet. If Windows says it protected your PC, choose *More info* → *Run anyway*.
 
 **Linux** (x86-64, Wayland or X11)
 
-1. Download `Mouthy-0.1.0-linux-x64.tar.gz`, unpack it and run `./install.sh`.
+1. Download the Linux `.tar.gz` from [Releases](https://github.com/LayerMakerLab/mouthy/releases/latest), unpack it and run `./install.sh`.
 2. Press Ctrl+Alt+Space, talk, and press it again. Wayland doesn't let apps register shortcuts: install `wl-clipboard` and `wtype`, and bind a key in your compositor to `mouthy --toggle`.
 
 To hear about new Windows and Linux versions, choose **Watch → Custom → Releases** at the top of this page.

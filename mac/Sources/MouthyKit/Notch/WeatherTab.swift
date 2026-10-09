@@ -213,7 +213,7 @@ struct WeatherView: View {
                 } else if !model.status.isEmpty {
                     NotchEmptyState(pose: .sleep, title: model.status, actionTitle: model.place == nil ? nil : "Retry") { model.retry() }
                 } else {
-                    NotchEmptyState(pose: .wave, title: "Where are you?", message: "Type a city. No location access needed.")
+                    NotchEmptyState(pose: .listen, title: "Where are you?", message: "Type a city. No location access needed.")
                 }
                 Spacer(minLength: 0)
             }

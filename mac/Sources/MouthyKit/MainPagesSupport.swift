@@ -30,7 +30,7 @@ enum DictateHero {
         case .preparing, .listening: return agentQuestion == nil ? .listen : .talk
         case .finishing, .delivering: return .type
         case .cancelling, .failed: return .sleep
-        case .idle: return cheering ? .cheer : firstRun ? .wave : .sleep
+        case .idle: return cheering ? .cheer : firstRun ? .listen : .sleep
         }
     }
 

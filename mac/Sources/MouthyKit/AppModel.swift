@@ -405,8 +405,15 @@ final class AppModel: ObservableObject {
         status = "Waiting for macOS microphone approval. Allow Mouthy in the system dialog."
         Task {
             defer { microphoneRequestPending = false }
-            microphoneAllowed = await SpeechService.permission()
-            status = microphoneAllowed ? "Microphone allowed. You can start dictation." : "Microphone access is off. Enable Mouthy in System Settings → Privacy & Security → Microphone."
+            switch await SpeechService.permission(timeout: .seconds(10)) {
+            case true?: microphoneAllowed = true; status = "Microphone allowed. You can start dictation."
+            case false?: microphoneAllowed = false; status = "Microphone access is off. Enable Mouthy in System Settings → Privacy & Security → Microphone."
+            case nil:
+                // No dialog came: send the person to the switch instead of waiting on macOS.
+                microphoneAllowed = false
+                status = "macOS didn't show its microphone dialog. Turn Mouthy on in System Settings → Privacy & Security → Microphone."
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") { NSWorkspace.shared.open(url) }
+            }
             await refreshCapabilities()
         }
     }
