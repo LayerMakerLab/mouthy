@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- The notch opens when you push the pointer against it from below or from either side, and when there's nothing to show, Mouthy keeps nothing on screen at the notch.
+
 ## 0.1.2
 
 - The notch opens when you push the pointer up against it, and Mouthy no longer keeps invisible windows at the top of the screen.

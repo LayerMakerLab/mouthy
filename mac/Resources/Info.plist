@@ -11,7 +11,7 @@
 <key>CFBundleExecutable</key><string>Mouthy</string>
 <key>CFBundleIconFile</key><string>Mouthy</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.2</string>
+<key>CFBundleShortVersionString</key><string>0.1.3</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>NSMicrophoneUsageDescription</key><string>Mouthy uses your microphone only when you start dictation or a meeting. Speech processing stays on your Mac.</string>

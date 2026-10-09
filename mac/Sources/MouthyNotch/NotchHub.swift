@@ -116,6 +116,9 @@ import SwiftUI
     /// the hover, clicks and file drags there.
     private var homeTracker: NotchStrip?
     private var opening = false
+    /// The close spring is still running; the panel stays on screen until it ends. The token ties it to one close.
+    private var closing = false
+    private var closeToken = UUID()
     private var attentionFlags: [String: Bool] = [:]
 
     /// Internal so renders and tests can draw a hub of their own; apps use `shared`.
@@ -446,6 +449,7 @@ import SwiftUI
             // Open where the pointer is (or where the hub already shows), as one spring from that shape.
             visitingScreen = hoverScreen ?? visitingScreen ?? panelScreen ?? NotchGeometry.notchedScreen() ?? NotchGeometry.pointerScreen()
             hoverScreen = nil
+            closing = false; closeToken = UUID()
             opening = true
             layout()   // place the (fixed-size) window on the right display first, then morph open
             opening = false
@@ -456,13 +460,17 @@ import SwiftUI
         } else {
             removeMonitors()
             keyboardOpen = false
+            closing = true
+            let token = UUID(); closeToken = token
             withAnimation(MouthyMotion.resolve(MouthyMotion.notchClose, reduceMotion: Self.reduceMotion)) { isOpen = false }
             panel?.ignoresMouseEvents = true
             // Opened from the keyboard, the panel holds key focus; hand it back so typing goes to your app.
             if panel?.isKeyWindow == true { panel?.orderOut(nil); layout() }
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(620))   // let the content leave and the notch spring back first
-                guard let self, !self.isOpen else { return }
+                guard let self, self.closeToken == token else { return }
+                self.closing = false
+                if self.isOpen { return }
                 self.goHomeIfIdle()
             }
         }
@@ -602,11 +610,14 @@ import SwiftUI
     }
 
     /// While the frontmost app's menus reach the notch (most apps; Finder is the exception), macOS stops a real pointer
-    /// at the notch's lower edge: it never gets inside. The hover target reaches a few points below that edge so the
-    /// pointer pushed up against the notch opens the hub. It is no window, so nothing under it is blocked.
+    /// at the notch's edges: pushed up it rests on the lower edge, pushed along the menu bar it stops a few points short
+    /// of the side and then jumps across. The hover target reaches past those resting points (a real trackpad:
+    /// y 32 below, x 658 on the left, 851-863 on the right of a 663-849 notch), so the pointer pushed against the notch
+    /// from below or from either side opens the hub. It is no window, so nothing under it is blocked.
     static let homeHoverReach: CGFloat = 6
     static func homeHover(_ frame: NSRect) -> NSRect {
-        NSRect(x: frame.minX, y: frame.minY - homeHoverReach, width: frame.width, height: frame.height + homeHoverReach)
+        NSRect(x: frame.minX - homeHoverReach, y: frame.minY - homeHoverReach,
+               width: frame.width + 2 * homeHoverReach, height: frame.height + homeHoverReach)
     }
 
     /// Hover targets follow the shape: over the notch, the pill or the band wherever the hub is drawn, otherwise
@@ -656,9 +667,18 @@ import SwiftUI
         if panel.frame != next.open { panel.setFrame(next.open, display: true) }
         panel.ignoresMouseEvents = !isOpen
         panel.level = NSWindow.Level(rawValue: max(NSWindow.Level.mainMenu.rawValue + 2, Self.otherNotchAppLayer() + 1))
-        panel.orderFrontRegardless()
+        // Closed with nothing to show, Mouthy leaves the screen entirely: no window of its own sits at the notch, so
+        // the pointer and clicks there behave as if Mouthy were not running.
+        if Self.leavesScreen(open: isOpen, opening: opening, closing: closing, drawn: pillShown || hasLiveState || liveExpanded || compactTab != nil) {
+            panel.orderOut(nil)
+        } else {
+            panel.orderFrontRegardless()
+        }
         refreshStrips()
     }
+
+    /// Whether the closed panel leaves the screen: nothing drawn and no spring running, so the notch is bare.
+    static func leavesScreen(open: Bool, opening: Bool, closing: Bool, drawn: Bool) -> Bool { !open && !opening && !closing && !drawn }
 
     /// Whether a move to another display goes by spring (back to rest here, then out there) instead of in one step:
     /// whenever the closed hub draws something. An open panel moves with the pointer, and nothing drawn moves unseen.

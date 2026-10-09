@@ -261,11 +261,21 @@ private let renderGate = ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"
 /// While the frontmost app's menus reach the notch, macOS stops a real pointer at the notch's lower edge; the hover
 /// target reaches below it so that pointer opens the hub.
 @MainActor @Test func notchFlowHoverReachesBelowTheNotchEdge() {
+    // Closed with nothing drawn and no spring running, the panel leaves the screen.
+    #expect(NotchHub.leavesScreen(open: false, opening: false, closing: false, drawn: false))
+    #expect(!NotchHub.leavesScreen(open: true, opening: false, closing: false, drawn: false))
+    #expect(!NotchHub.leavesScreen(open: false, opening: true, closing: false, drawn: false))
+    #expect(!NotchHub.leavesScreen(open: false, opening: false, closing: true, drawn: false))
+    #expect(!NotchHub.leavesScreen(open: false, opening: false, closing: false, drawn: true))
     // macOS stops a real pointer at the notch's lower edge; the hover target reaches below it so that pointer opens it.
     let notch = NSRect(x: 659, y: 950, width: 193, height: 32)
     let hover = NotchHub.homeHover(notch)
-    #expect(hover.maxY == notch.maxY && hover.minY < notch.minY - 1 && hover.width == notch.width)
+    #expect(hover.maxY == notch.maxY && hover.minY < notch.minY - 1 && hover.width > notch.width)
     #expect(NSMouseInRect(NSPoint(x: notch.midX, y: notch.minY - 1), hover, false))
+    // From the side along the menu bar the pointer stops short of the notch (x 658 for a notch from 663.5) or rests
+    // just past it on the right (853-858 for a notch ending at 848.5); both open the hub.
+    let real = NSRect(x: 659.5, y: 950, width: 193, height: 32)
+    for x: CGFloat in [658, 853, 858] { #expect(NSMouseInRect(NSPoint(x: x, y: 975), NotchHub.homeHover(real), false), "x \(x)") }
 }
 
 /// Playing music keeps the band over a running timer (a missing cover is what read as broken); a meeting outranks
