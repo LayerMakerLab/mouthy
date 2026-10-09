@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Only listen to my voice can be trained with a TV or music on: Mouthy keeps your voice and leaves the others out of the voiceprint.
+
 ## 0.1.3
 
 - The notch opens when you push the pointer against it from below or from either side, and when there's nothing to show, Mouthy keeps nothing on screen at the notch.

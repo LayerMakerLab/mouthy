@@ -2,8 +2,8 @@ import CoreML
 import Foundation
 import MouthyCore
 
-/// "Only listen to my voice": a small voiceprint of the person (the mean of speaker embeddings from three sentences
-/// they read, never audio) and, while they dictate, a check of who is speaking, so a TV, music with singing or people
+/// "Only listen to my voice": a small voiceprint of the person (the mean of speaker embeddings of the voice heard most
+/// while they read three sentences, so a TV or music in the room stays out; never audio) and, while they dictate, a check of who is speaking, so a TV, music with singing or people
 /// nearby are turned down like any other non-voice sound (VoiceActivity.voiceOnly). Everything runs on this Mac.
 /// The embedding model is WeSpeaker ResNet34-LM on the Neural Engine (`SpeakerModel`), held only while dictating with
 /// the feature on or while training, then released.
@@ -73,18 +73,29 @@ public enum VoicePrint {
             throw MouthyFailure("Mouthy's voice detector isn't on this Mac yet. Download Parakeet in Settings first.")
         }
         let chunk = VoiceActivity.chunk
-        var embeddings: [[Float]] = []
+        var embeddings: [[Float]] = [], unmeasured = 0
         for start in SpeakerMask.windows(pieces: chances.count) {
             let speech = chances[start..<start + SpeakerMask.window].filter { $0 >= VoiceActivity.keep }.count
             guard speech >= SpeakerMask.window - 2 else { continue }
             let low = start * chunk, high = min(samples.count, (start + SpeakerMask.window) * chunk)
-            guard let embedding = try await SpeakerModel.shared.embed(Array(samples[low..<high])) else { continue }
+            guard low < high else { continue }
+            guard let embedding = try await SpeakerModel.shared.embed(Array(samples[low..<high])) else { unmeasured += 1; continue }
             embeddings.append(embedding)
         }
+        if embeddings.isEmpty, unmeasured > 0 { throw MouthyFailure(notInstalled) }
         guard embeddings.count >= minimumWindows else {
             throw MouthyFailure("Mouthy heard too little of your voice. Read all three sentences out loud, then try again.")
         }
-        return Voiceprint(embedding: SpeakerMask.centroid(embeddings), windows: embeddings.count)
+        // Other voices in the room (a TV, music, someone nearby) stay out: only the voice heard most is kept. If that
+        // voice is less than half of what was heard, another voice may have talked more than the person did; saving
+        // it could make Mouthy listen to the TV, so training asks again instead.
+        let mine = SpeakerMask.dominantVoice(embeddings)
+        guard mine.count >= minimumWindows, mine.count * 2 >= embeddings.count else {
+            throw MouthyFailure("Mouthy heard another voice as much as yours. Read the three sentences again, a little closer to the microphone.")
+        }
+        let center = SpeakerMask.centroid(mine)
+        let others = embeddings.filter { SpeakerMask.similarity($0, center) < SpeakerMask.match }
+        return Voiceprint(embedding: SpeakerMask.voiceprint(mine: mine, others: others), windows: mine.count)
     }
     /// About 4 s of clear speech.
     static let minimumWindows = 4

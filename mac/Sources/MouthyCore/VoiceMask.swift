@@ -125,6 +125,46 @@ public enum SpeakerMask {
         return dot / (aa.squareRoot() * bb.squareRoot())
     }
 
+    /// The windows of the voice heard most while training. The person reads three sentences, so their windows form the
+    /// largest group that sound alike; a TV, music or someone nearby forms its own smaller group and stays out of the
+    /// voiceprint. The window alike to the most others anchors the group; then only windows alike to the group's
+    /// centroid are kept, so a window where the other voice is louder than the person drops out too. Of those, the
+    /// windows clearly the person (`firm` alike) make the voiceprint when there are enough of them: a window where a TV
+    /// talks under the person still leans toward the TV.
+    public static func dominantVoice(_ embeddings: [[Float]], alike: Float = match, firm: Float = 0.6, enough: Int = 4) -> [[Float]] {
+        let count = embeddings.count
+        guard count > 2 else { return embeddings }
+        var alikeness = [[Float]](repeating: [Float](repeating: 0, count: count), count: count)
+        for i in 0..<count {
+            for j in i..<count {
+                let value: Float = i == j ? 1 : similarity(embeddings[i], embeddings[j])
+                alikeness[i][j] = value; alikeness[j][i] = value
+            }
+        }
+        let neighbours = alikeness.map { row in row.filter { $0 >= alike }.count }
+        let anchor = (0..<count).max { a, b in
+            neighbours[a] != neighbours[b] ? neighbours[a] < neighbours[b] : alikeness[a].reduce(0, +) < alikeness[b].reduce(0, +)
+        } ?? 0
+        let center = centroid((0..<count).filter { alikeness[anchor][$0] >= alike }.map { embeddings[$0] })
+        let group = embeddings.filter { similarity($0, center) >= alike }
+        let clear = group.filter { similarity($0, centroid(group)) >= firm }
+        return clear.count >= enough ? clear : group
+    }
+
+    /// The voiceprint from training: the person's windows, less what they share with the other voice heard while they
+    /// read. A TV talking under the person leaves a little of itself in every window, and a voiceprint carrying it would
+    /// let that TV through later; its direction is taken out (only toward it, never past it). No other voice: the mean.
+    public static func voiceprint(mine: [[Float]], others: [[Float]]) -> [[Float]].Element {
+        let me = centroid(mine)
+        guard others.count >= 2 else { return me }
+        let other = centroid(others)
+        let shared = similarity(me, other)
+        guard shared > 0 else { return me }
+        let apart = zip(me, other).map { $0 - shared * $1 }
+        let length = apart.reduce(0) { $0 + $1 * $1 }.squareRoot()
+        return length > 0 ? apart.map { $0 / length } : me
+    }
+
     /// The unit-length mean of `embeddings` (a voiceprint).
     public static func centroid(_ embeddings: [[Float]]) -> [Float] {
         guard let first = embeddings.first else { return [] }

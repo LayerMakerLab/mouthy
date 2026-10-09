@@ -68,3 +68,24 @@ import Testing
     #expect(!SpeakerMask.clearlyTheirs(mine: [0.10, 0.10], theirs: [0.19, 0.30]))
     #expect(!SpeakerMask.clearlyTheirs(mine: [], theirs: []))
 }
+
+/// Training keeps the voice heard most and leaves a TV out of the voiceprint, including what the TV leaves in the
+/// person's own windows when it talks underneath them.
+@Test func trainingKeepsTheVoiceHeardMostAndTakesTheOtherOut() {
+    func unit(_ v: [Float]) -> [Float] { let l = v.reduce(0) { $0 + $1 * $1 }.squareRoot(); return v.map { $0 / l } }
+    let person: [Float] = [1, 0, 0, 0], tv: [Float] = [0, 1, 0, 0]
+    // Ten windows of the person with the TV a little under them, four of the TV alone (before, between, after).
+    let mixed = (0..<10).map { i in unit([1, 0.3, Float(i % 3) * 0.05, 0]) }
+    let alone = (0..<4).map { i in unit([0.05, 1, 0, Float(i) * 0.02]) }
+    let kept = SpeakerMask.dominantVoice(mixed + alone)
+    #expect(kept.count == mixed.count, "only the person's windows are kept")
+    let center = SpeakerMask.centroid(kept)
+    let others = (mixed + alone).filter { SpeakerMask.similarity($0, center) < SpeakerMask.match }
+    let print = SpeakerMask.voiceprint(mine: kept, others: others)
+    #expect(SpeakerMask.similarity(print, tv) < SpeakerMask.similarity(center, tv), "the TV's direction is taken out")
+    #expect(abs(SpeakerMask.similarity(print, tv)) < 0.05)
+    #expect(SpeakerMask.similarity(print, person) > 0.9)
+    // Nobody else heard: the plain mean.
+    #expect(SpeakerMask.voiceprint(mine: kept, others: []) == center)
+    #expect(SpeakerMask.dominantVoice([]).isEmpty && SpeakerMask.dominantVoice([person]) == [person])
+}

@@ -36,6 +36,14 @@ struct VoicePrintTests {
         await VoiceActivity.shared.prepare()
         var audio: [Float] = Corpus.silence(0.3)
         for sentence in VoicePrint.sentences { audio += Corpus.level(try Corpus.say(sentence, in: folder), Corpus.speech) + Corpus.silence(0.5) }
+        // MOUTHY_VOICEPRINT_TRAIN_TV=<dB>: train with a TV (Daniel) talking the whole time at that level and 4 s after.
+        if let dB = ProcessInfo.processInfo.environment["MOUTHY_VOICEPRINT_TRAIN_TV"].flatMap(Float.init) {
+            var tv: [Float] = []
+            for sentence in Self.tv + Self.tv { tv += Corpus.level(try Corpus.say(sentence, voice: Self.others[0], in: folder), Corpus.speech) + Corpus.silence(0.4) }
+            audio += Corpus.silence(4)
+            for i in audio.indices where i < tv.count { audio[i] += tv[i] * pow(10, dB / 20) }
+            Swift.print("VOICEPRINT training with a TV at \(Int(dB)) dB")
+        }
         let print = try await VoicePrint.train(Corpus.room(audio))
         Swift.print("VOICEPRINT trained from \(print.windows) windows of \(String(format: "%.1f", Double(audio.count) / 16_000)) s")
         return print
@@ -92,6 +100,38 @@ struct VoicePrintTests {
             for run in result.runs {
                 Swift.print("VOICEPRINT \(other) alone, \(run.release ? "single press" : "double tap") \(run.stopDelay) ms: stop \(run.milliseconds) ms, live \"\(run.text)\"")
                 if !Corpus.words(run.text).isEmpty { failures.append("\(other) alone: typed \(run.text)") }
+            }
+        }
+        #expect(failures.isEmpty, "\(failures.joined(separator: "; "))")
+    }
+
+    /// Training with other audio in the room: the person reads the three sentences while a TV talks the whole time
+    /// (another macOS voice at -6 and -12 dB), and the TV goes on alone for 4 s before Done is clicked. The voiceprint
+    /// must be the person's: as alike to the one trained in quiet as two quiet trainings are, and the TV alone must
+    /// score below `SpeakerMask.match` against it, as it does against the quiet one.
+    @Test func trainingWithATVPlayingKeepsOnlyThePerson() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("mouthy-voicetrain-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let quiet = try await Self.train(in: folder)
+        var reading: [Float] = Corpus.silence(0.3)
+        for sentence in VoicePrint.sentences { reading += Corpus.level(try Corpus.say(sentence, in: folder), Corpus.speech) + Corpus.silence(0.5) }
+        var failures: [String] = []
+        for other in Self.others {
+            var tv: [Float] = []
+            for sentence in Self.tv + Self.tv { tv += Corpus.level(try Corpus.say(sentence, voice: other, in: folder), Corpus.speech) + Corpus.silence(0.4) }
+            let tvAlone = try await VoicePrint.train(Corpus.room(Array(tv.prefix(16_000 * 12))))
+            let quietVersusTV = SpeakerMask.similarity(quiet.embedding, tvAlone.embedding)
+            for dB in [-6, -12] as [Float] {
+                let gain = pow(10, dB / 20)
+                var mix = reading + Corpus.silence(4)
+                for i in mix.indices where i < tv.count { mix[i] += tv[i] * gain }
+                let trained = try await VoicePrint.train(Corpus.room(mix))
+                let same = SpeakerMask.similarity(trained.embedding, quiet.embedding)
+                let tvScore = SpeakerMask.similarity(trained.embedding, tvAlone.embedding)
+                Swift.print(String(format: "VOICETRAIN %@ at %d dB: %d windows, like the quiet voiceprint %.3f, TV alone scores %.3f (quiet voiceprint: %.3f)",
+                                   other, Int(dB), trained.windows, same, tvScore, quietVersusTV))
+                if tvScore >= SpeakerMask.match { failures.append("\(other) \(Int(dB)) dB: the TV alone scores \(tvScore)") }
             }
         }
         #expect(failures.isEmpty, "\(failures.joined(separator: "; "))")

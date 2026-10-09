@@ -516,7 +516,7 @@ struct VoiceTrainingRows: View {
         case .reading: "Read these out loud, then click Done."
         case .working: "Learning your voice…"
         case let .failed(message): message
-        case .idle: trainer.trained ? "Kept on this Mac as a voiceprint, never as audio." : "Read three short sentences out loud, about 15 seconds."
+        case .idle: trainer.trained ? "Kept on this Mac as a voiceprint, never as audio." : "Read three short sentences out loud, about 15 seconds. A TV or music can stay on."
         }
     }
 

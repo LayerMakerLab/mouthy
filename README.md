@@ -50,7 +50,7 @@ Every engine runs on your own computer. A model downloads once, when you choose 
 
 ## Highlights
 
-- **Only your voice (Mac).** Train your voice once (three short sentences) and Mouthy turns down a TV, music and other people while you dictate. Mouthy keeps a voiceprint, never the recording.
+- **Only your voice (Mac).** Train your voice once by reading three short sentences, even with a TV on, and Mouthy turns down a TV, music and other people while you dictate. Mouthy keeps a voiceprint, never the recording.
 - **Types anywhere.** Text goes into whatever app has focus, with spacing and capitals fitted to what is already there (Mac and Windows).
 - **Enter sends, Escape cancels.** Press Enter while talking to send what you have said so far and keep going.
 - **Speech only types.** Nothing you say can send, click or run anything in other apps.
