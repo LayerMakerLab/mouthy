@@ -1,0 +1,13 @@
+[package]
+name = "mouthy-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Portable Mouthy text rules and models shared by the Windows and Linux app"
+
+[dependencies]
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+url = "2"

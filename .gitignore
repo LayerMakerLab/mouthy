@@ -1,0 +1,10 @@
+.build/
+build/
+.swiftpm/
+.DS_Store
+*.xcuserstate
+target/
+dist/
+mac/scripts/local.env
+.scratch/
+.codex-*

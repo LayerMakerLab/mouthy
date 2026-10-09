@@ -1,0 +1,349 @@
+{
+  "smartInsertion": [
+    {
+      "text": "hello there.",
+      "before": "",
+      "after": "",
+      "expected": "Hello there."
+    },
+    {
+      "text": "next idea.",
+      "before": "First point.",
+      "after": "",
+      "expected": " Next idea."
+    },
+    {
+      "text": "next idea.",
+      "before": "First point. ",
+      "after": "",
+      "expected": "Next idea."
+    },
+    {
+      "text": "next idea.",
+      "before": "Line\n",
+      "after": "",
+      "expected": "Next idea."
+    },
+    {
+      "text": "Really big.",
+      "before": "The cat",
+      "after": " sat down.",
+      "expected": " really big"
+    },
+    {
+      "text": "Really big.",
+      "before": "The cat ",
+      "after": "sat down.",
+      "expected": "really big "
+    },
+    {
+      "text": "I think so.",
+      "before": "Well,",
+      "after": "",
+      "expected": " I think so."
+    },
+    {
+      "text": "NASA called.",
+      "before": "Then",
+      "after": "",
+      "expected": " NASA called."
+    },
+    {
+      "text": "Tuesday works.",
+      "before": "Maybe",
+      "after": "",
+      "expected": " Tuesday works."
+    },
+    {
+      "text": "iPhone notes.",
+      "before": "My",
+      "after": "",
+      "expected": " iPhone notes."
+    },
+    {
+      "text": "Inside.",
+      "before": "(",
+      "after": ")",
+      "expected": "Inside"
+    },
+    {
+      "text": "Done.",
+      "before": "Almost",
+      "after": ".",
+      "expected": " done"
+    },
+    {
+      "text": "20 minutes is enough.",
+      "before": "",
+      "after": "",
+      "expected": "20 minutes is enough."
+    },
+    {
+      "text": "$15 is fine.",
+      "before": "Done.",
+      "after": "",
+      "expected": " $15 is fine."
+    }
+  ],
+  "backtrack": [
+    {
+      "text": "Buy milk. Buy eggs scratch that. Buy bread.",
+      "expected": "Buy milk. Buy bread."
+    },
+    {
+      "text": "Buy eggs, scratch that",
+      "expected": ""
+    },
+    {
+      "text": "Hello there. delete that",
+      "expected": ""
+    },
+    {
+      "text": "Scratch the surface.",
+      "expected": "Scratch the surface."
+    },
+    {
+      "text": "Buy eggs, scratch that, buy bread.",
+      "expected": "Buy bread."
+    },
+    {
+      "text": "One. Two scratch that three.",
+      "expected": "One. Three."
+    }
+  ],
+  "spokenPunctuation": [
+    {
+      "text": "hello comma how are you question mark",
+      "expected": "hello, how are you?"
+    },
+    {
+      "text": "Done period Next item exclamation point",
+      "expected": "Done. Next item!"
+    },
+    {
+      "text": "Dear Sam colon Thanks",
+      "expected": "Dear Sam: thanks"
+    },
+    {
+      "text": "first full stop second",
+      "expected": "first. Second"
+    },
+    {
+      "text": "Hello, comma. Next",
+      "expected": "Hello, next"
+    },
+    {
+      "text": "Wait. Period. Then",
+      "expected": "Wait. Then"
+    },
+    {
+      "text": "It was a period in history",
+      "expected": "It was a period in history"
+    },
+    {
+      "text": "the trial period ends",
+      "expected": "the trial period ends"
+    },
+    {
+      "text": "Thanks comma I will call comma Tuesday works",
+      "expected": "Thanks, I will call, Tuesday works"
+    },
+    {
+      "text": "one new line two new paragraph three",
+      "expected": "one\nTwo\n\nThree"
+    },
+    {
+      "text": "done period 20 minutes later",
+      "expected": "done. 20 minutes later"
+    }
+  ],
+  "process": [
+    {
+      "text": "Swift is not swiftly",
+      "replacements": [
+        {
+          "phrase": "swift",
+          "replacement": "$1\\Code"
+        }
+      ],
+      "punctuation": false,
+      "expected": "$1\\Code is not swiftly"
+    },
+    {
+      "text": "new york new",
+      "replacements": [
+        {
+          "phrase": "new",
+          "replacement": "X"
+        },
+        {
+          "phrase": "new york",
+          "replacement": "NewYork"
+        },
+        {
+          "phrase": "NewYork",
+          "replacement": "wrong"
+        }
+      ],
+      "punctuation": false,
+      "expected": "NewYork X"
+    },
+    {
+      "text": "Café new paragraph hello",
+      "replacements": [
+        {
+          "phrase": "café",
+          "replacement": "Cafe"
+        }
+      ],
+      "punctuation": true,
+      "expected": "Cafe\n\nHello"
+    },
+    {
+      "text": " hello ",
+      "replacements": [
+        {
+          "phrase": "",
+          "replacement": "bad"
+        }
+      ],
+      "punctuation": false,
+      "expected": "hello"
+    },
+    {
+      "text": "One. Two scratch that",
+      "replacements": [],
+      "punctuation": true,
+      "expected": "One."
+    },
+    {
+      "text": "One. Two scratch that",
+      "replacements": [],
+      "punctuation": false,
+      "expected": "One. Two scratch that"
+    },
+    {
+      "text": "......., That is like insanely fast now.",
+      "replacements": [],
+      "punctuation": true,
+      "expected": "That is like insanely fast now."
+    },
+    {
+      "text": "... Oh, but what's with the dots?",
+      "replacements": [],
+      "punctuation": false,
+      "expected": "Oh, but what's with the dots?"
+    },
+    {
+      "text": ".. So maybe Nvidia parakeet or something like that that like sleeps when it's silent, but it. when it, it's, when it..., it, you...",
+      "replacements": [],
+      "punctuation": true,
+      "expected": "So maybe Nvidia parakeet or something like that that like sleeps when it's silent, but it. when it, it's, when it, it, you"
+    }
+  ],
+  "trigger": [
+    {
+      "text": "Email, thanks for the update.",
+      "triggers": [
+        "email",
+        "email formal"
+      ],
+      "mode": "email",
+      "expected": "Thanks for the update."
+    },
+    {
+      "text": "email formal dear team",
+      "triggers": [
+        "email",
+        "email formal"
+      ],
+      "mode": "email formal",
+      "expected": "Dear team"
+    },
+    {
+      "text": "Emails are piling up",
+      "triggers": [
+        "email",
+        "email formal"
+      ],
+      "mode": null,
+      "expected": null
+    }
+  ],
+  "fillers": [
+    {
+      "text": "Um, so I was thinking we should, uh, ship it.",
+      "expected": "So I was thinking we should ship it."
+    },
+    {
+      "text": "I think, um... yes. Uh, let's go.",
+      "expected": "I think yes. Let's go."
+    },
+    {
+      "text": "Umm let me check. Erm, okay.",
+      "expected": "Let me check. Okay."
+    },
+    {
+      "text": "The drum and the umbrella are in the hummer.",
+      "expected": "The drum and the umbrella are in the hummer."
+    },
+    {
+      "text": "It was like, you know, fine. Hmm.",
+      "expected": "It was like, you know, fine."
+    },
+    {
+      "text": "Open app model.swift and fix the status line.",
+      "expected": "Open app model.swift and fix the status line."
+    },
+    {
+      "text": "Let's meet at 3 p.m. on Tuesday, e.g. after lunch at mouthy.dev.",
+      "expected": "Let's meet at 3 p.m. on Tuesday, e.g. after lunch at mouthy.dev."
+    },
+    {
+      "text": "I think that's right, um. Let's do it.",
+      "expected": "I think that's right. Let's do it."
+    },
+    {
+      "text": "Hmm. 20 minutes should do, um, maybe 30.",
+      "expected": "20 minutes should do maybe 30."
+    }
+  ],
+  "code": [
+    {
+      "text": "let camel case user name equals camel case get user open paren close paren",
+      "expected": "let userName = getUser()"
+    },
+    {
+      "text": "Open file dot swift.",
+      "expected": "Open file.swift."
+    },
+    {
+      "text": "cd src slash components",
+      "expected": "cd src/components"
+    },
+    {
+      "text": "snake case max retry count equals five",
+      "expected": "max_retry_count = five"
+    },
+    {
+      "text": "constant case api base url",
+      "expected": "API_BASE_URL"
+    },
+    {
+      "text": "Pascal case voice island view.",
+      "expected": "VoiceIslandView"
+    },
+    {
+      "text": "git commit dash m double quote fix bug double quote",
+      "expected": "git commit -m \"fix bug\""
+    },
+    {
+      "text": "map items fat arrow item dot name",
+      "expected": "map items => item.name"
+    },
+    {
+      "text": "Plain sentence, nothing special.",
+      "expected": "Plain sentence, nothing special."
+    }
+  ]
+}

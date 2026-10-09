@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleURLTypes</key><array><dict>
+<key>CFBundleURLName</key><string>dev.mouthy.Mouthy</string>
+<key>CFBundleURLSchemes</key><array><string>mouthy</string></array>
+</dict></array>
+<key>CFBundleIdentifier</key><string>dev.mouthy.Mouthy</string>
+<key>CFBundleName</key><string>Mouthy</string>
+<key>CFBundleDisplayName</key><string>Mouthy</string>
+<key>CFBundleExecutable</key><string>Mouthy</string>
+<key>CFBundleIconFile</key><string>Mouthy</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSMinimumSystemVersion</key><string>26.0</string>
+<key>NSMicrophoneUsageDescription</key><string>Mouthy uses your microphone only when you start dictation or a meeting. Speech processing stays on your Mac.</string>
+<key>NSAudioCaptureUsageDescription</key><string>Mouthy captures system audio only when you explicitly start a local meeting recording.</string>
+<key>NSAppleEventsUsageDescription</key><string>Mouthy asks Spotify and Music what is playing so the notch can show it.</string>
+<key>NSCalendarsFullAccessUsageDescription</key><string>Mouthy shows your upcoming events in the notch when you allow it.</string>
+<key>NSRemindersFullAccessUsageDescription</key><string>Mouthy shows your reminders in the notch so you can check them off.</string>
+<key>NSSpeechRecognitionUsageDescription</key><string>Mouthy turns speech into text using Apple's on-device speech recognition.</string>
+<key>NSAccentColorName</key><string>AccentColor</string>
+<key>NSHighResolutionCapable</key><true/>
+<key>NSPrincipalClass</key><string>NSApplication</string>
+<key>SUFeedURL</key><string>https://mouthy.dev/updates/appcast.xml</string>
+<key>SUPublicEDKey</key><string>twZmyq3sy0pDeRZC3TfPErvc9H273AQOYexhu/JEoMI=</string>
+<key>SURequireSignedFeed</key><true/>
+<key>SUVerifyUpdateBeforeExtraction</key><true/>
+<key>SUEnableAutomaticChecks</key><true/>
+<key>SUScheduledCheckInterval</key><integer>86400</integer>
+</dict></plist>

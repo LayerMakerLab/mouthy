@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mouthy recording</title>
+<style>
+  :root { --ink:#f5eddb; --amber:#e6a85c; --attention:#f28c40; }
+  html, body { margin:0; background:transparent; overflow:hidden; user-select:none; cursor:default; height:100%; }
+  /* A black island hanging from the top edge, with outward shoulders like a hardware notch. */
+  .island { position:absolute; top:0; left:50%; height:30px; width:104px; transform:translate(-50%, -110%);
+            background:#000; border-radius:0 0 14px 14px; display:flex; align-items:center; justify-content:center; gap:10px;
+            transition: transform .46s cubic-bezier(.2,.9,.25,1.08), width .32s cubic-bezier(.2,.9,.25,1.05);
+            box-shadow:0 2px 10px rgba(0,0,0,.28); }
+  .island::before, .island::after { content:""; position:absolute; top:0; width:7px; height:7px; }
+  .island::before { left:-7px; background:radial-gradient(circle at 0 100%, transparent 7px, #000 7.5px); }
+  .island::after { right:-7px; background:radial-gradient(circle at 100% 100%, transparent 7px, #000 7.5px); }
+  .island.shown { transform:translate(-50%, 0); }
+  .island.hover { width:140px; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--amber); box-shadow:0 0 6px var(--amber); animation:pulse 1.9s ease-in-out infinite; }
+  .dot.quiet { animation:none; opacity:.35; }
+  .dot.attention { background:var(--attention); box-shadow:0 0 6px var(--attention); }
+  @keyframes pulse { 50% { opacity:.45; } }
+  .time { display:none; font:500 11px ui-rounded, system-ui, sans-serif; color:rgba(245,237,219,.8); font-variant-numeric:tabular-nums; }
+  .hover .time { display:block; }
+  .wave { width:47px; height:30px; display:flex; align-items:center; justify-content:space-between; }
+  .bar { width:3px; height:18.6px; border-radius:2px; background:linear-gradient(#f5eddb, #e6a85c);
+         transform:scaleY(.162); transition:transform .14s ease-out; }
+  .wave.finishing .bar { animation:finish .95s ease-in-out infinite; animation-delay:calc(var(--i) * -.12s); }
+  @keyframes finish { 0%,100% { transform:scaleY(.162); opacity:.45; } 50% { transform:scaleY(.42); opacity:1; } }
+  body.hidden .bar, body.hidden .dot { animation-play-state:paused; }
+  @media (prefers-reduced-motion:reduce) {
+    .island, .bar, .mark { transition:none; }
+    .dot, .wave.finishing .bar, .shake { animation:none; }
+    .wave.finishing .bar { transform:scaleY(.3); opacity:.7; }
+  }
+  .mark { display:none; font:700 13px system-ui, sans-serif; width:47px; text-align:center; transform:scale(.4); opacity:0;
+          transition: transform .38s cubic-bezier(.2,.9,.3,1.3), opacity .2s; }
+  .mark.on { display:block; transform:scale(1); opacity:1; }
+  .shake { animation:shake .45s ease-out; }
+  @keyframes shake { 20% { margin-left:-4px } 40% { margin-left:4px } 60% { margin-left:-3px } 80% { margin-left:2px } }
+</style>
+</head>
+<body>
+<div class="island" id="island">
+  <div class="dot" id="dot"></div><span class="time" id="time">0:00</span>
+  <div class="wave" id="wave" aria-hidden="true"></div>
+  <div class="mark" id="mark"></div>
+</div>
+<script>
+const { listen } = window.__TAURI__.event;
+const island = document.getElementById('island'), wave = document.getElementById('wave');
+const dot = document.getElementById('dot'), mark = document.getElementById('mark'), time = document.getElementById('time');
+const N = 9, mid = (N - 1) / 2;
+const bars = Array.from({ length:N }, (_, i) => {
+  const bar = document.createElement('div');
+  bar.className = 'bar'; bar.style.setProperty('--i', i); wave.appendChild(bar);
+  return { element:bar, envelope:0.35 + 0.65 * Math.pow(Math.cos(Math.abs(i - mid) / mid * Math.PI / 2), 1.6) };
+});
+let phase = 'Idle', input = 0, shownLevel = -1, started = 0, outcome = 'none', hideTimer, clockTimer;
+
+// Audio events change only compositor transforms. Silence rests still; no per-frame JavaScript or painting.
+function showLevel() {
+  if (document.hidden || phase !== 'Listening') return;
+  const level = Math.min(1, Math.sqrt(input) * 1.05);
+  if (level === shownLevel || (level !== 0 && Math.abs(level - shownLevel) < .015)) return;
+  shownLevel = level;
+  bars.forEach(bar => { bar.element.style.transform = `scaleY(${Math.max(.162, level * bar.envelope)})`; });
+}
+function updateClock() {
+  clearTimeout(clockTimer); clockTimer = undefined;
+  if (document.hidden || phase === 'Idle' || !island.classList.contains('hover')) return;
+  const elapsed = Math.max(0, performance.now() - started), s = Math.floor(elapsed / 1000);
+  time.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  clockTimer = setTimeout(updateClock, 1000 - elapsed % 1000);
+}
+
+function setOutcome(kind) {
+  outcome = kind;
+  mark.className = 'mark' + (kind === 'none' ? '' : ' on');
+  mark.textContent = kind === 'success' ? '✓' : kind === 'attention' ? '!' : '';
+  mark.style.color = kind === 'attention' ? 'var(--attention)' : 'var(--amber)';
+  wave.style.display = kind === 'none' ? 'flex' : 'none';
+  dot.style.display = kind === 'none' ? '' : 'none';
+  if (kind === 'attention') { island.classList.remove('shake'); void island.offsetWidth; island.classList.add('shake'); }
+}
+
+listen('level', e => { input = Number.isFinite(e.payload) ? Math.max(0, Math.min(1, e.payload)) : 0; showLevel(); });
+// The pill is created on demand; pick up the state it may have missed while loading.
+window.__TAURI__.core.invoke('current_phase').then(p => { if (p !== 'Idle') { phase = 'Idle'; applyPhase(p); } });
+listen('phase', e => applyPhase(e.payload));
+function applyPhase(next) {
+  clearTimeout(hideTimer); hideTimer = undefined;
+  if (next !== 'Idle' && phase === 'Idle') { started = performance.now(); input = 0; shownLevel = -1; setOutcome('none'); }
+  phase = next;
+  dot.classList.toggle('quiet', phase !== 'Listening');
+  wave.classList.toggle('finishing', phase === 'Finishing');
+  if (phase === 'Idle') {
+    hideTimer = setTimeout(() => { if (phase === 'Idle') island.classList.remove('shown'); }, outcome === 'none' ? 120 : outcome === 'attention' ? 1600 : 900);
+    island.classList.remove('hover');
+  } else { island.classList.add('shown'); showLevel(); }
+  updateClock();
+}
+listen('status', e => {
+  if (phase !== 'Finishing' && phase !== 'Idle') return;
+  const s = String(e.payload);
+  if (/^(Pasted|Copied|Saved|Answer sent|Searched|Opened|Ready\. Copied)/.test(s)) setOutcome('success');
+  else if (/^(No speech|Microphone|Download|The |Model|Choose|Mouthy could)/.test(s) || /failed|could not|unavailable/i.test(s)) setOutcome('attention');
+});
+island.addEventListener('mouseenter', () => { if (phase !== 'Idle') { island.classList.add('hover'); updateClock(); } });
+island.addEventListener('mouseleave', () => { island.classList.remove('hover'); updateClock(); });
+document.addEventListener('visibilitychange', () => {
+  document.body.classList.toggle('hidden', document.hidden);
+  updateClock(); showLevel();
+});
+</script>
+</body>
+</html>

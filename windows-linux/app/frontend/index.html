@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mouthy</title>
+<style>
+  :root { --bg:#131412; --surface:#1d1e1c; --line:rgba(255,255,255,.07); --ink:#f0ebdc; --muted:#9a968b; --accent:#e0ab66; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui, "Segoe UI", Ubuntu, sans-serif; display:flex; height:100vh; overflow:hidden; }
+  nav { width:200px; background:rgba(29,30,28,.6); border-right:1px solid var(--line); padding:34px 16px; display:flex; flex-direction:column; gap:4px; }
+  .brand { font-size:24px; font-weight:600; letter-spacing:-1px; margin:0 10px 30px; }
+  .brand span { color:var(--accent); }
+  nav button { all:unset; cursor:pointer; padding:11px 12px; border-radius:10px; color:var(--muted); font-weight:500; }
+  nav button.on { background:rgba(255,255,255,.07); color:var(--ink); }
+  nav .foot { margin-top:auto; font-size:12px; color:var(--muted); padding:0 10px; }
+  nav .foot b { color:var(--accent); font-family:ui-monospace, Consolas, monospace; font-weight:500; }
+  main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  header { display:flex; align-items:center; padding:30px 34px 18px; font-size:11px; letter-spacing:2px; color:var(--muted); font-weight:600; }
+  header .dot { margin-left:auto; width:7px; height:7px; border-radius:50%; background:#666; margin-right:8px; }
+  header .dot.live { background:var(--accent); }
+  section { flex:1; overflow:auto; padding:0 34px 24px; display:none; }
+  section.on { display:block; }
+  footer { padding:12px 34px; font-size:12px; color:var(--muted); background:rgba(255,255,255,.025); border-top:1px solid var(--line); }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .card h3 { margin:0 0 12px; font-size:13px; font-weight:600; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:6px 0; }
+  .row > span { color:var(--ink); }
+  .hint { color:var(--muted); font-size:12px; }
+  input[type=text], select, textarea { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 9px; font:inherit; min-width:240px; }
+  textarea { width:100%; min-height:70px; resize:vertical; }
+  button.act { background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 12px; font:inherit; cursor:pointer; }
+  button.primary { background:var(--accent); color:#1a1408; border:0; font-weight:600; }
+  button.link { all:unset; color:var(--accent); cursor:pointer; font-size:12px; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; }
+  .big { font-size:15px; white-space:pre-wrap; min-height:120px; }
+  .model { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--line); }
+  .model:last-child { border-bottom:0; }
+  .ok { color:var(--accent); font-size:12px; }
+  progress { accent-color:var(--accent); width:140px; }
+  code { font-family:ui-monospace, Consolas, monospace; font-size:12px; background:rgba(255,255,255,.05); padding:2px 6px; border-radius:6px; user-select:all; }
+  .stat { font-size:22px; font-weight:500; font-variant-numeric:tabular-nums; }
+  .entry { border-bottom:1px solid var(--line); padding:10px 0; }
+  .entry .meta { font-size:11px; color:var(--muted); }
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand"><span>~</span> mouthy</div>
+  <button data-page="dictate" class="on">Dictate</button>
+  <button data-page="modes">Modes</button>
+  <button data-page="vocabulary">Vocabulary</button>
+  <button data-page="meetings">Meetings</button>
+  <button data-page="history">History</button>
+  <button data-page="settings">Settings</button>
+  <div class="foot">On-device speech.<br>Shortcut <b id="shortcutLabel"></b></div>
+</nav>
+<main>
+  <header><span id="pageTitle">DICTATE</span><span class="dot" id="dot"></span><span id="phase">Ready</span></header>
+
+  <section id="dictate" class="on">
+    <div class="card" id="statsCard" hidden><div class="row" style="justify-content:flex-start;gap:36px">
+      <div><div class="stat" id="statWords"></div><div class="hint">words dictated</div></div>
+      <div><div class="stat" id="statWpm"></div><div class="hint">words per minute</div></div>
+      <div><div class="stat" id="statSaved"></div><div class="hint">minutes saved vs typing</div></div></div></div>
+    <div class="card">
+      <div class="row"><span>Press your shortcut anywhere, speak, press it again. Mouthy pastes into the focused app; Escape cancels.</span>
+        <button class="act primary" id="toggleBtn">Start</button></div>
+    </div>
+    <div class="card"><h3>Last result</h3><div class="big" id="last"></div>
+      <div class="row"><span class="hint">Ctrl+Super+V pastes it again.</span><button class="act" id="copyLast">Copy</button></div></div>
+  </section>
+
+  <section id="modes">
+    <p class="hint">Settings is your main mode. A mode takes over when you say its trigger word first, press its shortcut, or dictate in one of its websites or apps — in that order.</p>
+    <div id="modeList"></div>
+    <button class="act" id="addMode">Add mode</button>
+  </section>
+
+  <section id="vocabulary">
+    <div class="card"><h3>Vocabulary</h3><p class="hint">Names and terms Whisper should expect, separated by commas.</p>
+      <textarea id="vocab" aria-label="Vocabulary"></textarea></div>
+    <div class="card"><h3>Replacements and snippets</h3><p class="hint">Exact spoken phrase → text. Use \n for a new line.</p>
+      <div id="replacements"></div><button class="act" id="addReplacement">Add replacement</button></div>
+    <div class="card"><h3>Spoken commands</h3>
+      <div class="row"><label for="fillers">Remove “um”, “uh” and “erm”</label><input type="checkbox" id="fillers"></div>
+      <div class="row"><label for="punctuation">“period”, “comma”, “question mark”, “new line”, “scratch that”…</label><input type="checkbox" id="punctuation"></div></div>
+  </section>
+
+  <section id="meetings">
+    <div class="card"><div class="row"><span>Records your microphone and the computer's audio on separate tracks after you press Start. Nothing is recorded until then. Transcribe afterwards on this computer.</span>
+      <button class="act primary" id="meetingBtn">Start</button></div></div>
+    <div id="meetingList"></div>
+  </section>
+
+  <section id="history">
+    <div class="row"><span class="hint" id="historyHint"></span><button class="act" id="clearHistory">Clear history</button></div>
+    <div id="historyList"></div>
+  </section>
+
+  <section id="settings">
+    <div class="card"><h3>Speech model</h3>
+      <div class="row"><label for="engine">Engine</label><select id="engine"><option value="Parakeet">Parakeet v3</option><option value="Whisper">Whisper</option></select></div>
+      <div class="row"><label for="whisperModel">Whisper model</label><select id="whisperModel"></select></div>
+      <div class="row"><label for="whisperLanguage">Whisper language</label><input type="text" id="whisperLanguage" placeholder="auto, en, es…"></div>
+      <div id="models"></div>
+      <p class="hint">Models download once from the sherpa-onnx releases on GitHub, then run offline.</p></div>
+    <div class="card"><h3>Dictation</h3>
+      <div class="row"><label for="shortcut">Shortcut</label><input type="text" id="shortcut" placeholder="Ctrl+Alt+Space"></div>
+      <div class="row"><label for="style">Shortcut style</label><select id="style"><option value="toggle">Toggle</option><option value="hold">Hold to talk</option><option value="auto">Automatic (tap toggles, hold talks)</option></select></div>
+      <div class="row"><label for="autoInsert">Paste into the focused app when finished</label><input type="checkbox" id="autoInsert"></div>
+      <div class="row"><label for="media">Other audio while dictating</label><select id="media"><option>Leave playing</option><option>Mute</option><option>Pause</option></select></div>
+      <div class="row"><label for="sounds">Start and stop sounds</label><input type="checkbox" id="sounds"></div>
+      <div class="row"><label for="overlay">Show the recording pill</label><input type="checkbox" id="overlay"></div>
+      <div class="row"><label for="device">Microphone</label><select id="device"></select></div>
+      <div class="row"><label for="login">Start Mouthy when I log in</label><input type="checkbox" id="login"></div>
+      <p class="hint" id="waylandHint" hidden>Wayland does not allow global shortcuts from apps. Add a key binding that runs <code id="toggleCmd"></code> — for Hyprland: <code>bind = CTRL ALT, SPACE, exec, mouthy --toggle</code>.</p></div>
+    <div class="card"><h3>Writing</h3>
+      <div class="row"><label for="writing">Main mode style</label><select id="writing"><option>Verbatim</option><option>Grammar</option><option>Natural</option><option>Clean up</option><option>Concise</option><option>Custom</option></select></div>
+      <div class="row"><label for="ollama">Local AI model (Ollama)</label><select id="ollama"></select></div>
+      <p class="hint">Styles other than Verbatim use a model running in Ollama on this computer. Nothing is sent online.</p>
+      <h3>Custom instructions</h3><textarea id="custom" aria-label="Custom instructions"></textarea></div>
+    <div class="card"><h3>Privacy and agents</h3>
+      <div class="row"><label for="keepHistory">Keep history on this computer</label><input type="checkbox" id="keepHistory"></div>
+      <div class="row"><label for="localOnly">Local Only Mode: block model downloads</label><input type="checkbox" id="localOnly"></div>
+      <div class="row"><label for="syncFolder">Sync folder (shared with your other machines; syncs vocabulary and replacements)</label><input type="text" id="syncFolder" placeholder="e.g. Z:\\Mouthy or /mnt/share/Mouthy"></div>
+      <div class="row"><label for="agent">Let AI agents ask me questions by voice (MCP, this computer only)</label><input type="checkbox" id="agent"></div>
+      <p class="hint">Claude Code: <code id="bridge"></code></p></div>
+  </section>
+  <footer id="status">Ready.</footer>
+</main>
+<script>
+const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
+let snap, settings;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button, section').forEach(e => e.classList.remove('on'));
+  b.classList.add('on'); $(b.dataset.page).classList.add('on'); $('pageTitle').textContent = b.textContent.toUpperCase();
+});
+
+async function refresh() {
+  snap = await invoke('snapshot'); settings = snap.settings;
+  $('shortcutLabel').textContent = settings.shortcut;
+  $('last').textContent = snap.last || 'Your words appear here.';
+  const s = snap.stats; $('statsCard').hidden = !s.words;
+  $('statWords').textContent = s.words.toLocaleString();
+  $('statWpm').textContent = s.speakingSeconds >= 1 ? Math.round(s.words / s.speakingSeconds * 60) : 0;
+  $('statSaved').textContent = Math.max(0, Math.round(s.words / 40 - s.speakingSeconds / 60)).toLocaleString();
+  $('status').textContent = snap.status;
+  setPhase(snap.phase);
+  $('engine').value = settings.engine;
+  $('whisperModel').innerHTML = snap.models.filter(m => m.engine === 'Whisper').map(m => `<option value="${m.id}">${esc(m.label)}</option>`).join('');
+  $('whisperModel').value = settings.whisperModel;
+  $('whisperLanguage').value = settings.whisperLanguage;
+  $('models').innerHTML = snap.models.map(m => `<div class="model"><span>${esc(m.label)}</span>${m.installed ? '<span class="ok">Installed</span>' :
+    snap.downloading ? '<progress id="prog" max="1" value="0"></progress>' : `<button class="act" data-engine="${m.engine}" data-id="${m.id}">Download</button>`}</div>`).join('');
+  $('models').querySelectorAll('button').forEach(b => b.onclick = () => { invoke('download_model', { engine: b.dataset.engine, id: b.dataset.id }); setTimeout(refresh, 300); });
+  $('shortcut').value = settings.shortcut; $('style').value = settings.automaticActivation ? 'auto' : settings.holdToTalk ? 'hold' : 'toggle'; $('autoInsert').checked = settings.autoInsert;
+  $('media').value = settings.mediaWhileDictating; $('sounds').checked = settings.playSounds; $('overlay').checked = settings.showOverlay;
+  $('device').innerHTML = '<option value="">System default</option>' + snap.devices.map(d => `<option>${esc(d)}</option>`).join(''); $('device').value = settings.inputDevice;
+  $('login').checked = settings.launchAtLogin; $('writing').value = settings.writingMode; $('custom').value = settings.customInstructions;
+  $('ollama').innerHTML = '<option value="">None (keep my wording)</option>' + snap.ollamaModels.map(m => `<option>${esc(m)}</option>`).join('');
+  $('ollama').value = settings.ollamaModel;
+  $('keepHistory').checked = settings.keepHistory; $('syncFolder').value = settings.syncFolder; $('localOnly').checked = settings.localOnly; $('agent').checked = settings.agentVoice; $('bridge').textContent = snap.bridgeCommand;
+  $('waylandHint').hidden = !snap.wayland; $('toggleCmd').textContent = 'mouthy --toggle';
+  $('vocab').value = settings.vocabulary; $('fillers').checked = settings.removeFillers; $('punctuation').checked = settings.punctuationCommands;
+  renderReplacements(); renderModes(); renderHistory();
+}
+
+function setPhase(p) { $('phase').textContent = p === 'Idle' ? 'Ready' : p; $('dot').classList.toggle('live', p !== 'Idle'); $('toggleBtn').textContent = p === 'Listening' ? 'Stop' : 'Start'; }
+
+async function save() { const problems = await invoke('save_settings', { settings }); if (problems.length && !snap.wayland) $('status').textContent = 'Shortcut problem: ' + problems.join('; '); }
+const bind = (id, key, prop = 'value') => $(id).addEventListener('change', () => { settings[key] = $(id)[prop]; save(); });
+bind('engine', 'engine'); bind('whisperModel', 'whisperModel'); bind('whisperLanguage', 'whisperLanguage'); bind('shortcut', 'shortcut');
+bind('autoInsert', 'autoInsert', 'checked'); bind('media', 'mediaWhileDictating'); bind('sounds', 'playSounds', 'checked');
+bind('overlay', 'showOverlay', 'checked'); bind('device', 'inputDevice'); bind('login', 'launchAtLogin', 'checked'); bind('writing', 'writingMode');
+bind('custom', 'customInstructions'); bind('ollama', 'ollamaModel'); bind('keepHistory', 'keepHistory', 'checked'); bind('agent', 'agentVoice', 'checked');
+bind('vocab', 'vocabulary'); bind('fillers', 'removeFillers', 'checked'); bind('localOnly', 'localOnly', 'checked'); bind('syncFolder', 'syncFolder');
+$('style').addEventListener('change', () => { settings.automaticActivation = $('style').value === 'auto'; settings.holdToTalk = $('style').value === 'hold'; save(); }); bind('punctuation', 'punctuationCommands', 'checked');
+
+function renderReplacements() {
+  $('replacements').innerHTML = settings.replacements.map((r, i) => `<div class="row"><input type="text" data-i="${i}" data-k="phrase" aria-label="Spoken phrase" value="${esc(r.phrase)}" placeholder="spoken phrase">
+    <input type="text" data-i="${i}" data-k="replacement" aria-label="Replacement text" value="${esc(r.replacement.replace(/\n/g, '\\n'))}" placeholder="text"><button class="link" data-del="${i}">Remove</button></div>`).join('');
+  $('replacements').querySelectorAll('input').forEach(e => e.onchange = () => { settings.replacements[e.dataset.i][e.dataset.k] = e.dataset.k === 'replacement' ? e.value.replace(/\\n/g, '\n') : e.value; save(); });
+  $('replacements').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { settings.replacements.splice(b.dataset.del, 1); save(); renderReplacements(); });
+}
+$('addReplacement').onclick = () => { settings.replacements.push({ phrase: '', replacement: '' }); renderReplacements(); };
+
+const OUTPUTS = ['Insert', 'Insert and press Return', 'Copy to clipboard', 'History only'];
+const STYLES = ['Verbatim', 'Grammar', 'Natural', 'Clean up', 'Concise', 'Custom'];
+function renderModes() {
+  $('modeList').innerHTML = settings.modes.map((m, i) => `<div class="card"><h3>${esc(m.name || 'Mode')}</h3>
+    <div class="row"><label for="mode-${i}-name">Name</label><input type="text" id="mode-${i}-name" data-i="${i}" data-k="name" value="${esc(m.name)}"></div>
+    <div class="row"><label for="mode-${i}-writingMode">Writing</label><select id="mode-${i}-writingMode" data-i="${i}" data-k="writingMode">${STYLES.map(s => `<option ${s === m.writingMode ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+    <div class="row"><label for="mode-${i}-engine">Speech engine</label><select id="mode-${i}-engine" data-i="${i}" data-k="engine"><option value="">Same as Settings</option>
+      ${['Parakeet', 'Whisper'].map(e => `<option ${e === m.engine ? 'selected' : ''}>${e}</option>`).join('')}</select></div>
+    <div class="row"><label for="mode-${i}-output">When finished</label><select id="mode-${i}-output" data-i="${i}" data-k="output">${OUTPUTS.map(o => `<option ${o === m.output ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+    <div class="row"><label for="mode-${i}-triggerWord">Trigger word</label><input type="text" id="mode-${i}-triggerWord" data-i="${i}" data-k="triggerWord" value="${esc(m.triggerWord)}" placeholder="e.g. email"></div>
+    <div class="row"><label for="mode-${i}-shortcut">Shortcut</label><input type="text" id="mode-${i}-shortcut" data-i="${i}" data-k="shortcut" value="${esc(m.shortcut || '')}" placeholder="e.g. Ctrl+Alt+E"></div>
+    <div class="row"><label for="mode-${i}-websites">Websites</label><input type="text" id="mode-${i}-websites" data-i="${i}" data-k="websites" value="${esc(m.websites.join(', '))}" placeholder="github.com, mail.google.com"></div>
+    <div class="row"><label for="mode-${i}-apps">Apps</label><input type="text" id="mode-${i}-apps" data-i="${i}" data-k="apps" value="${esc(m.apps.join(', '))}" placeholder="slack.exe, code, Alacritty"></div>
+    <div class="row"><label for="mode-${i}-codeDictation">Code dictation (“camel case user name” → userName)</label><input type="checkbox" id="mode-${i}-codeDictation" data-i="${i}" data-k="codeDictation" ${m.codeDictation ? 'checked' : ''}></div>
+    <div class="row"><label for="mode-${i}-includeContext">Include context (app, window, clipboard) in the instructions</label><input type="checkbox" id="mode-${i}-includeContext" data-i="${i}" data-k="includeContext" ${m.includeContext ? 'checked' : ''}></div>
+    <h3>Instructions (optional; replaces the writing style)</h3><textarea data-i="${i}" data-k="instructions" aria-label="Mode instructions">${esc(m.instructions)}</textarea>
+    <div class="row"><span></span><button class="link" data-del="${i}">Delete mode</button></div></div>`).join('');
+  $('modeList').querySelectorAll('[data-k]').forEach(e => e.onchange = () => {
+    const m = settings.modes[e.dataset.i], k = e.dataset.k;
+    if (k === 'websites' || k === 'apps') m[k] = e.value.split(',').map(s => s.trim()).filter(Boolean);
+    else if (k === 'engine' || k === 'shortcut') m[k] = e.value || null;
+    else if (k === 'includeContext' || k === 'codeDictation') m[k] = e.checked;
+    else m[k] = e.value;
+    save(); if (k === 'name') renderModes();
+  });
+  $('modeList').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { settings.modes.splice(b.dataset.del, 1); save(); renderModes(); });
+}
+$('addMode').onclick = () => { settings.modes.push({ id: crypto.randomUUID(), name: 'New mode', writingMode: 'Verbatim', instructions: '', engine: null, output: 'Insert', apps: [], websites: [], triggerWord: '', shortcut: null, includeContext: false }); save(); renderModes(); };
+
+function renderHistory() {
+  $('historyHint').textContent = settings.keepHistory ? `${snap.history.length} saved on this computer.` : 'History is off (Settings → Privacy). Modes set to “History only” still save here.';
+  $('historyList').innerHTML = snap.history.map(h => `<div class="entry"><div class="meta">${new Date(h.date * 1000).toLocaleString()} · ${esc(h.app || 'Mouthy')} · ${esc(h.mode)}</div>
+    <div>${esc(h.text)}</div><button class="link" data-copy="${esc(h.id)}">Copy</button> &nbsp; <button class="link" data-del="${esc(h.id)}">Delete</button></div>`).join('');
+  $('historyList').querySelectorAll('[data-copy]').forEach(b => b.onclick = () => invoke('copy_text', { text: snap.history.find(h => h.id === b.dataset.copy).text }));
+  $('historyList').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { await invoke('delete_history', { id: b.dataset.del }); refresh(); });
+}
+$('clearHistory').onclick = async () => { await invoke('clear_history'); refresh(); };
+$('toggleBtn').onclick = () => invoke('toggle_dictation');
+$('copyLast').onclick = () => invoke('copy_text', { text: snap.last || '' });
+
+listen('status', e => $('status').textContent = e.payload);
+listen('preview', e => $('last').textContent = e.payload + ' …');
+listen('meetings', () => renderMeetings());
+async function renderMeetings() {
+  const [recording, list] = await invoke('meeting_list');
+  $('meetingBtn').textContent = recording ? 'Stop' : 'Start';
+  $('meetingList').innerHTML = list.map((m, i) => `<div class="card"><div class="row"><span>${esc(m.name)}</span><span>
+    <button class="link" data-open="${i}">Open folder</button> &nbsp; <button class="link" data-tr="${i}">${m.transcribed ? 'Transcribe again' : 'Transcribe'}</button></span></div></div>`).join('');
+  $('meetingList').querySelectorAll('[data-open]').forEach(b => b.onclick = () => invoke('open_path', { path: list[b.dataset.open].path }));
+  $('meetingList').querySelectorAll('[data-tr]').forEach(b => b.onclick = () => invoke('meeting_transcribe', { path: list[b.dataset.tr].path }));
+}
+$('meetingBtn').onclick = async () => { try { await invoke('meeting_toggle'); } catch (e) { $('status').textContent = e; } renderMeetings(); };
+renderMeetings();
+listen('phase', e => setPhase(e.payload));
+listen('result', e => { $('last').textContent = e.payload; if (snap) snap.last = e.payload; });
+listen('history', () => refresh());
+listen('download', e => { const p = $('prog'); if (p) p.value = e.payload; if (e.payload >= 1) refresh(); });
+refresh();
+</script>
+</body>
+</html>

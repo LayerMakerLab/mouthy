@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Mouthy windows",
+  "windows": ["main", "overlay"],
+  "permissions": ["core:default"]
+}

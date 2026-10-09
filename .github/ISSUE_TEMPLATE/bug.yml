@@ -1,0 +1,27 @@
+name: Bug report
+description: Something does not work as described.
+labels: [bug]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Mac (Apple silicon), Mac (Intel), Windows, Linux]
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Mouthy version and OS version
+      placeholder: Mouthy 0.1.0 on macOS 26.1
+    validations: { required: true }
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Speech engine
+      options: [NVIDIA Parakeet, OpenAI Whisper, Apple Speech, Not related to an engine]
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened
+      description: Steps to reproduce, what you expected and what happened instead. Please do not paste private dictation.
+    validations: { required: true }

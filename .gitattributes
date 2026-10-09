@@ -1,0 +1,2 @@
+# The sherpa-onnx C API header is upstream code; keep it out of the language statistics.
+mac/Sources/CSherpaOnnx/include/sherpa-onnx-c-api.h linguist-vendored

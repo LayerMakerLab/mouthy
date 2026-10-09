@@ -1,0 +1,13 @@
+#!/bin/zsh
+set -euo pipefail
+root="${0:A:h:h}"
+if [[ -n "${MOUTHY_APP_PATH:-}" ]]; then
+    exec "$MOUTHY_APP_PATH/Contents/MacOS/Mouthy" "$@"
+elif [[ -x /Applications/Mouthy.app/Contents/MacOS/Mouthy ]]; then
+    exec /Applications/Mouthy.app/Contents/MacOS/Mouthy "$@"
+elif [[ -x "$root/build/Mouthy.app/Contents/MacOS/Mouthy" ]]; then
+    exec "$root/build/Mouthy.app/Contents/MacOS/Mouthy" "$@"
+else
+    print -u2 'Build Mouthy with ./scripts/build.sh first.'
+    exit 1
+fi
