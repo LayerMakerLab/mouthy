@@ -16,6 +16,7 @@
 - Clearer messages: the app holding Secure Keyboard Entry is named, a microphone that sent only silence is reported as such instead of "No speech detected", and a dictation stopped at the 10-minute limit says so.
 - Dictating through a Bluetooth headset offers the built-in microphone once, for better sound.
 - Words, replacements and modes removed on the Mac stay removed after a sync with another computer.
+- Windows and Linux: a setting saved while a sync is running is no longer lost.
 - Without Accessibility, double-tap right ⌘ and Hold Fn did nothing at all. Now ⌃⌥Space starts dictation until Accessibility is allowed, Mouthy says so, and the Accessibility setup screen comes back at launch (macOS's own prompt shows only once).
 - Pressing the shortcut before the speech model was downloaded says so: "Download the model in Settings" instead of "Needs attention".
 
