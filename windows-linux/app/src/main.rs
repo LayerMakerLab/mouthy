@@ -11,6 +11,7 @@ mod llm;
 mod meetings;
 mod platform;
 mod store;
+mod updates;
 
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -848,7 +849,15 @@ fn handle_args(app: &AppHandle, args: &[String]) {
     else if args.iter().any(|a| a == "--toggle") { toggle(app, None) }
     else if args.iter().any(|a| a == "--cancel") { cancel(app) }
     else if args.iter().any(|a| a == "--paste-last") { paste_last(app) }
+    else if args.iter().any(|a| a == "--quit") { quit(app) }
     else if !args.iter().any(|a| a == "--background") { show_main(app) }
+}
+
+/// What the tray's Quit does: stop any dictation or meeting, then exit (a staged update lands on the way out).
+fn quit(app: &AppHandle) {
+    cancel(app);
+    if let Some(m) = state(app).meeting.lock().take() { let _ = m.stop(); }
+    app.exit(0)
 }
 
 fn show_main(app: &AppHandle) {
@@ -914,7 +923,7 @@ fn main() {
             return;
         }
         Some("--help") | Some("-h") => {
-            println!("Mouthy — local dictation\n\n  mouthy                 open settings (starts Mouthy if needed)\n  mouthy --background    start in the tray\n  mouthy --toggle        start/stop dictation (bind this on Wayland)\n  mouthy --cancel        cancel dictation\n  mouthy --paste-last    paste the last result\n  mouthy transcribe F.wav  print a transcript\n  mouthy download [parakeet | whisper MODEL]  install a speech model\n  mouthy mic-test [SECONDS]  record from the microphone and print the transcript\n  mouthy --mcp-bridge    stdio MCP bridge for AI agents");
+            println!("Mouthy — local dictation\n\n  mouthy                 open settings (starts Mouthy if needed)\n  mouthy --background    start in the tray\n  mouthy --toggle        start/stop dictation (bind this on Wayland)\n  mouthy --cancel        cancel dictation\n  mouthy --paste-last    paste the last result\n  mouthy --quit          quit the running Mouthy\n  mouthy transcribe F.wav  print a transcript\n  mouthy download [parakeet | whisper MODEL]  install a speech model\n  mouthy mic-test [SECONDS]  record from the microphone and print the transcript\n  mouthy --mcp-bridge    stdio MCP bridge for AI agents");
             return;
         }
         _ => {}
@@ -923,6 +932,7 @@ fn main() {
     let history: Vec<HistoryEntry> = store::load("history.json");
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _| handle_args(app, &argv)))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new()
             .with_handler(|app, shortcut, event| on_shortcut(app, shortcut, event.state() == ShortcutState::Pressed))
             .build())
@@ -949,6 +959,21 @@ fn main() {
         .invoke_handler(tauri::generate_handler![snapshot, save_settings, toggle_dictation, cancel_dictation, download_model, clear_history, delete_history, copy_text, meeting_toggle, meeting_list, meeting_transcribe, open_path, open_privacy_policy, current_phase])
         .setup(move |app| {
             let handle = app.handle().clone();
+            let args: Vec<String> = std::env::args().collect();
+            // Only the instance holding the single-instance lock reaches setup, so no other Mouthy is running:
+            // a second instance was forwarded to it and has already exited.
+            if args.iter().any(|a| a == "--quit") { handle.exit(0); return Ok(()) } // nothing was running
+            if let Some(dir) = updates::install_dir() {
+                // A verified update staged during the last run lands now; then the new version takes over
+                // with the same arguments. The lock is released first so the new copy can start.
+                if updates::apply_staged(&dir, updates::wanted(&state(&handle).settings.lock())) {
+                    tauri_plugin_single_instance::destroy(&handle);
+                    // Exit either way: this copy no longer holds the lock, and if the spawn failed the new files
+                    // start at the next launch.
+                    updates::relaunch(&dir, &args[1..]);
+                    std::process::exit(0)
+                }
+            }
             let menu = tray_menu(&handle)?;
             TrayIconBuilder::with_id("mouthy")
                 .icon(app.default_window_icon().cloned().expect("icon"))
@@ -958,7 +983,7 @@ fn main() {
                     "toggle" => toggle(app, None),
                     "paste" => paste_last(app),
                     "open" => show_main(app),
-                    "quit" => { cancel(app); if let Some(m) = state(app).meeting.lock().take() { let _ = m.stop(); } app.exit(0) }
+                    "quit" => quit(app),
                     "mode:auto" => { *state(app).picked_mode.lock() = None; set_status(app, "Next dictation: automatic mode.") }
                     id if id.starts_with("mode:") => {
                         let picked = uuid::Uuid::parse_str(&id[5..]).ok();
@@ -978,12 +1003,13 @@ fn main() {
             // Sync now and every ten minutes (a small file in a folder the machines share).
             let sync_app = handle.clone();
             std::thread::spawn(move || loop { sync_settings(&sync_app, &store::Removed::default()); std::thread::sleep(Duration::from_secs(600)); });
+            let update_app = handle.clone();
+            updates::schedule(handle.clone(), move || updates::wanted(&state(&update_app).settings.lock()));
             let agent_app = handle.clone();
             let enabled_app = handle.clone();
             if let Err(problem) = agent::serve(move |questions| ask(&agent_app, questions), move || state(&enabled_app).settings.lock().agent_voice) {
                 set_status(&handle, problem);
             }
-            let args: Vec<String> = std::env::args().collect();
             if args.iter().any(|a| a == "--split") { pass_return(&handle); }
             else if !args.iter().any(|a| a == "--background" || a == "--toggle") { show_main(&handle); }
             if args.iter().any(|a| a == "--toggle") { toggle(&handle, None); }
@@ -992,5 +1018,14 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("Mouthy failed to start")
         // Closing the last window keeps Mouthy in the tray; only Quit exits.
-        .run(|_, event| if let tauri::RunEvent::ExitRequested { api, code, .. } = event { if code.is_none() { api.prevent_exit(); } });
+        .run(|app, event| match event {
+            tauri::RunEvent::ExitRequested { api, code: None, .. } => api.prevent_exit(),
+            // Quit (tray or --quit): a downloaded, verified update replaces this copy, if updates are still
+            // wanted. This runs before the single-instance plugin releases its lock at Exit, so no other copy
+            // can start on the same files meanwhile.
+            tauri::RunEvent::ExitRequested { code: Some(_), .. } => {
+                if let Some(dir) = updates::install_dir() { updates::apply_staged(&dir, updates::wanted(&state(app).settings.lock())); }
+            }
+            _ => {}
+        });
 }

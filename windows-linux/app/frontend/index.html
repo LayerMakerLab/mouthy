@@ -123,7 +123,8 @@
       <h3>Custom instructions</h3><textarea id="custom" aria-label="Custom instructions"></textarea></div>
     <div class="card"><h3>Privacy and agents</h3>
       <div class="row"><label for="keepHistory">Keep history on this computer</label><input type="checkbox" id="keepHistory"></div>
-      <div class="row"><label for="localOnly">Local Only Mode: block model downloads</label><input type="checkbox" id="localOnly"></div>
+      <div class="row"><label for="localOnly">Local Only Mode: block model downloads and update checks</label><input type="checkbox" id="localOnly"></div>
+      <div class="row"><label for="updates">Check for updates automatically</label><input type="checkbox" id="updates"></div>
       <div class="row"><label for="syncFolder">Sync folder (shared with your other machines; syncs vocabulary and replacements)</label><input type="text" id="syncFolder" placeholder="e.g. Z:\\Mouthy or /mnt/share/Mouthy"></div>
       <div class="row"><label for="agent">Let AI agents ask me questions by voice (MCP, this computer only)</label><input type="checkbox" id="agent"></div>
       <p class="hint">Claude Code: <code id="bridge"></code></p>
@@ -167,7 +168,7 @@ async function refresh() {
   $('login').checked = settings.launchAtLogin; $('writing').value = settings.writingMode; $('custom').value = settings.customInstructions;
   $('ollama').innerHTML = '<option value="">None (keep my wording)</option>' + snap.ollamaModels.map(m => `<option>${esc(m)}</option>`).join('');
   $('ollama').value = settings.ollamaModel;
-  $('keepHistory').checked = settings.keepHistory; $('syncFolder').value = settings.syncFolder; $('localOnly').checked = settings.localOnly; $('agent').checked = settings.agentVoice; $('bridge').textContent = snap.bridgeCommand;
+  $('keepHistory').checked = settings.keepHistory; $('syncFolder').value = settings.syncFolder; $('localOnly').checked = settings.localOnly; $('updates').checked = settings.checkUpdates; $('agent').checked = settings.agentVoice; $('bridge').textContent = snap.bridgeCommand;
   $('waylandHint').hidden = !snap.wayland; $('toggleCmd').textContent = 'mouthy --toggle';
   $('vocab').value = settings.vocabulary; $('fillers').checked = settings.removeFillers; $('punctuation').checked = settings.punctuationCommands;
   renderReplacements(); renderModes(); renderHistory();
@@ -181,7 +182,7 @@ bind('engine', 'engine'); bind('whisperModel', 'whisperModel'); bind('whisperLan
 bind('autoInsert', 'autoInsert', 'checked'); bind('media', 'mediaWhileDictating'); bind('sounds', 'playSounds', 'checked');
 bind('overlay', 'showOverlay', 'checked'); bind('device', 'inputDevice'); bind('login', 'launchAtLogin', 'checked'); bind('writing', 'writingMode');
 bind('custom', 'customInstructions'); bind('ollama', 'ollamaModel'); bind('keepHistory', 'keepHistory', 'checked'); bind('agent', 'agentVoice', 'checked');
-bind('vocab', 'vocabulary'); bind('fillers', 'removeFillers', 'checked'); bind('localOnly', 'localOnly', 'checked'); bind('syncFolder', 'syncFolder');
+bind('vocab', 'vocabulary'); bind('fillers', 'removeFillers', 'checked'); bind('localOnly', 'localOnly', 'checked'); bind('updates', 'checkUpdates', 'checked'); bind('syncFolder', 'syncFolder');
 $('style').addEventListener('change', () => { settings.automaticActivation = $('style').value === 'auto'; settings.holdToTalk = $('style').value === 'hold'; save(); }); bind('punctuation', 'punctuationCommands', 'checked');
 
 function renderReplacements() {

@@ -32,7 +32,7 @@ Mouthy isn't code-signed on Windows yet. If Windows says it protected your PC, c
 1. Download the Linux `.tar.gz` from [Releases](https://github.com/LayerMakerLab/mouthy/releases/latest), unpack it and run `./install.sh`.
 2. Press Ctrl+Alt+Space, talk, and press it again. Wayland doesn't let apps register shortcuts: install `wl-clipboard` and `wtype`, and bind a key in your compositor to `mouthy --toggle`.
 
-To hear about new Windows and Linux versions, choose **Watch → Custom → Releases** at the top of this page.
+From 0.1.6 on, Windows and Linux copies update themselves: Mouthy checks mouthy.dev a minute after it starts and then once a day, downloads the same archive you would download by hand, keeps it only if it carries Mouthy's signature, and swaps it in when you quit or the next time it starts. Settings → "Check for updates automatically" turns it off; Local Only Mode never checks. A copy built from source does not update itself.
 
 | | Speech engines |
 | --- | --- |
@@ -67,7 +67,7 @@ Full list: [Features](docs/features.md).
 ## Privacy
 
 - Dictation audio stays in memory and is never saved.
-- No telemetry and no account. Mouthy goes online only to download the speech models you picked (plus a small voice-activity model on the Mac) and, on the Mac, to fetch lyrics, artwork and weather for the notch hub and to check once a day for a new version (Settings → Privacy → Check for updates automatically). Local Only Mode turns all of it off.
+- No telemetry and no account. Mouthy goes online only to download the speech models you picked (plus a small voice-activity model on the Mac) and, on the Mac, to fetch lyrics, artwork and weather for the notch hub; on every platform it checks for a new version, once a day on the Mac and a minute after each start then daily on Windows and Linux (Settings → Privacy → Check for updates automatically; Windows and Linux from 0.1.6). Local Only Mode turns all of it off.
 - History is off by default.
 
 Details: [Privacy and security](docs/privacy.md).

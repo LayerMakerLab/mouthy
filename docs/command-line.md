@@ -38,6 +38,7 @@ The running app also responds to links: `open mouthy://toggle` (also `start`, `s
 mouthy --toggle                  # start or finish dictation (bind this to a key on Wayland)
 mouthy --cancel                  # throw the current recording away
 mouthy --paste-last              # paste the last result again
+mouthy --quit                    # quit the running Mouthy (a downloaded update lands on the way out)
 mouthy --background              # start in the tray without opening the window
 mouthy download parakeet
 mouthy download whisper base.en  # tiny.en, base.en, small, medium or turbo

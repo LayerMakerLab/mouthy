@@ -34,6 +34,8 @@ pub struct AppSettings {
     pub automatic_activation: bool,
     /// Folder holding "Mouthy Sync.json", shared with other machines (empty = off).
     pub sync_folder: String,
+    /// Ask the update feed once a day for a newer version (on by default; Local Only Mode also stops it).
+    pub check_updates: bool,
 }
 
 impl Default for AppSettings {
@@ -49,6 +51,7 @@ impl Default for AppSettings {
             show_overlay: true,
             automatic_activation: false,
             sync_folder: String::new(),
+            check_updates: true,
         }
     }
 }
@@ -183,6 +186,14 @@ pub fn agent_token() -> std::io::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn update_checks_are_on_by_default_and_for_old_settings() {
+        assert!(AppSettings::default().check_updates);
+        let old: AppSettings = serde_json::from_str(r#"{"launchAtLogin":true,"syncFolder":""}"#).unwrap();
+        assert!(old.check_updates && old.launch_at_login);
+        let off: AppSettings = serde_json::from_str(&serde_json::to_string(&AppSettings { check_updates: false, ..Default::default() }).unwrap()).unwrap();
+        assert!(!off.check_updates);
+    }
     #[test]
     fn sync_merges_and_keeps_mac_modes() {
         let folder = std::env::temp_dir().join(format!("mouthy-sync-{}", uuid::Uuid::new_v4()));

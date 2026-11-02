@@ -93,4 +93,4 @@ Vocabulary and replacements can be shared between your computers through any fol
 
 ## Idle cost
 
-Nothing listens or draws while you are not dictating; the recording overlay exists only while you speak. The only idle work is the optional sync, which checks its folder every ten minutes on Windows and Linux.
+Nothing listens or draws while you are not dictating; the recording overlay exists only while you speak. The only idle work is the optional sync, which checks its folder every ten minutes on Windows and Linux, and the daily update check (a minute after start, then every 24 hours; off in Settings or with Local Only Mode).

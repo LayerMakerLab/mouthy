@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6 (Windows and Linux)
+
+- Mouthy updates itself on Windows and Linux: a minute after it starts and then once a day it asks mouthy.dev for a newer version, downloads the same archive you would download by hand, keeps it only if it carries Mouthy's signature, and swaps it in when you quit or the next time it starts. Settings → "Check for updates automatically" turns it off; Local Only Mode never checks. Copies installed from this version on get updates; earlier ones need one last download by hand.
+
 ## 0.1.5
 
 - Sentences no longer break in the middle with a stray period: soft words are no longer taken for pauses, and a word is no longer typed twice where two stretches of speech meet.
