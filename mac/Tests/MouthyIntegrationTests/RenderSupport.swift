@@ -5,7 +5,9 @@ import Testing
 import MouthyNotch
 
 /// Renders a view in a real offscreen window (never ImageRenderer, which skips AppKit-backed controls) and
-/// writes a PNG to MOUTHY_RENDER_DIR. Returns nil when the variable is unset.
+/// writes a PNG to MOUTHY_RENDER_DIR. Returns nil when the variable is unset. `scheme` is the surface's appearance:
+/// app windows follow the Mac, so they render in `.light` and `.dark`; the notch and the recording pill are `.dark` (the
+/// default).
 ///
 /// `cacheDisplay` cannot capture Liquid Glass: a `glassEffect` view and everything it samples draw blank.
 /// By default the render sets `mouthyFlatGlass`, so `mouthyGlass` surfaces (and `.mouthySecondary` buttons)
@@ -17,14 +19,14 @@ import MouthyNotch
 /// far off screen (never on a display, never key) so that motion runs, and each such view is drawn from its
 /// on-screen (presentation) layer instead.
 @MainActor
-func renderOffscreen(_ view: some View, size: CGSize, name: String, settle: TimeInterval = 0.5, flatGlass: Bool = true, afterAppear: (() -> Void)? = nil) throws -> URL? {
+func renderOffscreen(_ view: some View, size: CGSize, name: String, scheme: ColorScheme = .dark, settle: TimeInterval = 0.5, flatGlass: Bool = true, afterAppear: (() -> Void)? = nil) throws -> URL? {
     guard let folder = ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"] else { return nil }
     try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
-    let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height).environment(\.colorScheme, .dark).environment(\.mouthyFlatGlass, flatGlass))
+    let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height).mouthyAppearance(scheme).environment(\.mouthyFlatGlass, flatGlass))
     host.frame = NSRect(origin: .zero, size: size)
     let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: size.width, height: size.height),
                           styleMask: .borderless, backing: .buffered, defer: false)
-    window.appearance = NSAppearance(named: .darkAqua)
+    window.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
     window.isReleasedWhenClosed = false
     window.contentView = host
     host.layoutSubtreeIfNeeded()
@@ -115,4 +117,13 @@ func hsb(r: Double, g: Double, b: Double) -> (Double, Double, Double) {
 func assertNoBlue(_ url: URL, sourceLocation: SourceLocation = #_sourceLocation) {
     let fraction = bluePixelFraction(url)
     #expect(fraction <= 0.001, "\(url.lastPathComponent) is \(String(format: "%.3f", fraction * 100))% blue", sourceLocation: sourceLocation)
+}
+
+/// Writes `text` spoken by the system voice (or `voice`) to `url`: AIFF, or 16 kHz 16-bit WAV with `pcm16k`.
+/// Synthetic speech for the gated recognition tests; it plays nothing.
+func speak(_ text: String, to url: URL, voice: String? = nil, pcm16k: Bool = false) throws {
+    let say = Process()
+    say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
+    say.arguments = (voice.map { ["-v", $0] } ?? []) + ["-o", url.path] + (pcm16k ? ["--data-format=LEI16@16000"] : []) + [text]
+    try say.run(); say.waitUntilExit()
 }

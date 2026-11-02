@@ -351,7 +351,7 @@ import SwiftUI
     public func start() {
         guard panel == nil else { return }
         let panel = NotchPanel()
-        panel.contentView = NSHostingView(rootView: NotchRootView(hub: self).preferredColorScheme(.dark).tint(MouthyTheme.orange))
+        panel.contentView = NSHostingView(rootView: NotchRootView(hub: self).mouthyAppearance(.dark).tint(MouthyTheme.orange))
         self.panel = panel
         let center = NotificationCenter.default
         let workspace = NSWorkspace.shared.notificationCenter
@@ -401,6 +401,10 @@ import SwiftUI
     }
 
     /// Pointer entered or left the hub's visible shape.
+    /// The tab a hover opens on: the one whose live activity the closed notch is showing (a running timer, music
+    /// playing), so the panel continues what was just seen. Nil keeps the last tab. Dictation picks its own tab.
+    var hoverOpensOn: String? { dictation == nil ? compactTab?.id : nil }
+
     func hover(_ inside: Bool) {
         // While something live sits in the band, hovering never opens the tabs. Dictation and results stay in the
         // wings (nothing more of the menu bar is ever covered); only a peek opens into its card.
@@ -418,8 +422,10 @@ import SwiftUI
             let delay = openDelay
             openTask = Task { [weak self] in
                 do { try await Task.sleep(for: delay) } catch { return }
-                self?.openTask = nil
-                self?.setOpen(true)
+                guard let self else { return }
+                self.openTask = nil
+                if let id = self.hoverOpensOn { self.selectedID = id }
+                self.setOpen(true)
             }
         } else {
             openTask?.cancel(); openTask = nil
@@ -756,6 +762,7 @@ import SwiftUI
 final class NotchPanel: NSPanel {
     init() {
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        appearance = NSAppearance(named: .darkAqua)
         isOpaque = false; backgroundColor = .clear; hasShadow = false
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
         hidesOnDeactivate = false; isMovable = false

@@ -110,8 +110,15 @@ final class MeetingAudioSink: NSObject, SCStreamOutput, SCStreamDelegate, @unche
     private var limit: Task<Void, Never>?
     var onState: ((Bool, Bool, String) -> Void)?
     var onWaveform: ((MicrophoneFrame) -> Void)?
+    init() {
+        MicrophoneOwner.shared.register(self) { [weak self] in self.map { $0.recording || $0.working } ?? false }
+    }
     func start(folder destination: URL, inputUID: String) {
         guard !working, !recording else { return }
+        do { try MicrophoneOwner.shared.requireFree() } catch {
+            message = error.localizedDescription; onState?(false, false, message)
+            return
+        }
         generation = UUID(); let token = generation
         working = true; message = "Preparing meeting capture…"; onState?(false, true, message)
         operation = Task { [self] in

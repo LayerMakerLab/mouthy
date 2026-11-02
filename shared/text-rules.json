@@ -95,6 +95,24 @@
       "before": "Print on",
       "after": " today.",
       "expected": " A4 paper"
+    },
+    {
+      "text": "dana@example.com",
+      "before": "",
+      "after": "",
+      "expected": "dana@example.com"
+    },
+    {
+      "text": "mouthy.dev is live.",
+      "before": "",
+      "after": "",
+      "expected": "mouthy.dev is live."
+    },
+    {
+      "text": "e.g. this one.",
+      "before": "",
+      "after": "",
+      "expected": "E.g. this one."
     }
   ],
   "backtrack": [
@@ -279,6 +297,28 @@
       "replacements": [],
       "punctuation": true,
       "expected": ""
+    },
+    {
+      "text": "I won't go but we won it",
+      "replacements": [
+        {
+          "phrase": "won",
+          "replacement": "Juan"
+        }
+      ],
+      "punctuation": false,
+      "expected": "I won't go but we Juan it"
+    },
+    {
+      "text": "Dana’s plan, dana’t",
+      "replacements": [
+        {
+          "phrase": "dana",
+          "replacement": "Dana B."
+        }
+      ],
+      "punctuation": false,
+      "expected": "Dana B.’s plan, dana’t"
     }
   ],
   "trigger": [
@@ -392,6 +432,304 @@
     {
       "text": "open index.html in version 3.5.",
       "expected": "open index.html in version 3.5."
+    }
+  ],
+  "clockTimes": [
+    {
+      "text": "The call is at 3.30 tomorrow.",
+      "expected": "The call is at 3:30 tomorrow."
+    },
+    {
+      "text": "Be there by 10.15.",
+      "expected": "Be there by 10:15."
+    },
+    {
+      "text": "Doors open 7.45 pm.",
+      "expected": "Doors open 7:45 pm."
+    },
+    {
+      "text": "It ends 9.05 p.m. sharp",
+      "expected": "It ends 9:05 p.m. sharp"
+    },
+    {
+      "text": "It costs 3.30 dollars.",
+      "expected": "It costs 3.30 dollars."
+    },
+    {
+      "text": "Rates are at 4.25 percent.",
+      "expected": "Rates are at 4.25 percent."
+    },
+    {
+      "text": "Sold at 2.50 each.",
+      "expected": "Sold at 2.50 each."
+    },
+    {
+      "text": "Version 1.10 is out.",
+      "expected": "Version 1.10 is out."
+    },
+    {
+      "text": "Pi is 3.14159.",
+      "expected": "Pi is 3.14159."
+    },
+    {
+      "text": "at 13.30",
+      "expected": "at 13.30"
+    },
+    {
+      "text": "at 3.75",
+      "expected": "at 3.75"
+    },
+    {
+      "text": "It weighs at 1.20 kg",
+      "expected": "It weighs at 1.20 kg"
+    },
+    {
+      "text": "Meet me at 1158.",
+      "expected": "Meet me at 11:58."
+    },
+    {
+      "text": "It's 1158 right now.",
+      "expected": "It's 11:58 right now."
+    },
+    {
+      "text": "Wake me at 645 tomorrow.",
+      "expected": "Wake me at 6:45 tomorrow."
+    },
+    {
+      "text": "It's eleven fifty-eight right now.",
+      "expected": "It's 11:58 right now."
+    },
+    {
+      "text": "Meet me at eleven fifty eight.",
+      "expected": "Meet me at 11:58."
+    },
+    {
+      "text": "Call me around six fifteen.",
+      "expected": "Call me around 6:15."
+    },
+    {
+      "text": "The bus leaves at ten oh five.",
+      "expected": "The bus leaves at 10:05."
+    },
+    {
+      "text": "Be there by twelve thirty.",
+      "expected": "Be there by 12:30."
+    },
+    {
+      "text": "Doors open six forty five pm.",
+      "expected": "Doors open 6:45 pm."
+    },
+    {
+      "text": "Doors open 645 p.m.",
+      "expected": "Doors open 6:45 p.m."
+    },
+    {
+      "text": "Lunch is 12 30 pm.",
+      "expected": "Lunch is 12:30 pm."
+    },
+    {
+      "text": "It's 3.30 p.m.",
+      "expected": "It's 3:30 p.m."
+    },
+    {
+      "text": "We have 1158 items.",
+      "expected": "We have 1158 items."
+    },
+    {
+      "text": "It was nineteen ninety-nine.",
+      "expected": "It was nineteen ninety-nine."
+    },
+    {
+      "text": "It was 1999.",
+      "expected": "It was 1999."
+    },
+    {
+      "text": "Raise it by 150.",
+      "expected": "Raise it by 150."
+    },
+    {
+      "text": "Around 250 people came.",
+      "expected": "Around 250 people came."
+    },
+    {
+      "text": "Meet at 100 Main Street.",
+      "expected": "Meet at 100 Main Street."
+    },
+    {
+      "text": "It sold at 1250 dollars.",
+      "expected": "It sold at 1250 dollars."
+    },
+    {
+      "text": "It's 1200 miles away.",
+      "expected": "It's 1200 miles away."
+    },
+    {
+      "text": "It's 645 dollars.",
+      "expected": "It's 645 dollars."
+    },
+    {
+      "text": "Buy it at five twenty dollars.",
+      "expected": "Buy it at five twenty dollars."
+    },
+    {
+      "text": "Wait about three thirty minutes.",
+      "expected": "Wait about three thirty minutes."
+    },
+    {
+      "text": "At two forty five hundred people waited.",
+      "expected": "At two forty five hundred people waited."
+    },
+    {
+      "text": "We need two thirty-gallon bins.",
+      "expected": "We need two thirty-gallon bins."
+    },
+    {
+      "text": "Set it for 1005.",
+      "expected": "Set it for 1005."
+    },
+    {
+      "text": "It's 12 30.",
+      "expected": "It's 12:30."
+    },
+    {
+      "text": "It is 645 right now.",
+      "expected": "It is 6:45 right now."
+    },
+    {
+      "text": "From eleven thirty until twelve fifteen.",
+      "expected": "From 11:30 until 12:15."
+    },
+    {
+      "text": "Leave at seven o'clock.",
+      "expected": "Leave at 7 o'clock."
+    },
+    {
+      "text": "Breakfast at six forty-five a.m.",
+      "expected": "Breakfast at 6:45 a.m."
+    },
+    {
+      "text": "Call at 645pm.",
+      "expected": "Call at 6:45 p.m."
+    },
+    {
+      "text": "We left at three forty, five of us.",
+      "expected": "We left at 3:40, five of us."
+    },
+    {
+      "text": "Ask about two thirty.",
+      "expected": "Ask about 2:30."
+    },
+    {
+      "text": "The call is at ten a.m. tomorrow.",
+      "expected": "The call is at 10 a.m. tomorrow."
+    },
+    {
+      "text": "Be home by eleven p.m.",
+      "expected": "Be home by 11 p.m."
+    },
+    {
+      "text": "Let's do one o'clock.",
+      "expected": "Let's do 1 o'clock."
+    },
+    {
+      "text": "It's ten o'clock.",
+      "expected": "It's 10 o'clock."
+    },
+    {
+      "text": "One o'clock works.",
+      "expected": "1 o'clock works."
+    },
+    {
+      "text": "Meet at 100 p.m.",
+      "expected": "Meet at 1 p.m."
+    },
+    {
+      "text": "Open at 1000 a.m.",
+      "expected": "Open at 10 a.m."
+    },
+    {
+      "text": "Doors at 1200 pm.",
+      "expected": "Doors at 12 pm."
+    },
+    {
+      "text": "Set an alarm for seven am.",
+      "expected": "Set an alarm for 7 am."
+    },
+    {
+      "text": "Leave at six am tomorrow.",
+      "expected": "Leave at 6 am tomorrow."
+    },
+    {
+      "text": "Which one am I?",
+      "expected": "Which one am I?"
+    },
+    {
+      "text": "One, two, three, go.",
+      "expected": "One, two, three, go."
+    },
+    {
+      "text": "I have one idea.",
+      "expected": "I have one idea."
+    },
+    {
+      "text": "I'll be there at one.",
+      "expected": "I'll be there at one."
+    },
+    {
+      "text": "I'll call you at five.",
+      "expected": "I'll call you at five."
+    },
+    {
+      "text": "From nine to five.",
+      "expected": "From nine to five."
+    },
+    {
+      "text": "We sold 100 units.",
+      "expected": "We sold 100 units."
+    },
+    {
+      "text": "It's 100.",
+      "expected": "It's 100."
+    },
+    {
+      "text": "Count to 10.",
+      "expected": "Count to 10."
+    },
+    {
+      "text": "The meeting is at ten hundred.",
+      "expected": "The meeting is at ten hundred."
+    },
+    {
+      "text": "Twenty-one pm.",
+      "expected": "Twenty-one pm."
+    },
+    {
+      "text": "Lunch is at 12.30 p.m.",
+      "expected": "Lunch is at 12:30 p.m."
+    },
+    {
+      "text": "It's 1.00 p.m.",
+      "expected": "It's 1:00 p.m."
+    },
+    {
+      "text": "The call is at 10am tomorrow.",
+      "expected": "The call is at 10 a.m. tomorrow."
+    },
+    {
+      "text": "Back by 6:45PM, then dinner.",
+      "expected": "Back by 6:45 p.m., then dinner."
+    },
+    {
+      "text": "Doors open at 7pm.",
+      "expected": "Doors open at 7 p.m."
+    },
+    {
+      "text": "Use the 10amp fuse.",
+      "expected": "Use the 10amp fuse."
+    },
+    {
+      "text": "Model 13pm stays.",
+      "expected": "Model 13pm stays."
     }
   ]
 }

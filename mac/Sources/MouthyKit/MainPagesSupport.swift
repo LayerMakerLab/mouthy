@@ -403,17 +403,6 @@ struct HoverCluster<Content: View>: View {
     }
 }
 
-/// A small status dot: glow when fine, ember when something is missing.
-struct StatusDot: View {
-    let ok: Bool
-    var body: some View {
-        Circle().fill(ok ? MouthyTheme.glow : MouthyTheme.ember)
-            .frame(width: 7, height: 7)
-            .shadow(color: (ok ? MouthyTheme.glow : MouthyTheme.ember).opacity(0.6), radius: 4)
-            .accessibilityHidden(true)
-    }
-}
-
 /// Plain text editing in an AppKit text view with warm selection (orange at 0.35) and a mic-glow caret,
 /// instead of the system's blue selection. Grows to fit its text.
 struct WarmTextEditor: NSViewRepresentable {
@@ -513,7 +502,7 @@ struct CompactGlassButtonStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(prominent ? MouthyTheme.night : MouthyTheme.cream)
+                .foregroundStyle(prominent ? MouthyTheme.onOrange : MouthyTheme.cream)
                 .lineLimit(1)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 30)

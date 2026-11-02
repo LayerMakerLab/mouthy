@@ -26,6 +26,10 @@ private func cases(_ key: String) -> [[String: Any]] { fixtures[key] as? [[Strin
         #expect(TextPipeline.process(c["text"] as! String, replacements: rules, punctuation: c["punctuation"] as! Bool) == c["expected"] as! String)
     }
 }
+@Test func sharedClockTimes() {
+    #expect(!cases("clockTimes").isEmpty)
+    for c in cases("clockTimes") { #expect(ClockTimes.apply(c["text"] as! String) == c["expected"] as! String, "\(c["text"]!)") }
+}
 @Test func sharedFillers() {
     for c in cases("fillers") { #expect(Fillers.remove(removeHesitationDots(c["text"] as! String)) == c["expected"] as! String) }
 }

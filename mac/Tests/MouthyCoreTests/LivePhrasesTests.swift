@@ -117,3 +117,109 @@ private func quiet(_ seconds: Double, level: Float = 0) -> [Float] {
     #expect(!pauses.mightHoldWords(audio[...]))
     #expect(pauses.lastSoundEnd == 0)
 }
+
+// A long dictation on a busy Mac: soft words under the speech threshold were taken for a pause, so a part could be
+// cut inside them (a word repeated or lost), and the pause between parts was measured from a stale loud-speech end,
+// so a breath looked like seconds and kept a period mid-sentence ("noon. after").
+
+@Test func softWordsAreNeverAPause() throws {
+    var pauses = SpeechPauses()
+    // Loud speech, soft words under the speech threshold, a real silence, then loud speech again.
+    pauses.feed(quiet(0.3) + tone(1.0) + tone(0.6, level: 0.004) + quiet(0.5) + tone(0.8) + quiet(0.3))
+    let pause = try #require(pauses.longestPause(from: 0, to: pauses.scanned))
+    // The pause is the silence after the soft words, not the soft words themselves.
+    #expect(abs(pause.start - Int(1.9 * 16_000)) <= SpeechPauses.frame * 3)
+    #expect(abs(pause.end - Int(2.4 * 16_000)) <= SpeechPauses.frame * 3)
+}
+
+@Test func silenceAfterAPartIsMeasuredInSound() throws {
+    var pauses = SpeechPauses()
+    pauses.feed(quiet(0.3) + tone(1.0) + tone(0.6, level: 0.004) + quiet(0.4) + tone(0.5) + quiet(0.2))
+    // A cut inside sound (no pause there, soft words included): the next part continues at once.
+    #expect(pauses.silence(after: Int(1.0 * 16_000)) == 0)
+    #expect(pauses.silence(after: Int(1.7 * 16_000)) == 0)
+    // After the soft words end, the silence runs to the next sound.
+    let end = try #require(pauses.soundEnds.first)
+    let silence = try #require(pauses.silence(after: end))
+    #expect(abs(silence - Int(0.4 * 16_000)) <= SpeechPauses.frame * 4)
+}
+
+@Test func aLowercasePhraseNeverFollowsASentenceEnd() {
+    // A recognizer that starts a phrase in lowercase heard it begin mid-sentence.
+    #expect(PhraseJoiner.join([("We met at noon.", 0), ("after lunch we left.", 1.2)]) == "We met at noon. After lunch we left.")
+    #expect(PhraseJoiner.join([("Put the lamp on the left?", 0), ("side of the desk.", 0.3)]) == "Put the lamp on the left side of the desk.")
+    #expect(PhraseJoiner.join([("Is it done?", 0), ("Yes.", 0.3)]) == "Is it done? Yes.")
+    #expect(PhraseJoiner.join([("Bring the cable.", 0), ("iPhone first.", 1.2)]) == "Bring the cable. iPhone first.")
+}
+
+@Test func contextDecodesDecideTheBoundary() {
+    // Heard with the audio before them, lowercase words continue the sentence whatever the pause.
+    #expect(PhraseJoiner.join("The best part of the trip was.", heard: ContextWords(before: "of the trip was", after: "the food."), gap: 1.5)
+            == "The best part of the trip was the food.")
+    #expect(PhraseJoiner.join("Hey Mouthy.", heard: ContextWords(before: "hey mouthy", after: "start a ten-minute timer."), gap: 0.9)
+            == "Hey Mouthy start a ten-minute timer.")
+    // A capital after a long pause starts a new sentence.
+    #expect(PhraseJoiner.join("We bought bread.", heard: ContextWords(before: "bought bread", after: "Milk was sold out."), gap: 1.0)
+            == "We bought bread. Milk was sold out.")
+}
+
+@Test func contextDecodesNeverRepeatTheBoundaryWord() {
+    // The word ending at the cut was timed after it: the decode never heard it in its context, so it is the same word.
+    #expect(PhraseJoiner.join("the old train station still stands.", heard: ContextWords(before: "train station still", after: "stands. Nobody knows why."), gap: 0.3)
+            == "the old train station still stands. Nobody knows why.")
+    #expect(PhraseJoiner.join("turn left, then turn right", heard: ContextWords(before: "turn left then turn", after: "right."), gap: 0.2)
+            == "turn left, then turn right")
+    // Said twice: the decode heard it in its context and again after the cut.
+    #expect(PhraseJoiner.join("Check check", heard: ContextWords(before: "check check", after: "check."), gap: 0.3) == "Check check check.")
+    // Without token times (Intel) nothing is dropped.
+    #expect(PhraseJoiner.join("Check check", heard: ContextWords(after: "check."), gap: 0.3) == "Check check check.")
+}
+
+/// Unvoiced noise like an inhale: deterministic, about 0.5 zero crossings per sample.
+private func breath(_ seconds: Double, level: Float) -> [Float] {
+    var state: UInt32 = 12_345
+    return (0..<Int(seconds * 16_000)).map { _ in
+        state = state &* 1_664_525 &+ 1_013_904_223
+        return level * (Float(state >> 8) / Float(1 << 24) * 2 - 1) * 1.7
+    }
+}
+
+@Test func aBreathBetweenSentencesDoesNotShortenThePause() throws {
+    // "That's the plan." 0.3 s of silence, an audible inhale (soft, then loud enough to pass the speech threshold),
+    // a breath of quiet, "Next we ship."
+    for level: Float in [0.003, 0.02] {
+        var pauses = SpeechPauses()
+        pauses.feed(quiet(0.3) + tone(1.0) + quiet(0.3) + breath(0.35, level: level) + quiet(0.1) + tone(1.0) + quiet(0.3))
+        let end = try #require(pauses.wordEnds.first)
+        let silence = try #require(pauses.silence(after: end))
+        #expect(Double(silence) / 16_000 >= PhraseJoiner.sentencePause, "breath at \(level): \(silence)")
+        #expect(pauses.wordOnsets.count == 2)
+        // The breath is still sound: leftover audio holding only it is recognized when unsure.
+        #expect(pauses.soundOnsets.count == 3)
+    }
+}
+
+@Test func contextDecodesNeverTakeASentenceEndBeforeACapital() {
+    #expect(PhraseJoiner.join("That's the plan.", heard: ContextWords(before: "the plan", after: "Next we ship."), gap: 0.3)
+            == "That's the plan. Next we ship.")
+    #expect(PhraseJoiner.join("That's the plan", heard: ContextWords(before: "the plan", after: "Next we ship."), gap: 1.0)
+            == "That's the plan. Next we ship.")
+}
+
+@Test func numbersAndLowercaseTermsShowNoCase() {
+    let terms = PhraseJoiner.lowercaseTerms(["npm", "Mouthy", "iPhone", "LLM", "ten-x"])
+    #expect(terms == ["npm", "ten-x"])
+    for gap in [0.3, 1.2] {
+        #expect(PhraseJoiner.join([("We have 3 options.", 0), ("2 are bad.", gap)]) == "We have 3 options. 2 are bad.")
+        #expect(PhraseJoiner.join([("Run the build.", 0), ("npm install fails.", gap)], keepCase: terms) == "Run the build. npm install fails.")
+        #expect(PhraseJoiner.join("Run the build.", heard: ContextWords(before: "the build", after: "npm install fails."), gap: gap, keepCase: terms)
+                == "Run the build. npm install fails.")
+        #expect(PhraseJoiner.join("We have 3 options.", heard: ContextWords(before: "3 options", after: "2 are bad."), gap: gap)
+                == "We have 3 options. 2 are bad.")
+    }
+    // A long pause after an open sentence adds the period but never capitalizes the term.
+    #expect(PhraseJoiner.join([("Run the build", 0), ("npm install fails.", 1.2)], keepCase: terms) == "Run the build. npm install fails.")
+    // An ordinary lowercase word still continues the sentence.
+    #expect(PhraseJoiner.join("Run the build.", heard: ContextWords(before: "the build", after: "and wait."), gap: 1.2, keepCase: terms)
+            == "Run the build and wait.")
+}

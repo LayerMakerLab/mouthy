@@ -78,3 +78,11 @@ fn settings_tolerate_missing_fields() {
     let settings: Settings = serde_json::from_str("{}").unwrap();
     assert!(settings.smart_formatting && settings.modes.is_empty());
 }
+#[test]
+fn clock_times_match_fixtures() {
+    let cases = fixtures()["clockTimes"].as_array().unwrap().clone();
+    assert!(!cases.is_empty());
+    for case in cases {
+        assert_eq!(clock_times(s(&case, "text")), s(&case, "expected"), "{case}");
+    }
+}

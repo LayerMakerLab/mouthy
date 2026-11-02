@@ -82,12 +82,10 @@ struct VocabularyView: View {
         newWord = ""
         guard updated != model.preferences.vocabulary else { return }
         withAnimation(motion) { model.preferences.vocabulary = updated }
-        model.savePreferences()
     }
 
     private func remove(_ word: String) {
         withAnimation(motion) { model.preferences.vocabulary = VocabularyEditing.removing(word, from: model.preferences.vocabulary) }
-        model.savePreferences()
     }
 
     // MARK: Teach
@@ -156,12 +154,10 @@ struct VocabularyView: View {
         guard let rule = VocabularyEditing.replacement(phrase: phrase, replacement: replacement) else { return }
         withAnimation(motion) { model.preferences.replacements = VocabularyEditing.adding(rule, to: model.preferences.replacements) }
         phrase = ""; replacement = ""
-        model.savePreferences()
     }
 
     private func removeRule(_ rule: Replacement) {
         withAnimation(motion) { model.preferences.replacements.removeAll { $0.id == rule.id } }
-        model.savePreferences()
     }
 }
 

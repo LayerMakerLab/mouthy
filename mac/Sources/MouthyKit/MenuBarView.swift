@@ -53,7 +53,6 @@ struct MenuBarPanel: View {
         .frame(width: 320)
         .background(MouthyBackdrop(glow: 0.14, listening: model.phase == .listening))
         .tint(MouthyTheme.orange)
-        .preferredColorScheme(.dark)
         .foregroundStyle(MouthyTheme.cream)
         .onChange(of: model.phase) { old, new in celebrate(from: old, to: new) }
         .onDisappear { cheerTask?.cancel(); cheering = false }
@@ -84,13 +83,26 @@ struct MenuBarPanel: View {
                     .font(.system(size: 20, weight: .semibold, design: .rounded))
                     .foregroundStyle(MouthyTheme.cream)
                     .contentTransition(.interpolate)
-                if let detail = MenuPanelState.detail(status: model.status, phase: model.phase, agentQuestion: model.agentQuestion) {
+                let detail = MenuPanelState.detail(status: model.status, phase: model.phase, agentQuestion: model.agentQuestion)
+                if let detail {
                     Text(detail).font(MouthyType.caption).foregroundStyle(MouthyTheme.cream2).lineLimit(2)
-                } else if !model.busy {
+                    if !model.learnedTerms.isEmpty, !model.busy {
+                        Button("Undo") { model.undoLearned() }.buttonStyle(.compactGlass)
+                            .help("Forget what Mouthy just learned from your correction")
+                    }
+                }
+                if let hint = model.microphoneHint, !model.busy {
+                    Text(hint).font(MouthyType.caption).foregroundStyle(MouthyTheme.cream2).fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 6) {
+                        Button("Switch") { model.answerMicrophoneHint(useBuiltIn: true) }.buttonStyle(.compactGlass)
+                            .help("Use the built-in microphone for dictation")
+                        Button("Keep") { model.answerMicrophoneHint(useBuiltIn: false) }.buttonStyle(.compactGlass)
+                    }
+                } else if detail == nil, !model.busy {
                     HStack(spacing: 6) {
                         KeycapRow(shortcut: model.shortcutLabel)
-                        Text(model.preferences.shortcut == 4 ? "double-tap to dictate"
-                             : model.preferences.shortcut == 5 || model.preferences.holdToTalk ? "hold to talk" : "to dictate")
+                        Text(model.activeShortcut == 4 ? "double-tap to dictate"
+                             : model.activeShortcut == 5 || (model.preferences.holdToTalk && !model.standInActive) ? "hold to talk" : "to dictate")
                             .font(MouthyType.caption).foregroundStyle(MouthyTheme.cream2)
                     }
                 }

@@ -28,6 +28,11 @@ fn word_matches(text: &str, pattern: &Regex) -> Vec<(usize, usize)> {
     found
 }
 
+fn is_contraction_tail(rest: &str) -> bool {
+    let mut chars = rest.chars();
+    matches!(chars.next(), Some('\'' | '’')) && matches!(chars.next(), Some('t' | 'T')) && chars.next().is_none_or(|c| !is_word_char(c))
+}
+
 fn alternation(phrases: &[String]) -> Regex {
     let body = phrases.iter().map(|p| regex::escape(p)).collect::<Vec<_>>().join("|");
     Regex::new(&format!("(?i)(?:{body})")).expect("valid alternation")
@@ -35,10 +40,11 @@ fn alternation(phrases: &[String]) -> Regex {
 
 const QUOTE_OPENERS: &[char] = &['(', '[', '{', '"', '\'', '“', '‘'];
 
-/// Capitalizes the first word only when it starts with a letter: "20 minutes" and "$15 is" keep their case.
+/// Capitalizes the first word only when it starts with a letter: "20 minutes" and "$15 is" keep their case, and so
+/// does an address ("name@example.com", "mouthy.dev", "https://…").
 pub fn capitalize_first_word(text: &str) -> String {
     let Some((index, c)) = text.char_indices().find(|(_, c)| !c.is_whitespace() && !QUOTE_OPENERS.contains(c)) else { return text.to_string() };
-    if !c.is_alphabetic() || !c.is_lowercase() {
+    if !c.is_alphabetic() || !c.is_lowercase() || is_address(text[index..].split_whitespace().next().unwrap_or("")) {
         return text.to_string();
     }
     let mut out = String::with_capacity(text.len());
@@ -46,6 +52,13 @@ pub fn capitalize_first_word(text: &str) -> String {
     out.extend(c.to_uppercase());
     out.push_str(&text[index + c.len_utf8()..]);
     out
+}
+
+/// An email address, a URL or a domain ("mouthy.dev"): letters, then a dot and at least two letters, or "@" or "://".
+fn is_address(word: &str) -> bool {
+    let word = word.trim_matches(|c: char| ".,;:!?)]}\"'”’".contains(c));
+    word.contains('@') || word.contains("://")
+        || Regex::new(r"^[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)*\.\p{L}{2,}(/\S*)?$").unwrap().is_match(word)
 }
 
 const PROPER_WORDS: &[&str] = &[
@@ -306,6 +319,8 @@ pub fn process(text: &str, replacements: &[Replacement], punctuation: bool) -> S
         let mut rebuilt = String::new();
         let mut cursor = 0;
         for (start, end) in word_matches(&out, &pattern) {
+            // Never the start of a "n't" contraction: a learned "won" → "Juan" must leave "won't" alone.
+            if is_contraction_tail(&out[end..]) { continue; }
             let found = &out[start..end];
             if let Some(rule) = rules.iter().find(|r| r.phrase.to_lowercase() == found.to_lowercase()) {
                 rebuilt.push_str(&out[cursor..start]);

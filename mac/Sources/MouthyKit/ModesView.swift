@@ -137,7 +137,6 @@ struct ModesView: View {
         let examples = ModeExamples.missing(from: modes)
         guard !examples.isEmpty else { return }
         withAnimation(MouthyMotion.resolve(MouthyMotion.select, reduceMotion: reduceMotion)) { model.preferences.modes.append(contentsOf: examples) }
-        model.savePreferences()
     }
 
     private func addBlank() {
@@ -146,7 +145,6 @@ struct ModesView: View {
             model.preferences.modes.append(mode)
             editing = mode.id
         }
-        model.savePreferences()
     }
 
     private func duplicate(_ mode: DictationMode) {
@@ -156,13 +154,11 @@ struct ModesView: View {
         copy.shortcut = nil
         copy.triggerWord = ""
         withAnimation(MouthyMotion.resolve(MouthyMotion.select, reduceMotion: reduceMotion)) { model.preferences.modes.append(copy) }
-        model.savePreferences()
     }
 
     private func delete(_ id: UUID) {
         if editing == id { editing = nil }
         withAnimation(MouthyMotion.resolve(MouthyMotion.select, reduceMotion: reduceMotion)) { model.preferences.modes.removeAll { $0.id == id } }
-        model.savePreferences()
     }
 }
 

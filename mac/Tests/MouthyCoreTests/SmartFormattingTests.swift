@@ -20,6 +20,12 @@ import Foundation
     #expect(SmartInsertion.adjust("Tuesday works.", before: "Maybe", after: "") == " Tuesday works.")
     #expect(SmartInsertion.adjust("iPhone notes.", before: "My", after: "") == " iPhone notes.")
 }
+/// The person's custom words are names too: "Codex" after "I asked" keeps its capital; ordinary words still drop it.
+@Test func midSentenceKeepsCustomWords() {
+    #expect(SmartInsertion.adjust("Codex fixed it.", before: "I asked", after: "", names: ["Codex"]) == " Codex fixed it.")
+    #expect(SmartInsertion.adjust("Claude reviewed it.", before: "Then", after: "", names: ["Claude Code"]) == " Claude reviewed it.")
+    #expect(SmartInsertion.adjust("Really big.", before: "The cat", after: "", names: ["Codex"]) == " really big.")
+}
 @Test func openersAndClosersAreRespected() {
     #expect(SmartInsertion.adjust("Inside.", before: "(", after: ")") == "Inside")
     #expect(SmartInsertion.adjust("Done.", before: "Almost", after: ".") == " done")
@@ -37,4 +43,13 @@ import Foundation
 @Test func newPreferencesDecodeFromOlderSettings() throws {
     let decoded = try JSONDecoder().decode(Preferences.self, from: Data("{}".utf8))
     #expect(decoded.smartFormatting && decoded.mediaWhileDictating == .nothing && !decoded.playSounds)
+}
+
+/// A dictation that is only a snippet's phrase is the snippet exactly: no period, no capital, whatever was heard.
+@Test func wholeSnippetIsReturnedExactly() {
+    let rules = [Replacement(phrase: "my email", replacement: "dana@example.com"), Replacement(phrase: "won", replacement: "Juan")]
+    #expect(TextPipeline.wholeReplacement("My email.", replacements: rules) == "dana@example.com")
+    #expect(TextPipeline.wholeReplacement("my, email!", replacements: rules) == "dana@example.com")
+    #expect(TextPipeline.wholeReplacement("Send my email.", replacements: rules) == nil)
+    #expect(TextPipeline.wholeReplacement("...", replacements: rules) == nil)
 }

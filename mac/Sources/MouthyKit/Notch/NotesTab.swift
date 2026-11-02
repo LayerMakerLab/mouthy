@@ -78,7 +78,7 @@ struct NotesView: View {
                     Button { model.dictateTodo() } label: {
                         Image(systemName: dictation.isRunning ? "stop.fill" : "mic.fill")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(dictation.isRunning ? MouthyTheme.night : MouthyTheme.glow)
+                            .foregroundStyle(dictation.isRunning ? MouthyTheme.onOrange : MouthyTheme.glow)
                             .contentTransition(.symbolEffect(.replace))
                             .frame(width: 26, height: 26)
                             .background {

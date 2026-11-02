@@ -322,7 +322,14 @@ private let renderGate = ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"
     let id = "flow.music"
     let title = "Music"
     let symbolName = "music.note"
-    func makeBody() -> AnyView { AnyView(Text("Music")) }
+    // A page laid out like the real tabs: content across the panel, not one word in a corner.
+    func makeBody() -> AnyView {
+        AnyView(VStack(spacing: 6) {
+            Text("Song title").font(.system(size: 17, weight: .semibold, design: .rounded))
+            Text("Artist · Album").font(.system(size: 13, weight: .medium, design: .rounded))
+            RoundedRectangle(cornerRadius: 3).fill(Color(red: 0.85, green: 0.62, blue: 0.2)).frame(height: 6)
+        }.frame(maxWidth: .infinity))
+    }
     var compactPriority: Int { 10 }
     var compactCaption: String? { "Song title" }
     func compactLeading() -> AnyView? { AnyView(RoundedRectangle(cornerRadius: 4).fill(Color(red: 0.85, green: 0.62, blue: 0.2)).frame(width: 20, height: 20)) }
@@ -554,6 +561,9 @@ private struct FlowStep {
     var feedbackWithin: Int? = nil
     /// The right ear must show the finishing sweep (bars of different heights) from the first frame.
     var sweeps = false
+    /// The new state's content (below the band too) must be at least half drawn within this many milliseconds:
+    /// the open panel arrives with its tabs and page, never as an empty black shape first.
+    var contentWithin: Int? = nil
     let change: () -> Void
 }
 
@@ -657,6 +667,26 @@ private func columnHeights(_ mask: ContentMask, x: Range<Int>, y: Range<Int>) ->
         }
         let after = shots[shots.count - 1].rep
         defer { before = after }
+        if let within = step.contentWithin {
+            // The old state may still be dissolving in the first frames; what matters is that no frame is empty and
+            // the new content is (and stays) at least half drawn soon.
+            let settled = ContentMask(after).total
+            let totals = shots.map { (ms: $0.ms, px: ContentMask($0.rep).total) }
+            let lastShort = totals.lastIndex { $0.px < settled / 2 }
+            let steady = lastShort.map { $0 + 1 < totals.count ? totals[$0 + 1].ms : Int.max } ?? totals.first?.ms ?? Int.max
+            // Empty: next to nothing lit, neither the old state's ears nor the new page (each shows 1,000 px or more).
+            let empty = totals.filter { $0.px < 300 }
+            print("CONTENT \(name) \(step.name): half drawn from +\(steady) ms; " + totals.prefix(12).map { "\($0.ms):\($0.px)" }.joined(separator: " ") + " of \(settled)")
+            if settled < 200 { problems.append("\(step.name): the settled state shows almost nothing (\(settled) px)") }
+            if steady > within { problems.append("\(step.name): content half drawn only from +\(steady) ms (limit \(within))") }
+            if !empty.isEmpty { problems.append("\(step.name): \(empty.count) empty frames (first at +\(empty[0].ms) ms)") }
+            if let folder {
+                for (index, shot) in shots.prefix(10).enumerated() {
+                    let url = URL(fileURLWithPath: folder).appendingPathComponent("content-\(name)-\(step.name)-\(String(format: "%03d", index)).png")
+                    try shot.rep.representation(using: .png, properties: [:])?.write(to: url)
+                }
+            }
+        }
         guard step.checked else { continue }
         frames += shots.count
         let oldRaw = ContentMask(before), newRaw = ContentMask(after)
@@ -775,11 +805,11 @@ func notchFlowTransitionsFrameByFrame() throws {
          FlowStep(name: "peek", checked: false) { hub.stageForPreview(peek: AnyView(Text("Song")), title: "Song") },
          FlowStep(name: "peek-to-dictation") { hub.presentDictation(NotchDictation(target: "Notes", level: 0.4)) },
          FlowStep(name: "cancelled") { hub.endDictation() },
-         FlowStep(name: "open", checked: false) { hub.stageForPreview(open: true) },
+         FlowStep(name: "open", checked: false, contentWithin: 120) { hub.stageForPreview(open: true) },
          FlowStep(name: "open-to-dictation", feedbackWithin: 120) { hub.presentDictation(NotchDictation(target: "Notes", level: 0.4)) },
          FlowStep(name: "cancelled2") { hub.endDictation() },
          // The pointer leaves the open panel: it springs closed with its content dissolving, never blank first.
-         FlowStep(name: "open2", checked: false) { hub.stageForPreview(open: true) },
+         FlowStep(name: "open2", checked: false, contentWithin: 120) { hub.stageForPreview(open: true) },
          FlowStep(name: "hover-out") { hub.stageForPreview(open: false) },
          // Dictation starting on another display: the panel moves at once with the shape at rest (NotchHub.arrive)
          // and springs out into dictation in one spring.
@@ -867,4 +897,36 @@ func notchHoverReplaysRecordedPointerTraces() throws {
     rests.forEach { print("  \(missed.contains($0) ? "OUTSIDE" : "inside ") \($0)") }
     #expect(!rests.isEmpty)
     #expect(missed.isEmpty, "\(missed)")
+}
+
+@MainActor private final class FlowWeatherTab: NotchTab {
+    let id = "flow.weather"
+    let title = "Weather"
+    let symbolName = "cloud"
+    func makeBody() -> AnyView { AnyView(Text("Weather")) }
+}
+
+/// Hovering the closed notch opens the tab whose live activity it shows (a running timer, music playing), not the
+/// last tab used. With nothing live it keeps the last tab; dictation keeps its own tab.
+@MainActor @Test func notchHoverOpensOnTheLiveActivitysTab() async throws {
+    let (quiet, _, _) = externalNotch()
+    quiet.register(FlowWeatherTab())
+    quiet.selectedID = "flow.weather"
+    #expect(quiet.hoverOpensOn == nil)
+
+    let (hub, _, _) = externalNotch()
+    hub.register(FlowWeatherTab())
+    hub.register(PlayingMusicTab())
+    hub.openDelay = .milliseconds(1)
+    hub.selectedID = "flow.weather"
+    #expect(hub.hoverOpensOn == "flow.music")
+    hub.hover(true)
+    // The open waits for the hover delay on the main actor, which other tests may keep busy: wait up to 3 s.
+    for _ in 0..<150 where hub.selectedID != "flow.music" { try await Task.sleep(for: .milliseconds(20)) }
+    #expect(hub.selectedID == "flow.music")
+
+    hub.hover(false)
+    hub.selectedID = "flow.weather"
+    hub.presentDictation(NotchDictation(target: "Notes", level: 0.3))
+    #expect(hub.hoverOpensOn == nil)
 }

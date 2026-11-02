@@ -32,10 +32,7 @@ struct MicrophoneToText {
         // Speech, written with `say`'s own silences ([[slnc ms]]).
         func spoken(_ name: String, _ text: String, voice: String? = nil) throws -> URL {
             let url = folder.appendingPathComponent("\(name).aiff")
-            let say = Process()
-            say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
-            say.arguments = (voice.map { ["-v", $0] } ?? []) + ["-o", url.path, text]
-            try say.run(); say.waitUntilExit()
+            try speak(text, to: url, voice: voice)
             return url
         }
         // A cough-like burst of shaped noise in a quiet second: no voice in it.

@@ -8,3 +8,6 @@ dist/
 mac/scripts/local.env
 .scratch/
 .codex-*
+
+# A build at the root (the library mirror for host apps) writes this; the pins live in mac/Package.resolved.
+/Package.resolved

@@ -17,6 +17,7 @@ final class FakeSpeech: DictationSpeech {
     var onFailure: ((String) -> Void)?
     var onInterruption: ((String) -> Void)?
     var document = TranscriptionDocument(text: "")
+    var inputDevice: InputDevice? = InputDevice(id: "test-mic", name: "Test microphone", objectID: 0)
     var inputDeviceName = "Test microphone"
     var isActive = false
     /// Results handed out by successive splits (empty when exhausted).
@@ -474,6 +475,100 @@ final class PhaseLog {
     #expect(model.status == "No speech detected. Nothing was inserted.")
 }
 
+/// A recording of exact digital silence (muted input, input level 0, blocked microphone) says so instead of
+/// "No speech detected"; any room noise at all keeps the usual message. Short taps are never blamed on the mic.
+@MainActor @Test func silentMicrophoneIsNamedNotTheSpeaker() async throws {
+    let (model, _) = stateModel(FakeSpeech())
+    model.begin(captureTarget: true)
+    try await waitFor { model.phase == .listening }
+    try await Task.sleep(for: .milliseconds(2100))
+    model.stop()
+    try await waitFor { model.phase == .idle }
+    #expect(model.status.hasPrefix("The microphone sent only silence ("))
+    #expect(model.status.hasSuffix("Nothing was inserted."))
+    model.begin(captureTarget: true)
+    try await waitFor { model.phase == .listening }
+    model.receiveLevel(0.02)
+    try await Task.sleep(for: .milliseconds(2100))
+    model.stop()
+    try await waitFor { model.phase == .idle }
+    #expect(model.status == "No speech detected. Nothing was inserted.")
+}
+
+/// The length limit stops the dictation, delivers what was said and says why.
+@MainActor @Test func lengthLimitStopSaysWhy() async throws {
+    #expect(AppModel.limitNotice(600) == "Stopped at the 10-minute limit.")
+    let speech = FakeSpeech(); speech.finalText = "A long talk"
+    let (model, log) = stateModel(speech)
+    model.dictationLimit = 1
+    model.begin(captureTarget: true)
+    try await waitFor { model.phase == .listening }
+    try await waitFor({ model.phase == .idle }, seconds: 6)
+    #expect(log.texts == ["A long talk"])
+    #expect(model.status.hasSuffix("Stopped at the 1-second limit."))
+}
+
+/// A corrected phrase is learned into the vocabulary, and Undo puts the vocabulary back exactly.
+@MainActor @Test func learnedCorrectionCanBeUndone() {
+    let (model, _) = stateModel(FakeSpeech())
+    model.preferences.vocabulary = "Codex"
+    #expect(model.learn(inserted: "Ask explore to post the thread today.", region: "Ask X Grower to post the thread today. More text", wordCount: 7))
+    #expect(VocabularyLearner.terms(model.preferences.vocabulary) == ["Codex", "X Grower"])
+    #expect(model.learnedTerms == ["X Grower"])
+    #expect(model.status == "Learned “X Grower” for next time.")
+    model.undoLearned()
+    #expect(model.preferences.vocabulary == "Codex")
+    #expect(model.learnedTerms.isEmpty)
+    #expect(!model.learn(inserted: "Ship it today.", region: "Ship it today.", wordCount: 3))
+}
+
+@MainActor @Test func bluetoothMicrophoneHintIsOfferedOnceAndSwitchesToTheBuiltInMicrophone() async throws {
+    let speech = FakeSpeech(); speech.inputDevice = InputDevice(id: "airpods", name: "AirPods Pro", objectID: 0)
+    let (model, _) = stateModel(speech)
+    let builtIn = InputDevice(id: "BuiltInMicrophoneDevice", name: "MacBook Pro Microphone", objectID: 0)
+    model.isBluetoothInput = { $0.id == "airpods" }
+    model.usableBuiltInInput = { nil } // lid closed: no hint, and it stays unseen
+    model.begin(captureTarget: true)
+    try await waitFor { model.phase == .listening }
+    #expect(model.microphoneHint == nil)
+    model.cancel()
+    try await waitFor { model.phase == .idle }
+    #expect(!model.preferences.microphoneHintSeen)
+
+    model.usableBuiltInInput = { builtIn }
+    model.begin(captureTarget: true)
+    try await waitFor { model.phase == .listening }
+    #expect(model.microphoneHint == "AirPods Pro records at call quality over Bluetooth. The built-in microphone hears words more clearly.")
+    model.cancel()
+    try await waitFor { model.phase == .idle }
+    model.answerMicrophoneHint(useBuiltIn: true)
+    #expect(model.preferences.inputDeviceUID == "BuiltInMicrophoneDevice")
+    #expect(model.preferences.microphoneHintSeen)
+    #expect(model.microphoneHint == nil)
+    #expect(model.status == "Mouthy now uses MacBook Pro Microphone. Change it in Settings → Speech.")
+
+    model.begin(captureTarget: true) // answered once: never offered again
+    try await waitFor { model.phase == .listening }
+    #expect(model.microphoneHint == nil)
+    model.cancel()
+}
+
+@MainActor @Test func keepingTheBluetoothMicrophoneLeavesTheInputAlone() async throws {
+    let speech = FakeSpeech(); speech.inputDevice = InputDevice(id: "airpods", name: "AirPods", objectID: 0)
+    let (model, _) = stateModel(speech)
+    model.isBluetoothInput = { _ in true }
+    model.usableBuiltInInput = { InputDevice(id: "BuiltInMicrophoneDevice", name: "MacBook Air Microphone", objectID: 0) }
+    model.begin(captureTarget: true)
+    try await waitFor { model.phase == .listening }
+    #expect(model.microphoneHint != nil)
+    model.cancel()
+    try await waitFor { model.phase == .idle }
+    model.answerMicrophoneHint(useBuiltIn: false)
+    #expect(model.preferences.inputDeviceUID == "")
+    #expect(model.preferences.microphoneHintSeen)
+    #expect(model.microphoneHint == nil)
+}
+
 @MainActor @Test func failedEnterSplitThenStopKeepsTheFailure() async throws {
     struct Broken: LocalizedError { var errorDescription: String? { "the recognizer stopped" } }
     let speech = FakeSpeech(); speech.splitError = Broken()
@@ -489,4 +584,120 @@ final class PhaseLog {
     let outcome = DictationOutcome.from(status: model.status, failed: false, target: model.targetName)
     #expect(outcome.kind == .attention && outcome.text == "Not sent")
     #expect(log.texts.isEmpty)
+}
+
+// MARK: - A shortcut that cannot be received, a model that was never downloaded
+
+/// Without Accessibility the modifier shortcuts (double-tap right ⌘, Hold Fn) receive no events at all, so they
+/// failed silently. ⌃⌥Space stands in, the status and the shortcut label say so, and the grant switches back.
+@MainActor @Test func modifierShortcutStandsInWithoutAccessibilityUntilGranted() {
+    let service = HotkeyService(live: false)
+    service.trusted = { false }
+    #expect(service.register(preset: 4))
+    #expect(service.standsIn)
+    #expect(service.register(preset: 5))
+    #expect(service.standsIn)
+    #expect(service.register(preset: 0))
+    #expect(!service.standsIn, "⌃⌥Space itself needs no permission")
+    #expect(service.register(preset: 3, customKeyCode: 2, customModifiers: 4096))
+    #expect(!service.standsIn)
+    service.trusted = { true }
+    #expect(service.register(preset: 4))
+    #expect(!service.standsIn)
+    service.trusted = { false }
+    #expect(service.didWake())
+    #expect(service.standsIn, "waking re-registers with the current permission")
+    service.suspend()
+    #expect(!service.standsIn)
+
+    var trusted = false
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let model = AppModel(store: LocalStore(directory: directory), enablesHotkey: false, speech: FakeSpeech(), accessibilityCheck: { trusted })
+    #expect(model.preferences.shortcut == 4, "the default shortcut is double-tap right ⌘")
+    #expect(model.shortcutStandsIn)
+    #expect(model.status == AppModel.standInStatus(shortcut: 4, taken: false))
+    #expect(model.status.contains("⌃ ⌥ Space") && model.status.contains("Accessibility"))
+    #expect(model.shortcutLabel == "⌃ ⌥ Space" && model.activeShortcut == 0 && !model.standInTaken)
+    #expect(model.chosenShortcutLabel == "Double-tap Right ⌘")
+    #expect(OnboardingView.shortcutAction(preset: model.activeShortcut, label: model.shortcutLabel) == "press ⌃⌥Space")
+    #expect(DictateHero.gesture(preset: model.activeShortcut, holdToTalk: false) == "Press", "the words beside the keycaps follow the stand-in")
+    model.preferences.shortcut = 5; model.registerHotkey()
+    #expect(model.status == AppModel.standInStatus(shortcut: 5, taken: false))
+    #expect(model.status.hasPrefix("Hold Fn"))
+    // The grant arrives: the permission refresh re-registers, the stand-in ends and the status clears.
+    trusted = true
+    model.refreshPermissions()
+    #expect(model.accessibilityAllowed)
+    #expect(!model.shortcutStandsIn)
+    #expect(!model.hotkey.standsIn)
+    #expect(model.status == "Ready.")
+    #expect(model.shortcutLabel == "Hold Fn" && model.activeShortcut == 5)
+    #expect(DictateHero.gesture(preset: model.activeShortcut, holdToTalk: false) == "Hold")
+    // A status the person has since moved past is left alone, both ways.
+    trusted = false
+    model.refreshPermissions()
+    #expect(model.shortcutStandsIn)
+    model.status = "Pasted into Notes."
+    trusted = true
+    model.refreshPermissions()
+    #expect(!model.shortcutStandsIn)
+    #expect(model.status == "Pasted into Notes.")
+    trusted = false
+    model.refreshPermissions()
+    #expect(model.shortcutStandsIn)
+    #expect(model.status == "Pasted into Notes.", "the stand-in replaces only a neutral status")
+}
+
+/// A headless model (tests, hosts) counts as trusted unless told otherwise: its label never depends on the test runner's grant.
+@MainActor @Test func headlessModelIsTrustedByDefault() {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let model = AppModel(store: LocalStore(directory: directory), enablesHotkey: false, speech: FakeSpeech())
+    #expect(!model.shortcutStandsIn && model.shortcutLabel == "Double-tap Right ⌘")
+    model.refreshPermissions()
+    #expect(model.accessibilityAllowed)
+}
+
+/// An error from loading the settings is not hidden behind the stand-in's explanation.
+@MainActor @Test func standInLeavesAnUnreadableSettingsStatusVisible() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try Data("broken".utf8).write(to: directory.appendingPathComponent("preferences.json"))
+    let model = AppModel(store: LocalStore(directory: directory), enablesHotkey: false, speech: FakeSpeech(), accessibilityCheck: { false })
+    #expect(model.shortcutStandsIn)
+    #expect(model.status.contains("could not be read"))
+}
+
+/// While ⌃⌥Space stands in for Hold Fn, a press toggles and the release does nothing (Hold Fn's own release stops).
+@MainActor @Test func standInKeyTogglesEvenForHoldFn() async throws {
+    let speech = FakeSpeech(); speech.finalText = "Hello"
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let model = AppModel(store: LocalStore(directory: directory), enablesHotkey: false, speech: speech, accessibilityCheck: { false })
+    let log = DeliveryLog()
+    model.captureTarget = {
+        InsertionTarget(pid: ProcessInfo.processInfo.processIdentifier, name: "Target", bundleID: "dev.mouthy.test-target",
+                        selectionRange: nil, element: nil, selectedText: "", secure: false)
+    }
+    model.deliverText = { text, _, _, _, submit in log.texts.append(text); log.submits.append(submit); return "Pasted into Target." }
+    model.preferences.shortcut = 5; model.registerHotkey()
+    #expect(model.shortcutStandsIn)
+    model.hotkey.onPress?()
+    try await waitFor { model.phase == .listening }
+    model.hotkey.onRelease?()
+    try await Task.sleep(for: .milliseconds(150))
+    #expect(model.phase == .listening, "the stand-in's release does not stop the dictation")
+    model.hotkey.onPress?()
+    try await waitFor({ model.phase == .idle }, seconds: 2)
+    #expect(log.texts == ["Hello"])
+    #expect(model.status == "Pasted into Target.")
+}
+
+/// A dictation whose local model was never downloaded fails with a pill that says what to do, not "Needs attention".
+@Test func missingModelFailureNamesTheFix() {
+    #expect(DictationOutcome.from(status: "Download the selected model in Settings first.", failed: true, target: "Notes").text == "Download the model in Settings")
+    #expect(DictationOutcome.from(status: "Install the Apple speech assets in Settings first.", failed: true, target: "Notes").text == "Get speech in Settings")
+    #expect(DictationOutcome.from(status: "Download the selected model in Settings first.", failed: true, target: "Notes").kind == .attention)
 }

@@ -10,7 +10,8 @@ public enum SmartInsertion {
     static let properWords: Set<String> = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
         "January", "February", "March", "April", "June", "July", "August", "September", "October", "November", "December"]
 
-    public static func adjust(_ text: String, before: String, after: String) -> String {
+    /// `names` are the person's custom words: like recognized names, they keep their capital mid-sentence.
+    public static func adjust(_ text: String, before: String, after: String, names: [String] = []) -> String {
         guard !text.isEmpty else { return text }
         var output = text
         let previous = before.last
@@ -18,7 +19,7 @@ public enum SmartInsertion {
         if lastVisible == nil || sentenceEnds.contains(lastVisible!) || before.hasSuffix("\n") {
             output = capitalizingFirstWord(output)
         } else if let lastVisible, lastVisible.isLetter || lastVisible.isNumber || lastVisible == "," || lastVisible == ";" || lastVisible == ":" {
-            output = lowercasingFirstWord(output)
+            output = lowercasingFirstWord(output, names: names)
         }
         if let previous, !previous.isWhitespace, !openers.contains(previous),
            let start = output.first, start.isLetter || start.isNumber || openers.contains(start) {
@@ -40,21 +41,30 @@ public enum SmartInsertion {
 
     static let quoteOpeners: Set<Character> = ["(", "[", "{", "\"", "'", "“", "‘"]
     static let quoteClosers: Set<Character> = [")", "]", "}", "\"", "'", "”", "’"]
-    /// Capitalizes the first word only when it starts with a letter: "20 minutes" and "$15 is" keep their case.
+    /// Capitalizes the first word only when it starts with a letter: "20 minutes" and "$15 is" keep their case, and so
+    /// does an address ("name@example.com", "mouthy.dev", "https://…").
     public static func capitalizingFirstWord(_ text: String) -> String {
         guard let index = text.firstIndex(where: { !$0.isWhitespace && !quoteOpeners.contains($0) }),
-              text[index].isLetter, text[index].isLowercase else { return text }
+              text[index].isLetter, text[index].isLowercase, !isAddress(text[index...].prefix { !$0.isWhitespace }) else { return text }
         return text.replacingCharacters(in: index...index, with: text[index].uppercased())
     }
 
-    static func lowercasingFirstWord(_ text: String) -> String {
+    /// An email address, a URL or a domain ("mouthy.dev"): letters, then a dot and at least two letters, or "@" or "://".
+    static func isAddress(_ word: Substring) -> Bool {
+        let word = word.trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?)]}\"'”’"))
+        return word.contains("@") || word.contains("://")
+            || word.range(of: #"^[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)*\.\p{L}{2,}(/\S*)?$"#, options: .regularExpression) != nil
+    }
+
+    static func lowercasingFirstWord(_ text: String, names: [String] = []) -> String {
         guard let index = text.firstIndex(where: { !$0.isWhitespace }), text[index].isUppercase else { return text }
         let word = text[index...].prefix { $0.isLetter || $0 == "'" || $0 == "’" }
         // Keep "I", acronyms, mixed case (iPhone, McDonald) and recognized names; the article "A" (a word on its own,
         // not A4 or A/B) is lowercased.
         let article = word == "A" && text[index...].dropFirst().first?.isWhitespace == true
         guard word.count > 1 || article, word.dropFirst().allSatisfy({ $0.isLowercase || $0 == "'" || $0 == "’" }),
-              !word.hasPrefix("I'"), !word.hasPrefix("I’"), !isName(String(word), in: text) else { return text }
+              !word.hasPrefix("I'"), !word.hasPrefix("I’"), !isName(String(word), in: text),
+              !names.contains(where: { $0 == word || $0.hasPrefix(word + " ") }) else { return text }
         return text.replacingCharacters(in: index...index, with: text[index].lowercased())
     }
 

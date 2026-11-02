@@ -9,7 +9,6 @@ import MouthyCore
 private let settingsSources = [
     "Sources/MouthyKit/PreferencesView.swift",
     "Sources/MouthyKit/PreferencesControls.swift",
-    "Sources/MouthyKit/PreferenceSection.swift",
     "Sources/MouthyKit/Design/SettingRow.swift",
     "Sources/MouthyKit/Design/SpeechModelsTile.swift",
 ]

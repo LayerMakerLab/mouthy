@@ -144,8 +144,7 @@ struct RecentRow: View {
     @State private var hovering = false
     var body: some View {
         Button {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
+            TextDelivery.copy(text)
             NotchHub.shared.presentResult("Copied", ok: true)
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -175,7 +174,7 @@ struct MicButton: View {
             Circle().strokeBorder(MouthyTheme.cream.opacity(listening ? 0 : 0.16), lineWidth: 1)
             Image(systemName: listening ? "stop.fill" : "mic.fill")
                 .font(.system(size: listening ? 14 : 17, weight: .semibold))
-                .foregroundStyle(listening ? MouthyTheme.night : MouthyTheme.cream)
+                .foregroundStyle(listening ? MouthyTheme.onOrange : MouthyTheme.cream)
         }
         .frame(width: 44, height: 44)
         .opacity(finishing ? 0.5 : 1)

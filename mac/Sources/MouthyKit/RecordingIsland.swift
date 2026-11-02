@@ -355,12 +355,3 @@ struct RecordingIsland: View {
     /// Width of 13 bars at 2.2 pt with 2 pt gaps.
     static let barsWidth: CGFloat = 13 * 2.2 + 12 * 2
 }
-
-/// A short horizontal shake for results that need attention.
-struct Shake: GeometryEffect {
-    var amount: CGFloat
-    var animatableData: CGFloat { get { amount } set { amount = newValue } }
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        ProjectionTransform(CGAffineTransform(translationX: 4 * sin(amount * .pi * 4), y: 0))
-    }
-}

@@ -77,7 +77,6 @@ struct OnboardingView: View {
         }
         .frame(width: 760, height: 500)
         .tint(MouthyTheme.orange)
-        .preferredColorScheme(.dark)
         .foregroundStyle(MouthyTheme.cream)
         .sensoryFeedback(.selection, trigger: step)
         .task { await model.refreshCapabilities() }
@@ -158,7 +157,7 @@ struct OnboardingView: View {
     static func shortcutAction(preset: Int, label: String) -> String {
         preset == 4 ? "double-tap Right ⌘" : preset == 5 ? "hold Fn" : "press " + label.replacingOccurrences(of: " ", with: "")
     }
-    private var shortcutAction: String { Self.shortcutAction(preset: model.preferences.shortcut, label: model.shortcutLabel) }
+    private var shortcutAction: String { Self.shortcutAction(preset: model.activeShortcut, label: model.shortcutLabel) }
 
     private var heard: Bool { !practice.isEmpty && !recording }
     private var recording: Bool { model.phase == .preparing || model.phase == .listening }
@@ -194,14 +193,15 @@ struct OnboardingView: View {
                         Text("Use").font(MouthyType.caption).foregroundStyle(MouthyTheme.cream2)
                         WarmPicker("Microphone", selection: $model.preferences.inputDeviceUID,
                                    options: [("", "System default")] + model.inputDevices.map { ($0.id, $0.name) }, fullWidth: true)
-                            .onChange(of: model.preferences.inputDeviceUID) { model.savePreferences() }
                     }
                     .onAppear { Task { await model.refreshCapabilities() } }
                 }
             }
         case .accessibility:
             checkRow("Accessibility", granted: model.accessibilityAllowed,
-                     pending: "Turn Mouthy on in System Settings, then come back.")
+                     pending: model.standInActive
+                        ? "Turn Mouthy on in System Settings, then come back. \(model.chosenShortcutLabel) needs it; until then, \(HotkeyService.labels[0]) starts dictation."
+                        : "Turn Mouthy on in System Settings, then come back.")
         case .tryIt:
             VStack(alignment: .leading, spacing: 12) {
                 practiceBox

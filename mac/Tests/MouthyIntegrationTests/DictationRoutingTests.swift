@@ -37,6 +37,7 @@ import MouthyCore
 @Test func refusalsNeedAttention() {
     let cases: [(String, String)] = [
         ("Ready to copy. A password field is active; nothing was inserted.", "Not into a password field"),
+        ("Ready to copy. Secure Keyboard Entry is on (an app's setting, such as Terminal's, or a password prompt), which blocks typing; nothing was inserted.", "Secure Keyboard Entry is on"),
         ("Ready to copy. No other app is focused.", "Nowhere to type"),
         ("Ready to copy. Focus changed before pasting.", "The cursor moved"),
         ("Ready to copy. The selection changed, so the rewrite was not applied.", "The selection changed"),

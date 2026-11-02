@@ -13,6 +13,7 @@ protocol DictationSpeech: AnyObject {
     /// The microphone went away mid-recording: capture stopped, and `finish` still returns what was recorded.
     var onInterruption: ((String) -> Void)? { get set }
     var document: TranscriptionDocument { get }
+    var inputDevice: InputDevice? { get }
     var inputDeviceName: String { get }
     var isActive: Bool { get }
     func start(locale: String, vocabulary: String, inputDeviceUID: String, provider: SpeechEngine, whisperModel: WhisperModel,

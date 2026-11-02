@@ -115,6 +115,8 @@ struct ServiceLimits: Equatable, Sendable {
 /// `claude-limits.json` in Mouthy's folder and prints nothing, so the status line stays empty. It is
 /// switched on by `"statusLine": {"type": "command", "command": "<scriptURL>"}` in ~/.claude/settings.json.
 enum ClaudeLimitsBridge {
+    /// Always Mouthy's folder, even in a host app that moves the tabs' storage: Claude Code runs one status-line
+    /// command, so Mouthy and host apps share this script and file. `install()` writes only when the text differs.
     static let folder = LocalStore.supportDirectory
     static let file = folder.appendingPathComponent("claude-limits.json")
     static let scriptURL = folder.appendingPathComponent("claude-statusline.sh")

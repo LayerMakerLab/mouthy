@@ -38,8 +38,8 @@ struct AboutView: View {
                 VStack(spacing: 10) {
                     HStack(spacing: 10) {
                         KeycapRow(shortcut: model.shortcutLabel)
-                        Text(model.preferences.shortcut == 5 ? "hold to talk"
-                             : model.preferences.shortcut == 4 ? "double-tap to start and finish dictation" : "starts and finishes dictation")
+                        Text(model.activeShortcut == 5 ? "hold to talk"
+                             : model.activeShortcut == 4 ? "double-tap to start and finish dictation" : "starts and finishes dictation")
                             .font(MouthyType.callout).foregroundStyle(MouthyTheme.cream2)
                     }
                     HStack(spacing: 6) {
@@ -61,8 +61,11 @@ struct AboutView: View {
 
                 GlassEffectContainer(spacing: 10) {
                     HStack(spacing: 10) {
-                        Button("mouthy.dev") { if let url = URL(string: "https://mouthy.dev") { NSWorkspace.shared.open(url) } }
+                        Button("mouthy.dev") { NSWorkspace.shared.open(MouthyLinks.website) }
                             .buttonStyle(.compact)
+                        Button("Privacy") { NSWorkspace.shared.open(MouthyLinks.privacyPolicy) }
+                            .buttonStyle(.compact)
+                            .help("Read what Mouthy stores and when it goes online")
                         Button("Licences") { if let licensesFolder { NSWorkspace.shared.open(licensesFolder) } }
                             .buttonStyle(.compact)
                             .disabled(licensesFolder == nil)
@@ -78,7 +81,12 @@ struct AboutView: View {
         }
         .frame(width: 440, height: 600)
         .tint(MouthyTheme.orange)
-        .preferredColorScheme(.dark)
         .foregroundStyle(MouthyTheme.cream)
     }
+}
+
+/// Pages the app links to. The privacy policy is the same page mouthy.dev links to.
+public enum MouthyLinks {
+    public static let website = URL(string: "https://mouthy.dev")!
+    public static let privacyPolicy = URL(string: "https://github.com/LayerMakerLab/mouthy/blob/main/docs/privacy.md")!
 }

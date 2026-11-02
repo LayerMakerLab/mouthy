@@ -258,7 +258,7 @@ struct NowView: View {
         HStack(spacing: 12) {
             Image(systemName: WeatherTab.symbol(now.code))
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(now.code <= 2 ? AnyShapeStyle(barGradient) : AnyShapeStyle(MouthyTheme.cream))
+                .foregroundStyle(now.code <= 2 ? AnyShapeStyle(MouthyTheme.barFill) : AnyShapeStyle(MouthyTheme.cream))
                 .font(.system(size: 34, weight: .light))
                 .shadow(color: (glow ?? MouthyTheme.glow).opacity(0.6), radius: 12)
             VStack(alignment: .leading, spacing: 1) {
@@ -307,7 +307,7 @@ struct WeekView: View {
                         let bottom = box.size.height * (day.low - low) / span
                         ZStack(alignment: .top) {
                             Capsule(style: .circular).fill(MouthyTheme.cream.opacity(0.07))
-                            Capsule(style: .circular).fill(placeholder ? AnyShapeStyle(MouthyTheme.cream.opacity(0.12)) : AnyShapeStyle(barGradient))
+                            Capsule(style: .circular).fill(placeholder ? AnyShapeStyle(MouthyTheme.cream.opacity(0.12)) : AnyShapeStyle(MouthyTheme.barFill))
                                 .padding(.top, top).padding(.bottom, bottom)
                         }
                     }

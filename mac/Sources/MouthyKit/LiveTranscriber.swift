@@ -13,9 +13,10 @@ import MouthyCore
 final class LiveTranscriber {
     /// Recognizes 16 kHz samples; `boost` adds the slower vocabulary pass.
     typealias Decode = @Sendable (_ samples: [Float], _ boost: Bool) async throws -> String
-    /// Recognizes 16 kHz samples with the vocabulary pass and returns only the words that begin at or after sample
-    /// `from`: the audio before it is context, so the newest words are heard with the words that led up to them.
-    typealias DecodeAfter = @Sendable (_ samples: [Float], _ from: Int) async throws -> String
+    /// Recognizes 16 kHz samples with the vocabulary pass and returns the words that begin at or after sample `from`
+    /// (and the words it heard before it): the audio before it is context, so the newest words are heard with the words
+    /// that led up to them.
+    typealias DecodeAfter = @Sendable (_ samples: [Float], _ from: Int) async throws -> ContextWords
     /// A trained voice detector's verdict on 16 kHz samples; nil when none is on this Mac (energy decides alone).
     typealias HearsSpeech = @Sendable (_ samples: [Float]) async -> Bool?
 
@@ -55,7 +56,8 @@ final class LiveTranscriber {
     private var parts: [(text: String, gap: Double)] = []
     /// Samples already closed into `parts`.
     private(set) var committed = 0
-    private var lastPartSpeechEnd = 0
+    /// The end of the last sound the closed parts heard; the pause before the next part is measured from it.
+    private var lastPartHeardEnd = 0
     /// The background result for `committed..<end`, valid while nobody has spoken past `speechEnd`. `heardEnd` is
     /// where the last sound it heard ended (speech or soft words); `end` adds the padding after it.
     private var ready: Result?
@@ -97,7 +99,10 @@ final class LiveTranscriber {
         self.read = read
     }
 
-    var text: String { PhraseJoiner.join(parts) }
+    /// Vocabulary terms written in lowercase (`PhraseJoiner.lowercaseTerms`): a part starting with one shows no case.
+    var keepCase: Set<String> = []
+
+    var text: String { PhraseJoiner.join(parts, keepCase: keepCase) }
 
     /// Call often (every ~100 ms) while recording.
     func tick() {
@@ -195,7 +200,7 @@ final class LiveTranscriber {
             return try await Self.heard(by: speakers, from: start, final: true) { try await decode(Array(samples[start...]), true) }
         }
         // The new words begin after the last sound the background pass heard.
-        let next = min(pauses.onset(atOrAfter: ready.heardEnd) ?? ready.end, ready.end, samples.count)
+        let next = min(pauses.soundOnset(atOrAfter: ready.heardEnd) ?? ready.end, ready.end, samples.count)
         let cut = (ready.heardEnd + max(ready.heardEnd, next)) / 2
         let timedCut = max(start, Self.newWords(after: ready.heardEnd))
         let lead = max(start, timedCut - Self.context)
@@ -206,19 +211,17 @@ final class LiveTranscriber {
             Diagnostics.dictation.notice("finish: context covers whole part (\(samples.count - start, privacy: .public) samples)")
             return try await Self.heard(by: speakers, from: start, final: true) { try await decode(Array(samples[start...]), true) }
         }
-        let newer: String
+        // The pause before the new words, measured in sound to where they really start: `next` stops at the end of the
+        // background pass's audio (its 0.25 s padding), which made every pause look short and took a sentence's period away.
+        let gap = Double(pauses.silence(after: ready.heardEnd) ?? max(0, next - ready.heardEnd)) / Double(Self.rate)
         if let decodeAfter, lead < timedCut {
             Diagnostics.dictation.notice("finish: new words with context (\(timedCut - lead, privacy: .public) + \(samples.count - timedCut, privacy: .public) samples)")
-            newer = try await Self.heard(by: speakers, from: lead, final: true) { try await decodeAfter(Array(samples[lead...]), timedCut - lead) }
-        } else {
-            Diagnostics.dictation.notice("finish: new words (\(samples.count - cut, privacy: .public) samples)")
-            newer = try await Self.heard(by: speakers, from: cut, final: true) { try await decode(Array(samples[cut...]), true) }
+            let heard = try await Self.heard(by: speakers, from: lead, final: true) { try await decodeAfter(Array(samples[lead...]), timedCut - lead) }
+            return PhraseJoiner.join(ready.text, heard: heard, gap: gap, keepCase: keepCase)
         }
-        // The pause before the new words, measured to where they really start: `next` stops at the end of the background
-        // pass's audio (its 0.25 s padding), which made every pause look short and took a sentence's period away.
-        let onset = min(pauses.onset(atOrAfter: ready.heardEnd) ?? next, samples.count)
-        let gap = Double(max(0, onset - ready.heardEnd)) / Double(Self.rate)
-        return PhraseJoiner.join([(ready.text, 0), (newer, gap)])
+        Diagnostics.dictation.notice("finish: new words (\(samples.count - cut, privacy: .public) samples)")
+        let newer = try await Self.heard(by: speakers, from: cut, final: true) { try await decode(Array(samples[cut...]), true) }
+        return PhraseJoiner.join([(ready.text, 0), (newer, gap)], keepCase: keepCase)
     }
 
     /// Whether the newest audio might be words still running (sound in its last 150 ms). The stop then waits for the
@@ -239,7 +242,7 @@ final class LiveTranscriber {
     /// pointing into it would skip the words said after the split.
     func split(_ taken: [Float]) async throws -> String {
         defer {
-            pauses = SpeechPauses(); parts = []; committed = 0; lastPartSpeechEnd = 0; ready = nil; previewedAt = 0; failed = false
+            pauses = SpeechPauses(); parts = []; committed = 0; lastPartHeardEnd = 0; ready = nil; previewedAt = 0; failed = false
             judgedUntil = 0
             speakerJob?.cancel(); speakerJob = nil; speakersFed = 0; speakersAt = 0
             speakers = speakers.map { SpeakerTrack(print: $0.print) }
@@ -278,14 +281,17 @@ final class LiveTranscriber {
     }
 
     private func gap(before start: Int) -> Double {
-        guard !parts.isEmpty, let onset = pauses.onset(atOrAfter: start) else { return 0 }
-        return Double(max(0, onset - lastPartSpeechEnd)) / Double(Self.rate)
+        // Measured in sound, not loud speech: soft words the speech threshold misses are not a pause, and a part cut
+        // while sound ran on (no pause long enough) continues its sentence. A stale loud-speech end made a 0.2 s breath
+        // look like 6 s and kept the period mid-sentence ("noon. after").
+        guard !parts.isEmpty else { return 0 }
+        return Double(pauses.silence(after: lastPartHeardEnd) ?? max(0, start - lastPartHeardEnd)) / Double(Self.rate)
     }
 
     private func close(_ result: Result) {
         parts.append((result.text, gap(before: committed)))
         committed = result.end
-        lastPartSpeechEnd = result.speechEnd
+        lastPartHeardEnd = result.heardEnd
         previewedAt = result.end
         ready = nil
     }
@@ -320,7 +326,7 @@ final class LiveTranscriber {
             let finished = (end: range.upperBound, speechEnd: speechEnd, heardEnd: heardEnd, text: result, speakersAt: speakersAt)
             if thenClose { self.close(finished) } else { self.ready = finished }
             self.previewedAt = max(self.previewedAt, range.upperBound)
-            self.onText?(PhraseJoiner.join(self.parts + (thenClose ? [] : [(result, self.gap(before: range.lowerBound))])))
+            self.onText?(PhraseJoiner.join(self.parts + (thenClose ? [] : [(result, self.gap(before: range.lowerBound))]), keepCase: self.keepCase))
         }
     }
 
@@ -370,7 +376,7 @@ final class LiveTranscriber {
             var shown = self.parts
             if let ready = self.ready { shown.append((ready.text, self.gap(before: self.committed))) }
             shown.append((guess, self.ready == nil ? self.gap(before: range.lowerBound) : 0.3))
-            self.onText?(PhraseJoiner.join(shown))
+            self.onText?(PhraseJoiner.join(shown, keepCase: self.keepCase))
         }
     }
 }

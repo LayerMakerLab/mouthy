@@ -297,6 +297,12 @@ struct PreferencesView: View {
                 Toggle("Check for updates automatically", isOn: $model.preferences.checkForUpdates).labelsHidden().toggleStyle(.warmSwitch)
                     .disabled(model.preferences.localOnly)
             }
+            SettingDivider()
+            SettingRow("Privacy policy", detail: "What Mouthy stores and when it goes online.") {
+                Button("Read") { NSWorkspace.shared.open(MouthyLinks.privacyPolicy) }
+                    .buttonStyle(.compact)
+                    .accessibilityLabel("Read the privacy policy")
+            }
         }
     }
 

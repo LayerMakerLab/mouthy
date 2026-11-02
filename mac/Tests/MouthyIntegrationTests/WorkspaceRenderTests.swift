@@ -25,7 +25,7 @@ private let tallSize = CGSize(width: 1080, height: 1500)
 @MainActor private func render(_ model: AppModel, page: WorkspacePage, name: String, tall: Bool = false) throws {
     model.selectedPage = page.rawValue
     for (suffix, size) in tall ? [("", windowSize), ("-tall", tallSize)] : [("", windowSize)] {
-        if let url = try renderOffscreen(WorkspaceView(model: model), size: size, name: name + suffix, settle: 0.7) { assertNoBlue(url) }
+        if let url = try renderOffscreen(WorkspaceView(model: model), size: size, name: name + suffix, scheme: .light, settle: 0.7) { assertNoBlue(url) }
     }
 }
 
@@ -33,9 +33,9 @@ private let tallSize = CGSize(width: 1080, height: 1500)
 @MainActor private func renderPage(_ view: some View, name: String, size: CGSize = windowSize) throws {
     let root = ZStack { MouthyBackdrop(); view }
         .tint(MouthyTheme.orange)
-        .preferredColorScheme(.dark)
+        
         .foregroundStyle(MouthyTheme.cream)
-    if let url = try renderOffscreen(root, size: size, name: name, settle: 0.8) { assertNoBlue(url) }
+    if let url = try renderOffscreen(root, size: size, name: name, scheme: .light, settle: 0.8) { assertNoBlue(url) }
 }
 
 @MainActor private func seedHistory(_ model: AppModel) {

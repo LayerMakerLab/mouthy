@@ -242,7 +242,7 @@ private struct MeetingRecordButton: View {
         Button(action: action) {
             Image(systemName: recording ? "stop.fill" : "circle.fill")
                 .font(.system(size: recording ? 20 : 17, weight: .bold))
-                .foregroundStyle(MouthyTheme.night)
+                .foregroundStyle(MouthyTheme.onOrange)
                 .contentTransition(.symbolEffect(.replace))
                 .frame(width: 64, height: 64)
                 .background {

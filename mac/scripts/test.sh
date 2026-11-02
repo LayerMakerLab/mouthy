@@ -19,6 +19,11 @@ if [[ "$mode" == "--native" || "$mode" == "--microphone" || "$mode" == "--parake
     export MOUTHY_TEST_AUDIO="$fixture_dir/speech.aiff"
     if [[ "$mode" == "--native" ]]; then
         export MOUTHY_TEST_NATIVE=1
+        # The native tests start real dictations, which hold the process's one microphone owner, so Talk's
+        # session tests (which claim it) run in their own pass rather than racing them.
+        swift test --skip TalkSessionTests
+        swift test --filter TalkSessionTests
+        exit
     elif [[ "$mode" == "--parakeet" ]]; then
         export MOUTHY_TEST_PARAKEET=1
         swift test --filter "localParakeetRecognizesFixtureAndSilence|parakeetVocabularyBoostsRareTerms|speechModelsTranscribeFileForHosts"

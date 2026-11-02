@@ -98,3 +98,66 @@ func notesKeepTheSpokenText(text: String, note: String) {
 func ordinaryDictationIsNeverACommand(text: String, requiresName: Bool) {
     #expect(parse(text, requiresName: requiresName) == nil)
 }
+
+/// How speech recognizers write a spoken timer command.
+@Test(arguments: [
+    "And Mouthy, set a timer for ten minutes.",
+    "Hey Mouthy. start a ten-minute timer.",
+    "Mouthy. Started ten minute timer",
+    "Mouthy start a 10 minute timer.",
+    "Mouthie, start a ten-minute timer.",
+    "Malty, set a timer for ten minutes.",
+    "Okay Mouthy, timer for ten minutes",
+    "Matthew, set a timer for 10 minutes.",
+])
+func misheardNamesAndVerbsStillStartTheTimer(text: String) {
+    #expect(parse(text, requiresName: true) == .timer(seconds: 600))
+}
+
+@Test func theTimerStopsByVoice() {
+    #expect(parse("Mouthy, stop the timer.", requiresName: true) == .stopTimer)
+    #expect(parse("Mouthy, cancel timer", requiresName: true) == .stopTimer)
+    #expect(parse("Mouthie, stop my timer.", requiresName: true) == .stopTimer)
+    #expect(parse("Stop timer.") == .stopTimer)
+    #expect(parse("Stop timer.", requiresName: true) == nil)
+}
+
+@Test func aCommandForMouthyThatIsNotUnderstoodIsNotText() {
+    #expect(parse("Mouthy, set a timer for later.", requiresName: true) == .unrecognized("set a timer for later."))
+    #expect(parse("Mouthy, remind me about the thing.", requiresName: true) == .unrecognized("remind me about the thing."))
+    // A misheard name never stands for a command that wasn't understood: that is somebody's sentence.
+    #expect(parse("Matthew, set the table.", requiresName: true) == nil)
+    #expect(parse("Malty, set a timer for later.", requiresName: true) == nil)
+    #expect(parse("Mouthy, stop the ten-minute timer for now.", requiresName: true) == .unrecognized("stop the ten-minute timer for now."))
+    #expect(parse("Hey Mouthy, cancel my timer please.", requiresName: true) == .unrecognized("cancel my timer please."))
+}
+
+@Test func misheardNamesNeverAskQuestionsOrTakeBareNotes() {
+    #expect(parse("Matthew, what time is it?", requiresName: true) == nil)
+    #expect(parse("Merci, oui", requiresName: true) == nil)
+    #expect(parse("Matthew, note that the build failed.", requiresName: true) == nil)
+    #expect(parse("Mouthie, take a note, buy milk.", requiresName: true) == .note("buy milk"))
+    #expect(parse("Hey Mouthy, what's 12 times 12?", requiresName: true) == .question("what's 12 times 12?"))
+}
+
+@Test(arguments: [
+    "Mouthy is great, set it up.",
+    "Matthew called about the timer.",
+    "Malty whisky is nice.",
+    "Mouthy is a great timer app.",
+    "And Mouthy's notch is nice.",
+    "So the timer went off.",
+    "Merci beaucoup.",
+    // A lead-in only goes with the real name: these are people being addressed.
+    "Hi Matthew, make a note that the invoice is due Friday.",
+    "Hey Matthew, remind me to send the deck by 5.",
+    "So Matthew started a ten-minute timer.",
+    "Matthew, started a ten-minute timer.",
+    "Matthew started a ten-minute timer.",
+    // Talk about Mouthy is typed, not taken as a failed command.
+    "Mouthy, timers don't stop at zero.",
+    "So Mouthy, stop showing the timer when music plays.",
+])
+func sentencesThatMentionTheNameStayText(text: String) {
+    #expect(parse(text, requiresName: true) == nil)
+}

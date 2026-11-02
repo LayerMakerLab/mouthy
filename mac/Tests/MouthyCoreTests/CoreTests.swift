@@ -32,6 +32,10 @@ import Foundation
     #expect(DeliveryPolicy.refusal(role: "AXGroup", subrole: nil, secureInput: false) == nil)
     #expect(DeliveryPolicy.refusal(role: nil, subrole: nil, secureInput: false) == nil)
     #expect(DeliveryPolicy.refusal(role: "AXButton", subrole: nil, secureInput: false) != nil)
+    // Secure input outside a password field is Secure Keyboard Entry, not "a password field"; a password field stays one.
+    #expect(DeliveryPolicy.refusal(role: "AXTextArea", subrole: nil, secureInput: true)?.hasPrefix("Secure Keyboard Entry is on") == true)
+    #expect(DeliveryPolicy.refusal(role: "AXTextField", subrole: "AXSecureTextField", secureInput: true) == "A password field is active; nothing was inserted.")
+    #expect(DeliveryPolicy.refusal(role: "AXTextField", subrole: "AXSecureTextField", secureInput: false) == "A password field is active; nothing was inserted.")
     #expect(DeliveryPolicy.refusal(role: "AXTextField", subrole: "AXSecureTextField", secureInput: false) != nil)
     #expect(DeliveryPolicy.refusal(role: "AXTextArea", subrole: nil, secureInput: true) != nil)
 }
@@ -43,6 +47,20 @@ import Foundation
     #expect(restored.modes == original.modes)
     #expect(restored.replacements == original.replacements)
     #expect(!restored.keepHistory)
+}
+
+/// An empty settings file loads every default, apart from the two that mark an older file (⌃⌥Space, set up).
+@Test func emptySettingsFileLoadsTheDefaults() throws {
+    var expected = Preferences()
+    expected.shortcut = 0; expected.onboarded = true
+    let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
+    let loaded = try JSONDecoder().decode(Preferences.self, from: Data("{}".utf8))
+    #expect(try encoder.encode(loaded) == encoder.encode(expected))
+    // Every key round-trips: a changed value is never dropped back to its default on load.
+    var changed = Preferences()
+    changed.whisperLanguage = "de"; changed.historyLimit = 500; changed.islandCorner = 0; changed.removeFillers = false
+    changed.syncFolder = "/tmp/x"; changed.onlyMyVoice = true; changed.customShortcutLabel = "⌘ K"
+    #expect(try encoder.encode(JSONDecoder().decode(Preferences.self, from: encoder.encode(changed))) == encoder.encode(changed))
 }
 
 @Test func oldSettingsMigrateWithSafeDefaults() throws {

@@ -23,7 +23,7 @@ import SwiftUI
     @Published var lyricsEnabled = true
     @Published private(set) var artwork: NSImage?
     @Published private(set) var artColor: Color?
-    var ambientColor: Color? { track == nil ? nil : artColor ?? NotchStyle.accent }
+    var ambientColor: Color? { track == nil ? nil : artColor ?? MouthyTheme.orange }
     private var artworkTask: Task<Void, Never>?
     /// Playback position at `positionDate`.
     private var position: TimeInterval = 0
@@ -345,7 +345,7 @@ struct MusicView: View {
                             .help("Previous").accessibilityLabel("Previous track")
                         Button { model.playPause() } label: {
                             Image(systemName: model.playing ? "pause.fill" : "play.fill").font(.system(size: 14))
-                                .foregroundStyle(MouthyTheme.night)
+                                .foregroundStyle(MouthyTheme.onOrange)
                                 .contentTransition(.symbolEffect(.replace))
                                 .frame(width: 30, height: 30)
                                 .background(Circle().fill(MouthyTheme.primaryFill))

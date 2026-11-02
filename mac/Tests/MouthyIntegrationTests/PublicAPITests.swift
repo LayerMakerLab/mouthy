@@ -58,6 +58,22 @@ import MouthyNotch
     let transcribe: (URL, DictationConfiguration) async throws -> String = SpeechModels.transcribe(fileAt:configuration:)
     _ = (download, transcribe)
 
+    // Microphone health, "Only my voice" and on-device polish for host apps.
+    let health: DictationHealth = session.health
+    _ = (health.inputName, health.isBluetoothHeadset, health.silentInput, health.onlyMyVoice, health.silenceMessage)
+    _ = DictationHealth(inputName: "AirPods", isBluetoothHeadset: true, silentInput: false, onlyMyVoice: false)
+    _ = (MicrophoneSilence.warnAfter, MicrophoneSilence.reportAfter)
+    let print: Voiceprint? = VoicePrint.loadFromMouthy()
+    var voiced = DictationConfiguration(engine: .parakeet, voiceprint: print)
+    voiced.voiceprint = nil
+    _ = (SpeakerEmbedder.modelLocations, SpeakerEmbedder.bundledModel, SpeakerEmbedder.modelName)
+    let polish: (String, String, String) async throws -> String = DictationPolish.polish(_:instructions:context:)
+    let rewrite: (String, String, String) async throws -> String = DictationPolish.rewrite(selection:instruction:context:)
+    let prewarm: () -> Void = DictationPolish.prewarm
+    _ = (polish, rewrite, prewarm, DictationPolish.isAvailable, DictationPolish.promptInstructions, DictationPolish.timeout)
+    let failure: DictationPolish.Failure = .unavailable
+    _ = (failure, DictationPolish.Failure.tooLong.localizedDescription)
+
     // New public design types carry Mouthy/Mascot prefixes.
     _ = MouthyTheme.orange; _ = MouthyType.title; _ = MouthyMotion.page
     _ = MouthyWaveform(level: 0, active: false)

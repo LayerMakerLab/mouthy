@@ -125,27 +125,27 @@ private func makeModel() -> AppModel {
     for step in OnboardingStep.allCases {
         let practice = step == .tryIt ? "Hello, this is a test." : ""
         let view = OnboardingView(model: model, step: step, practice: practice) {}
-        if let url = try renderOffscreen(view, size: CGSize(width: 760, height: 500), name: "onboarding-\(step.rawValue + 1)-\(step)", settle: 0.7) {
+        if let url = try renderOffscreen(view, size: CGSize(width: 760, height: 500), name: "onboarding-\(step.rawValue + 1)-\(step)", scheme: .light, settle: 0.7) {
             assertNoBlue(url)
         }
     }
     // Try it before anything was said, and while listening with live words.
-    if let url = try renderOffscreen(OnboardingView(model: model, step: .tryIt) {}, size: CGSize(width: 760, height: 500), name: "onboarding-3-tryIt-empty") {
+    if let url = try renderOffscreen(OnboardingView(model: model, step: .tryIt) {}, size: CGSize(width: 760, height: 500), name: "onboarding-3-tryIt-empty", scheme: .light) {
         assertNoBlue(url)
     }
     model.phase = .listening; model.liveText = "Hello comma this is"; model.level = 0.6
-    if let url = try renderOffscreen(OnboardingView(model: model, step: .tryIt) {}, size: CGSize(width: 760, height: 500), name: "onboarding-3-tryIt-listening") {
+    if let url = try renderOffscreen(OnboardingView(model: model, step: .tryIt) {}, size: CGSize(width: 760, height: 500), name: "onboarding-3-tryIt-listening", scheme: .light) {
         assertNoBlue(url)
     }
     model.phase = .idle; model.liveText = ""; model.level = 0
     // The speech model still getting ready in the background: one quiet line on Try it, Try it waits.
     model.speechAssetsReady = false; model.setupBusy = true
-    if let url = try renderOffscreen(OnboardingView(model: model, step: .tryIt) {}, size: CGSize(width: 760, height: 500), name: "onboarding-3-tryIt-preparing") {
+    if let url = try renderOffscreen(OnboardingView(model: model, step: .tryIt) {}, size: CGSize(width: 760, height: 500), name: "onboarding-3-tryIt-preparing", scheme: .light) {
         assertNoBlue(url)
     }
     model.setupBusy = false
     // Not downloaded and not downloading (offline at first launch): one line and the one button that gets it.
-    if let url = try renderOffscreen(OnboardingView(model: model, step: .tryIt) {}, size: CGSize(width: 760, height: 500), name: "onboarding-3-tryIt-download") {
+    if let url = try renderOffscreen(OnboardingView(model: model, step: .tryIt) {}, size: CGSize(width: 760, height: 500), name: "onboarding-3-tryIt-download", scheme: .light) {
         assertNoBlue(url)
     }
 }
@@ -157,64 +157,68 @@ private func makeModel() -> AppModel {
     model.accessibilityAllowed = false
     model.preferences.keepHistory = true
     let page = ZStack { MouthyBackdrop(); PreferencesView(model: model) }
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 3000), name: "settings-full", settle: 0.8) { assertNoBlue(url) }
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 720), name: "settings-top") { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 3000), name: "settings-full", scheme: .light, settle: 0.8) { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 720), name: "settings-top", scheme: .light) { assertNoBlue(url) }
     // Busy: the capsule replaces a silent disable.
     model.phase = .listening
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 520), name: "settings-busy") { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 520), name: "settings-busy", scheme: .light) { assertNoBlue(url) }
     model.phase = .idle
     // Everything allowed: the tile is titled "Permissions".
     model.accessibilityAllowed = true
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 520), name: "settings-granted") { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 520), name: "settings-granted", scheme: .light) { assertNoBlue(url) }
     // "More options" open: every rarely used control is still one click away.
     let more = ZStack { MouthyBackdrop(); PreferencesView(model: model, showMore: true) }
-    if let url = try renderOffscreen(more, size: CGSize(width: 840, height: 3200), name: "settings-more", settle: 0.8) { assertNoBlue(url) }
+    if let url = try renderOffscreen(more, size: CGSize(width: 840, height: 3200), name: "settings-more", scheme: .light, settle: 0.8) { assertNoBlue(url) }
     // "Only listen to my voice" (Parakeet): untrained, reading the three sentences, then trained.
     model.preferences.speechEngine = .parakeet
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 1300), name: "settings-voice-untrained", settle: 0.8) { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 1300), name: "settings-voice-untrained", scheme: .light, settle: 0.8) { assertNoBlue(url) }
     model.voiceTrainer.step = .reading
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 1300), name: "settings-voice-reading", settle: 0.8) { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 1300), name: "settings-voice-reading", scheme: .light, settle: 0.8) { assertNoBlue(url) }
     model.voiceTrainer.step = .idle; model.voiceTrainer.trained = true; model.preferences.onlyMyVoice = true
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 1300), name: "settings-voice-trained", settle: 0.8) { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 1300), name: "settings-voice-trained", scheme: .light, settle: 0.8) { assertNoBlue(url) }
     model.voiceTrainer.trained = false; model.preferences.onlyMyVoice = false
     // Local Only: downloads and update checks are off and say why.
     model.preferences.localOnly = true
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 3000), name: "settings-local-only", settle: 0.8) { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 3000), name: "settings-local-only", scheme: .light, settle: 0.8) { assertNoBlue(url) }
 }
 
 @MainActor @Test func vocabularyRendersForVisualReview() throws {
     guard ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"] != nil else { return }
     let model = makeModel()
     let page = ZStack { MouthyBackdrop(); VocabularyView(model: model) }
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 900), name: "vocabulary-empty") { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 900), name: "vocabulary-empty", scheme: .light) { assertNoBlue(url) }
     model.preferences.vocabulary = "Mouthy\nLayerMaker\nParakeet\nSwiftUI\nRealityKit\nSmith\nParis\nLinux\nLiquid Glass"
     model.preferences.replacements = [Replacement(phrase: "my sig", replacement: "Thank you, Alex Smith"),
                                       Replacement(phrase: "mouthy dot dev", replacement: "mouthy.dev"),
                                       Replacement(phrase: "um actually", replacement: "")]
-    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 1000), name: "vocabulary-populated") { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 840, height: 1000), name: "vocabulary-populated", scheme: .light) { assertNoBlue(url) }
 }
 
 @MainActor @Test func aboutRendersForVisualReview() throws {
     guard ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"] != nil else { return }
     let model = makeModel()
     let about = AboutView(model: model, versionLine: AppVersion.line(["CFBundleShortVersionString": "0.1.0", "MouthySourceRevision": "render"]), licensesFolder: nil) {}
-    if let url = try renderOffscreen(about, size: CGSize(width: 440, height: 600), name: "about-sheet") { assertNoBlue(url) }
+    if let url = try renderOffscreen(about, size: CGSize(width: 440, height: 600), name: "about-sheet", scheme: .light) { assertNoBlue(url) }
 }
 
 @MainActor @Test func menuPanelRendersForVisualReview() throws {
     guard ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"] != nil else { return }
     let model = makeModel()
     let recent = RecentResults()
-    if let url = try renderOffscreen(ZStack(alignment: .top) { MouthyBackdrop(glow: 0.14); MenuBarPanel(model: model, recent: recent) }, size: CGSize(width: 320, height: 250), name: "menu-panel-first-run") { assertNoBlue(url) }
+    if let url = try renderOffscreen(ZStack(alignment: .top) { MouthyBackdrop(glow: 0.14); MenuBarPanel(model: model, recent: recent) }, size: CGSize(width: 320, height: 250), name: "menu-panel-first-run", scheme: .light) { assertNoBlue(url) }
     model.preferences.modes = [DictationMode(name: "Email"), DictationMode(name: "Code")]
     model.output = "Let's move the demo to Thursday at four and send the notes after."
     for text in ["Let's move the demo to Thursday at four and send the notes after.", "Remind me to order more PETG.",
                  "The giraffe glows while it listens.", "Ship the Settings tiles tonight."] { recent.add(text) }
     model.status = "Inserted into Notes."
-    if let url = try renderOffscreen(ZStack(alignment: .top) { MouthyBackdrop(glow: 0.14); MenuBarPanel(model: model, recent: recent) }, size: CGSize(width: 320, height: 520), name: "menu-panel-idle") { assertNoBlue(url) }
+    if let url = try renderOffscreen(ZStack(alignment: .top) { MouthyBackdrop(glow: 0.14); MenuBarPanel(model: model, recent: recent) }, size: CGSize(width: 320, height: 520), name: "menu-panel-idle", scheme: .light) { assertNoBlue(url) }
     model.phase = .listening; model.status = "Listening…"; model.level = 0.7; model.elapsed = 12
-    if let url = try renderOffscreen(ZStack(alignment: .top) { MouthyBackdrop(glow: 0.14); MenuBarPanel(model: model, recent: recent) }, size: CGSize(width: 320, height: 520), name: "menu-panel-listening") { assertNoBlue(url) }
+    if let url = try renderOffscreen(ZStack(alignment: .top) { MouthyBackdrop(glow: 0.14); MenuBarPanel(model: model, recent: recent) }, size: CGSize(width: 320, height: 520), name: "menu-panel-listening", scheme: .light) { assertNoBlue(url) }
     model.phase = .idle; model.level = 0
+    model.status = "Inserted into Notes."
+    model.microphoneHint = AppModel.microphoneHint(input: "AirPods Pro", builtInAvailable: true)
+    if let url = try renderOffscreen(ZStack(alignment: .top) { MouthyBackdrop(glow: 0.14); MenuBarPanel(model: model, recent: recent) }, size: CGSize(width: 320, height: 560), name: "menu-panel-microphone-hint", scheme: .light) { assertNoBlue(url) }
+    model.microphoneHint = nil
 }
 
 @MainActor @Test func settingsRendersSpeechModelsTile() throws {
@@ -228,17 +232,38 @@ private func makeModel() -> AppModel {
         return row
     }
     let page = ZStack { MouthyBackdrop(); SpeechModelsTile(rows: rows).padding(24) }
-    if let url = try renderOffscreen(page, size: CGSize(width: 760, height: 700), name: "settings-models") { assertNoBlue(url) }
+    if let url = try renderOffscreen(page, size: CGSize(width: 760, height: 700), name: "settings-models", scheme: .light) { assertNoBlue(url) }
     let blocked = ZStack {
         MouthyBackdrop()
         SpeechModelsTile(rows: rows, busy: true, localOnly: true, message: "Downloading Whisper · 42%").padding(24)
     }
-    if let url = try renderOffscreen(blocked, size: CGSize(width: 760, height: 740), name: "settings-models-downloading") { assertNoBlue(url) }
+    if let url = try renderOffscreen(blocked, size: CGSize(width: 760, height: 740), name: "settings-models-downloading", scheme: .light) { assertNoBlue(url) }
     let intel = [SpeechModelRow(id: .apple, status: "Needs Apple silicon", size: "Size managed by macOS", canDownload: false)] + SpeechModelID.all.dropFirst().map { id in
         var row = SpeechModelCatalog.row(id, ready: false, bytes: 0, supported: id == .parakeet, intel: true)
         if id == .parakeet { row.status += SpeechModelCatalog.parakeetDetail(intel: true) }
         return row
     }
     if let url = try renderOffscreen(ZStack { MouthyBackdrop(); SpeechModelsTile(rows: intel).padding(24) },
-                                    size: CGSize(width: 760, height: 700), name: "settings-models-intel") { assertNoBlue(url) }
+                                    size: CGSize(width: 760, height: 700), name: "settings-models-intel", scheme: .light) { assertNoBlue(url) }
+}
+
+// MOUTHY_RENDER_DIR=<dir> swift test --filter darkWindowRenders
+// Windows follow the Mac's appearance, so each window surface also renders in Dark mode (the light set above is the
+// Light mode half). Every render is checked for blue.
+@MainActor @Test func darkWindowRendersForVisualReview() throws {
+    guard ProcessInfo.processInfo.environment["MOUTHY_RENDER_DIR"] != nil else { return }
+    let model = makeModel()
+    model.speechAssetsReady = true; model.microphoneAllowed = true
+    for page in [WorkspacePage.dictate, .history, .settings] {
+        model.selectedPage = page.rawValue
+        if let url = try renderOffscreen(WorkspaceView(model: model), size: CGSize(width: 1080, height: 760), name: "dark-workspace-\(page.rawValue.lowercased())", scheme: .dark, settle: 0.7) { assertNoBlue(url) }
+    }
+    let onboarding = OnboardingView(model: model, step: OnboardingStep.allCases[0], practice: "") {}
+    if let url = try renderOffscreen(onboarding, size: CGSize(width: 760, height: 500), name: "dark-onboarding-1", scheme: .dark, settle: 0.7) { assertNoBlue(url) }
+    let about = AboutView(model: model, versionLine: AppVersion.line(["CFBundleShortVersionString": "0.1.0", "MouthySourceRevision": "render"]), licensesFolder: nil) {}
+    if let url = try renderOffscreen(about, size: CGSize(width: 440, height: 600), name: "dark-about-sheet", scheme: .dark) { assertNoBlue(url) }
+    let recent = RecentResults()
+    recent.add("Let's move the demo to Thursday at four and send the notes after.")
+    model.output = "Let's move the demo to Thursday at four and send the notes after."
+    if let url = try renderOffscreen(ZStack(alignment: .top) { MouthyBackdrop(glow: 0.14); MenuBarPanel(model: model, recent: recent) }, size: CGSize(width: 320, height: 420), name: "dark-menu-panel", scheme: .dark) { assertNoBlue(url) }
 }

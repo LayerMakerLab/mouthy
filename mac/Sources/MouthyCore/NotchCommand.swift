@@ -4,27 +4,52 @@ import Foundation
 /// Pure text handling; nothing here runs the command.
 public enum NotchCommand: Equatable, Sendable {
     case timer(seconds: Int)
+    case stopTimer
     case note(String)
     case reminder(due: Date, text: String)
     case question(String)
+    /// Said to Mouthy by name and shaped like a command ("Mouthy, set a timer for later"), but not understood.
+    /// Shown in the notch instead of being typed into the app as "Mouthy, …".
+    case unrecognized(String)
 
     /// `requiresName` is true for ordinary dictation anywhere: only a transcript that starts with the whole
-    /// word "Mouthy" (optionally followed by , . : or !; never "Mouthy's" or "Mouthy-like") is a command.
-    /// False for the notch's own mic, where bare commands match too. Questions only ever match after the name. Anything else returns nil and stays text.
+    /// word "Mouthy" (optionally followed by , . : ! or ?; never "Mouthy's" or "Mouthy-like") is a command. A
+    /// short lead-in may come first ("And Mouthy, …", "Hey Mouthy. …"). Speech recognizers often mishear the
+    /// name ("Mouthie", "Malty"); those spellings count only at the very start, followed by punctuation and a
+    /// spoken instruction (a timer, a reminder or a written-out note; never a question, and never "started …",
+    /// which reads as somebody's story). False for the notch's own mic, where bare commands match too.
+    /// Questions only ever match after the name. Anything else returns nil and stays text.
     public static func parse(_ text: String, now: Date, calendar: Calendar, requiresName: Bool) -> NotchCommand? {
         var rest = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let named: Bool
-        if let match = firstMatch(#"^mouthy(?=[\s,.:!]|$)[,.:!]?\s*"#, in: rest) {
-            named = true
+        enum Name { case none, exact, misheard }
+        var name = Name.none
+        let lead = #"^(?:(?:and|hey|hi|ok|okay|so|um|uh|oh)[\s,.!]+)?"#
+        let after = #"(?=[\s,.:!?]|$)[,.:!?]?\s*"#
+        if let match = firstMatch(lead + "mouthy" + after, in: rest) {
+            name = .exact
             rest = String(rest[match.range.upperBound...])
-        } else {
-            named = false
+        } else if let match = firstMatch("^(?:" + misheardNames.joined(separator: "|") + #")[,.:!?]\s*"#, in: rest) {
+            name = .misheard
+            rest = String(rest[match.range.upperBound...])
         }
-        guard named || !requiresName, !rest.isEmpty else { return nil }
+        guard name != .none || !requiresName, !rest.isEmpty else { return nil }
         let plain = rest.trimmingCharacters(in: trailing)
-        if let command = timerCommand(plain) ?? noteCommand(plain) ?? reminderCommand(plain, now: now, calendar: calendar) { return command }
-        guard named, isQuestion(rest) else { return nil }
-        return .question(rest)
+        if let command = timerCommand(plain, imperative: name == .misheard) ?? stopTimerCommand(plain)
+            ?? noteCommand(plain, writtenOut: name == .misheard) ?? reminderCommand(plain, now: now, calendar: calendar) {
+            return command
+        }
+        guard name == .exact else { return nil }
+        if isQuestion(rest) { return .question(rest) }
+        return looksLikeCommand(plain) ? .unrecognized(rest) : nil
+    }
+
+    /// Ways speech recognizers can spell "Mouthy". Whole words only.
+    static let misheardNames = ["mouthie", "mouthey", "mouthi", "mouthee", "mouty", "mowthy", "mothy", "malty", "malthy", "malthi", "melty", "matthew", "merci"]
+
+    /// Opens with an instruction for the notch ("set a timer …", "stop the timer", "remind me …", "note …"),
+    /// as opposed to talk about Mouthy ("Mouthy, timers don't stop at zero").
+    private static func looksLikeCommand(_ text: String) -> Bool {
+        firstMatch(#"^(?:(?:set|start|started|stop|cancel|end|clear)\s+(?:(?:a|an|the|my)\s+)?(?:[\w\-]+\s+)?timers?\b|remind me\b|(?:take|make) a note\b|note to self\b|note\b)"#, in: text) != nil
     }
 
     // MARK: Commands
@@ -32,10 +57,14 @@ public enum NotchCommand: Equatable, Sendable {
     private static let trailing = CharacterSet(charactersIn: ".!?,;:").union(.whitespacesAndNewlines)
     private static let separators = #"[\s,:;.\-]+"#
 
-    private static func timerCommand(_ text: String) -> NotchCommand? {
+    /// `imperative` keeps only "set"/"start": after a misheard name, "started a timer" is somebody's story.
+    private static func timerCommand(_ text: String, imperative: Bool = false) -> NotchCommand? {
+        // Recognizers write "start a" as "started" or "starts a"; "set" as "sets".
+        let verbs = imperative ? "set|start" : "set|sets|start|starts|started|starting"
+        let verb = "^(?:(?:" + verbs + #")\s+)?(?:an?\s+)?"#
         let patterns = [
-            #"^(?:(?:set|start)\s+)?(?:an?\s+)?timer(?:\s+(?:for|of))?"# + separators + #"(.+)$"#,
-            #"^(?:(?:set|start)\s+)?(?:an?\s+)?(.+?)[\s\-]+timer$"#,
+            verb + #"timer(?:\s+(?:for|of))?"# + separators + #"(.+)$"#,
+            verb + #"(.+?)[\s\-]+timer$"#,
         ]
         for pattern in patterns {
             if let match = firstMatch(pattern, in: text), let spoken = match.groups[0],
@@ -46,8 +75,15 @@ public enum NotchCommand: Equatable, Sendable {
         return nil
     }
 
-    private static func noteCommand(_ text: String) -> NotchCommand? {
-        guard let match = firstMatch(#"^(?:note to self|take a note|make a note|note)"# + separators + #"(.+)$"#, in: text),
+    /// "stop the timer", "cancel my timer", "stop timer".
+    private static func stopTimerCommand(_ text: String) -> NotchCommand? {
+        firstMatch(#"^(?:stop|cancel|end|clear)(?:\s+(?:the|my|this|that))?\s+timers?$"#, in: text) != nil ? .stopTimer : nil
+    }
+
+    /// `writtenOut` leaves out the bare "note …" form, which reads like ordinary prose after a misheard name.
+    private static func noteCommand(_ text: String, writtenOut: Bool = false) -> NotchCommand? {
+        let opener = writtenOut ? #"^(?:note to self|take a note|make a note)"# : #"^(?:note to self|take a note|make a note|note)"#
+        guard let match = firstMatch(opener + separators + #"(.+)$"#, in: text),
               let body = match.groups[0]?.trimmingCharacters(in: trailing), !body.isEmpty else { return nil }
         return .note(body)
     }

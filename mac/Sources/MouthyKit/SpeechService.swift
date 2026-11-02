@@ -65,8 +65,14 @@ final class SpeechService {
     private var live: LiveTranscriber?
     private var liveTicker: Task<Void, Never>?
     private(set) var document = TranscriptionDocument(text: "")
-    private(set) var inputDeviceName = "Microphone"
+    private(set) var inputDevice: InputDevice?
+    var inputDeviceName: String { inputDevice?.name ?? "Microphone" }
     var isActive: Bool { analyzer != nil || parakeet.isActive }
+    /// Starts still in flight. `start` awaits permission, model releases and speech assets before it opens the
+    /// microphone; counting it as recording from its first line keeps a Talk session from claiming the microphone then.
+    private var starts = 0
+    /// Asks for the microphone. A seam, so tests can hold `start` at its first await without a permission prompt.
+    var microphonePermission: () async -> Bool? = { await SpeechService.permission(timeout: .seconds(10)) }
     private var tapInstalled = false
     private var audioFeed: AudioFeed?
     private var routeObserver: NSObjectProtocol?
@@ -78,6 +84,10 @@ final class SpeechService {
     /// The microphone went away mid-recording (route or display change). Capture has stopped; what was recorded
     /// is still here for `finish`.
     var onInterruption: ((String) -> Void)?
+
+    init() {
+        MicrophoneOwner.shared.register(self) { [weak self] in self.map { $0.starts > 0 || $0.isActive } ?? false }
+    }
 
     static func permission() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
@@ -152,7 +162,10 @@ final class SpeechService {
 
     func start(locale: String, vocabulary: String, inputDeviceUID: String = "", provider: SpeechEngine = .apple, whisperModel: WhisperModel = .baseEnglish, whisperLanguage: String = "auto", translate: Bool = false, status: @escaping (String) -> Void) async throws {
         try Task.checkCancellation()
-        guard await Self.permission(timeout: .seconds(10)) == true else { throw MouthyFailure("Microphone access is off. Enable Mouthy in System Settings → Privacy & Security → Microphone.") }
+        try MicrophoneOwner.shared.requireFree()
+        starts += 1
+        defer { starts -= 1 }
+        guard await microphonePermission() == true else { throw MouthyFailure("Microphone access is off. Enable Mouthy in System Settings → Privacy & Security → Microphone.") }
         try Task.checkCancellation()
         self.provider = provider
         self.whisperModel = whisperModel; self.whisperLanguage = whisperLanguage; self.translate = translate; self.vocabulary = vocabulary
@@ -161,6 +174,8 @@ final class SpeechService {
             guard provider == .parakeet ? ParakeetRecognizer.installed : WhisperRecognizer.installed(whisperModel) else {
                 throw MouthyFailure("Download the selected model in Settings first.")
             }
+            // Asked again after the last await, right before the microphone opens.
+            try MicrophoneOwner.shared.requireFree()
             // Capture immediately. Model warm-up happens alongside speaking, not before it.
             warmup = Task {
                 if provider == .parakeet {
@@ -182,7 +197,7 @@ final class SpeechService {
             }, interrupted: { [weak self] message in
                 guard self?.sessionID == token else { return }; self?.onInterruption?(message)
             })
-            inputDeviceName = parakeet.inputDeviceName
+            inputDevice = parakeet.inputDevice
             startLive(token: token)
             return
         }
@@ -191,10 +206,12 @@ final class SpeechService {
         let transcriber = try await Self.transcriber(locale: locale, install: false, status: status)
         try Task.checkCancellation()
         let analyzer = try await configure(transcriber, vocabulary: vocabulary)
+        // Asked again before an engine exists and once more after the last await, right before capture starts.
+        try MicrophoneOwner.shared.requireFree()
         let engine = AVAudioEngine()
         self.engine = engine
         let selectedInput = try AudioDevices.select(inputDeviceUID, engine: engine)
-        inputDeviceName = selectedInput.name
+        inputDevice = selectedInput
         let input = engine.inputNode
         // The output scope may still reflect the playback device (for example,
         // a 44.1 kHz Bluetooth speaker). A recording tap must match input hardware.
@@ -210,6 +227,7 @@ final class SpeechService {
         try await analyzer.start(inputSequence: stream)
         // Cancelled while the analyzer was starting: do not start a microphone nobody will stop.
         try Task.checkCancellation()
+        try MicrophoneOwner.shared.requireFree()
         let currentSession = sessionID
         let feed = AudioFeed(format: format, continuation: continuation, meter: { [weak self] level in
             Task { @MainActor in guard self?.sessionID == currentSession else { return }; self?.onLevel?(level) }
@@ -292,6 +310,7 @@ final class SpeechService {
             return try await WhisperRecognizer.shared.transcribe(samples: samples, model: model, language: language, translate: translate,
                                                                   vocabulary: boost ? vocabulary : "").text
         }, decodeAfter: provider == .parakeet ? ParakeetRecognizer.decodeAfter : nil, hearsSpeech: VoiceActivity.hearsSpeech, count: { [weak self] in self?.parakeet.sampleCount ?? 0 }, read: { [weak self] in self?.parakeet.samples($0) ?? [] })
+        live.keepCase = PhraseJoiner.lowercaseTerms(VocabularyLearner.terms(vocabulary))
         live.onText = { [weak self] text in
             guard let self, self.sessionID == token else { return }
             self.onPreview?(text)

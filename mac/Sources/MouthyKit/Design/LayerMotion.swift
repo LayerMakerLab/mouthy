@@ -5,56 +5,6 @@ import MouthyNotch
 // Decorative motion on `RenderServerView` (MouthyNotch): Core Animation runs it in the render server at 30 fps,
 // with no timeline, no per-frame SwiftUI body and no redraw in Mouthy while it plays.
 
-// MARK: - Record orb rings
-
-/// Two rings that grow from the orb and fade, half a cycle apart, while listening.
-final class PulseRingsView: RenderServerView {
-    static let from: CGFloat = 48, to: CGFloat = 70, period: CFTimeInterval = 1.6
-    private var rings: [CALayer] = []
-
-    func start(color: CGColor) {
-        guard rings.isEmpty, let host = layer else { return }
-        let begin = CACurrentMediaTime()
-        rings = (0..<2).map { index in
-            let ring = CALayer()
-            ring.borderColor = color
-            ring.borderWidth = 1.5
-            ring.bounds = CGRect(x: 0, y: 0, width: Self.from, height: Self.from)
-            ring.cornerRadius = Self.from / 2
-            ring.opacity = 0
-            host.addSublayer(ring)
-            let grow = CABasicAnimation(keyPath: "bounds.size")
-            grow.fromValue = CGSize(width: Self.from, height: Self.from)
-            grow.toValue = CGSize(width: Self.to, height: Self.to)
-            let round = CABasicAnimation(keyPath: "cornerRadius")
-            round.fromValue = Self.from / 2
-            round.toValue = Self.to / 2
-            let fade = CABasicAnimation(keyPath: "opacity")
-            fade.fromValue = 0.55
-            fade.toValue = 0
-            let group = CAAnimationGroup()
-            group.animations = [grow, round, fade]
-            group.duration = Self.period
-            group.repeatCount = .infinity
-            group.beginTime = ring.convertTime(begin, from: nil) - Double(index) * Self.period / 2
-            ring.add(Self.decorative(group), forKey: "pulse")
-            return ring
-        }
-        needsLayout = true
-    }
-    var running: Bool { !rings.isEmpty }
-    override func layout() {
-        super.layout()
-        Self.withoutActions { rings.forEach { $0.position = CGPoint(x: bounds.midX, y: bounds.midY) } }
-    }
-}
-
-struct PulseRings: NSViewRepresentable {
-    let color: Color
-    func makeNSView(context: Context) -> PulseRingsView { PulseRingsView(frame: .zero) }
-    func updateNSView(_ view: PulseRingsView, context: Context) { view.start(color: color.resolve(in: context.environment).cgColor) }
-}
-
 // MARK: - Indeterminate progress
 
 /// A glowing segment sliding along the track (a file is transcribing). Reduce Motion pulses the whole bar instead.

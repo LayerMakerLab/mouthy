@@ -121,7 +121,7 @@ private struct TranscriptLineRow: View {
             Button(action: play) {
                 Image(systemName: playing ? "stop.fill" : "play.fill")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(playing ? MouthyTheme.night : MouthyTheme.cream)
+                    .foregroundStyle(playing ? MouthyTheme.onOrange : MouthyTheme.cream)
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: 24, height: 24)
                     .background(Circle().fill(playing ? AnyShapeStyle(MouthyTheme.primaryFill) : AnyShapeStyle(MouthyTheme.raised)))

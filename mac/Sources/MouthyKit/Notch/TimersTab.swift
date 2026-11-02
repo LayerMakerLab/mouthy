@@ -182,7 +182,7 @@ struct TimersView: View {
                     let elapsed = model.stopwatchBanked + (model.stopwatchStart.map { Date().timeIntervalSince($0) } ?? 0)
                     Text(formatClock(floor(elapsed)))
                         .font(MouthyType.notchStopwatch)
-                        .foregroundStyle(stopwatchLive ? AnyShapeStyle(barGradient)
+                        .foregroundStyle(stopwatchLive ? AnyShapeStyle(MouthyTheme.barFill)
                                          : AnyShapeStyle(stopwatchQuiet ? MouthyTheme.cream2.opacity(0.5) : MouthyTheme.cream))
                         .padding(.vertical, 6)
                 }

@@ -26,20 +26,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var onboardingWindow: NSWindow?
     private var activationObserver: NSObjectProtocol?
     private var terminating = false
+    private var quitReplied = false
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) { model.savePreferences() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminating else { return .terminateLater }
         terminating = true
-        Task { await model.shutdown(); sender.reply(toApplicationShouldTerminate: true) }
+        Task { await model.shutdown(); replyToQuit(sender) }
+        // A cleanup step that never finishes must not hold Quit open (the app once stayed in _shouldTerminate until
+        // it was killed). Shutdown logs each step, so the stuck one shows in the log.
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            guard !quitReplied else { return }
+            Diagnostics.dictation.error("quit: shutdown still running after 3 s; quitting anyway")
+            replyToQuit(sender)
+        }
         return .terminateLater
+    }
+    private func replyToQuit(_ sender: NSApplication) {
+        guard !quitReplied else { return }
+        quitReplied = true
+        sender.reply(toApplicationShouldTerminate: true)
     }
     func applicationDidBecomeActive(_ notification: Notification) { model.refreshPermissions(); model.syncNow(quiet: true) }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         openMainWindow(); return false
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.appearance = NSAppearance(named: .darkAqua)
+        // Windows follow the Mac's Light or Dark appearance (2026-10-21); the notch and pill pin dark.
+        NSApp.appearance = nil
         NSApp.setActivationPolicy(.accessory)
         model.openWorkspace = { [weak self] in self?.openMainWindow() }
         model.overlay = OverlayController(model: model)
@@ -52,8 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             MainActor.assumeIsolated { self?.showOnboarding() }
         }
         if CommandLine.arguments.contains("--open") { openMainWindow() }
-        // Without Accessibility the global shortcut receives no key events and dictation silently
-        // never starts. Ask macOS to show its prompt instead of failing invisibly.
+        // Without Accessibility the global modifier shortcuts receive no key events (⌃⌥Space stands in meanwhile,
+        // `HotkeyService.standsIn`). Ask macOS to show its prompt; it shows once per install and never after a
+        // Deny, so the setup screen for Accessibility opens as well whenever the chosen shortcut depends on it.
+        let headless = CommandLine.arguments.contains("--headless")
+        let needsAccessibility = !headless && !TextDelivery.accessibilityAllowed && (model.preferences.shortcut == 4 || model.preferences.shortcut == 5)
         if !TextDelivery.accessibilityAllowed { TextDelivery.requestAccessibility() }
         if model.preferences.agentVoice { model.agentServer.start() }
         Mascot.install()
@@ -62,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // First run, or macOS has never been asked about the microphone for this copy of Mouthy (a reinstall, or a
         // reset permission): setup gets it going instead of leaving the person in Settings.
         if !model.preferences.onboarded || AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined { showOnboarding() }
+        else if needsAccessibility { showOnboarding(step: .accessibility) }
         model.syncNow(quiet: true)
     }
     /// mouthy://toggle | start | stop | cancel | paste-last | open — for Shortcuts,
@@ -103,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             model.status = "Another copy of Mouthy is already running from \(Bundle.main.bundleURL.path). Quit this copy before opening the other build."
         }
     }
-    func showOnboarding() {
+    func showOnboarding(step: OnboardingStep = .hello) {
         if let onboardingWindow { onboardingWindow.makeKeyAndOrderFront(nil); NSApp.activate(); return }
         // Get the chosen engine ready while the permissions are allowed, so Try it never waits on a screen of its own.
         Task { [model] in
@@ -114,10 +133,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden; window.isReleasedWhenClosed = false
         window.isMovableByWindowBackground = true
         window.backgroundColor = NSColor(MouthyTheme.night)
-        window.contentView = NSHostingView(rootView: OnboardingView(model: model) { [weak self] in
+        window.contentView = NSHostingView(rootView: OnboardingView(model: model, step: step) { [weak self] in
             // Leave the button's action before its hosting view is released.
             DispatchQueue.main.async { self?.finishOnboarding() }
-        }.preferredColorScheme(.dark).tint(MouthyTheme.orange))
+        })
         // The red close button runs the same finish path as Done (windowWillClose).
         window.delegate = self
         window.center(); onboardingWindow = window
@@ -142,7 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
             window.minSize = NSSize(width: 900, height: 640); window.isReleasedWhenClosed = false
             window.setFrameAutosaveName("MainWindow")
-            window.contentView = NSHostingView(rootView: WorkspaceView(model: model).preferredColorScheme(.dark).tint(MouthyTheme.orange))
+            window.contentView = NSHostingView(rootView: WorkspaceView(model: model))
             window.delegate = self; window.center(); mainWindow = window
         }
         NSApp.setActivationPolicy(.regular)

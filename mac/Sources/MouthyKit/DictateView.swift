@@ -119,7 +119,6 @@ struct DictationView: View {
             .mouthyGlass(Capsule(style: .circular), interactive: true)
             .disabled(model.busy)
             .opacity(model.busy ? 0.5 : 1)
-            .onChange(of: model.preferences.mode) { model.savePreferences() }
             .help("Writing style for your next dictation")
             .accessibilityLabel("Writing style, \(model.preferences.mode.rawValue)")
         }

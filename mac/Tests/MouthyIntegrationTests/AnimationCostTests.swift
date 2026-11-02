@@ -9,7 +9,7 @@ import Testing
 // window far off screen (never on a display, never key, no focus taken) at the hub window's size, ordered in so
 // the display cycle runs, and the process CPU time (getrusage, all threads) is read before and after 10 s.
 
-private func processCPUSeconds() -> Double {
+func processCPUSeconds() -> Double {
     var usage = rusage()
     getrusage(RUSAGE_SELF, &usage)
     func seconds(_ time: timeval) -> Double { Double(time.tv_sec) + Double(time.tv_usec) / 1e6 }
@@ -63,7 +63,10 @@ private struct ProbeView: View {
     init(_ view: NSView) { self.view = view }
 }
 
-@MainActor private func hostedCPUPercent(_ view: some View, seconds: TimeInterval, size: CGSize = hubWindowSize) -> Double {
+/// CPU percent of one core while `view` sits in a borderless window far off screen for `seconds`; shared by
+/// every CPU gate, and checks the host and its live layer views are released afterwards.
+@MainActor func hostedCPUPercent(_ view: some View, seconds: TimeInterval, size: CGSize? = nil) -> Double {
+    let size = size ?? hubWindowSize
     var observed: [MeasuredView] = []
     // NSApplication normally drains an autorelease pool after each event. This headless test pumps a nested
     // run loop: without its own pool, previous hosts survive and double-count the shared model's level updates.
@@ -272,9 +275,6 @@ func animationCostMotionStillRuns() throws {
         let layers = { bars.layer?.sublayers?.first?.mask?.sublayers ?? [] }
         #expect(try moves(bars, name: name, layers: layers, value: { $0.bounds.height * $0.transform.m22 }), "\(name) must move")
     }
-    let rings = PulseRingsView(frame: NSRect(x: 0, y: 0, width: 70, height: 70))
-    rings.start(color: NSColor(MouthyTheme.glow).cgColor)
-    #expect(try moves(rings, name: "orb-rings", layers: { rings.layer?.sublayers ?? [] }, value: { CGFloat($0.opacity) }), "the orb rings must pulse")
     let ring = TimerRingLayerView(frame: NSRect(x: 0, y: 0, width: 84, height: 84))
     ring.apply(ends: Date().addingTimeInterval(45), length: 60, lineWidth: 7, tint: NSColor(MouthyTheme.orange).cgColor)
     #expect(try moves(ring, name: "timer-ring", layers: { [ring.layer!.sublayers![1].sublayers![0].mask!] },

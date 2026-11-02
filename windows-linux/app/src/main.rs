@@ -300,7 +300,7 @@ fn split(app: &AppHandle) {
         };
         let mut text = mouthy_core::process(&raw, &settings.core.replacements, settings.core.punctuation_commands);
         if settings.core.remove_fillers { text = mouthy_core::remove_fillers(&text); }
-        if session.mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); }
+        if session.mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); } else { text = mouthy_core::clock_times(&text); }
         if !text.chars().any(|c| c.is_alphanumeric()) {
             if cfg!(target_os = "linux") { pass_and_rearm(app, generation); }
             return Ok("Listening…".into());
@@ -436,7 +436,7 @@ fn finish(app: &AppHandle, samples: Vec<f32>, generation: u64) -> Result<(), Str
     let output = if output == OutputAction::InsertAndReturn && !may_submit { OutputAction::Insert } else { output };
     let mut text = mouthy_core::process(&spoken, &settings.core.replacements, settings.core.punctuation_commands);
     if settings.core.remove_fillers { text = mouthy_core::remove_fillers(&text); }
-    if mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); }
+    if mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); } else { text = mouthy_core::clock_times(&text); }
     let mut note = String::new();
     if writing != WritingMode::Verbatim && !text.is_empty() {
         if settings.ollama_model.is_empty() {
@@ -752,6 +752,12 @@ fn open_path(path: String) {
     let _ = std::process::Command::new("open").arg(&path).spawn();
 }
 
+/// The same privacy policy page mouthy.dev links to. Fixed here so the page cannot open other URLs.
+const PRIVACY_POLICY_URL: &str = "https://github.com/LayerMakerLab/mouthy/blob/main/docs/privacy.md";
+
+#[tauri::command]
+fn open_privacy_policy() { open_path(PRIVACY_POLICY_URL.to_string()) }
+
 /// Tray menu with the mode picker for the next dictation.
 fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let modes = state(app).settings.lock().core.modes.clone();
@@ -766,14 +772,22 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     Menu::with_items(app, &[&toggle_item, &picker, &paste_item, &open_item, &PredefinedMenuItem::separator(app)?, &quit_item])
 }
 
-/// Merges the sync folder's file into settings and writes the union back.
+/// Merges the sync folder's file into settings and writes the union back. The settings stay locked from the read to
+/// the write-back, so a save made meanwhile (the window, the 10-minute sync) is never replaced by an older copy; the
+/// merge runs on a copy, so a failed sync changes nothing.
 fn sync_settings(app: &AppHandle, removed: &store::Removed) {
     let st = state(app);
-    let mut settings = st.settings.lock().clone();
-    match store::sync_with(&mut settings, removed) {
-        Ok(true) => { let _ = store::save("settings.json", &settings); *st.settings.lock() = settings; let _ = app.emit("history", ()); }
+    let mut current = st.settings.lock();
+    let mut merged = current.clone();
+    match store::sync_with(&mut merged, removed) {
+        Ok(true) => {
+            let _ = store::save("settings.json", &merged);
+            *current = merged;
+            drop(current);
+            let _ = app.emit("history", ());
+        }
         Ok(false) => {}
-        Err(e) => set_status(app, format!("Sync skipped: {e}")),
+        Err(e) => { drop(current); set_status(app, format!("Sync skipped: {e}")) }
     }
 }
 
@@ -932,7 +946,7 @@ fn main() {
             stats: Mutex::new(store::load("stats.json")),
             segment_start: Mutex::new(Instant::now()),
         })
-        .invoke_handler(tauri::generate_handler![snapshot, save_settings, toggle_dictation, cancel_dictation, download_model, clear_history, delete_history, copy_text, meeting_toggle, meeting_list, meeting_transcribe, open_path, current_phase])
+        .invoke_handler(tauri::generate_handler![snapshot, save_settings, toggle_dictation, cancel_dictation, download_model, clear_history, delete_history, copy_text, meeting_toggle, meeting_list, meeting_transcribe, open_path, open_privacy_policy, current_phase])
         .setup(move |app| {
             let handle = app.handle().clone();
             let menu = tray_menu(&handle)?;

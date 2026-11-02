@@ -25,3 +25,15 @@ private func known(_ word: String) -> Bool { dictionary.contains(word) }
     // Similar spellings are handled as vocabulary hints instead.
     #expect(VocabularyLearner.soundAlikes(inserted: "Send it to zefir today.", edited: "Send it to Zephyr today.", isKnownWord: known).isEmpty)
 }
+
+/// A word heard as a different number of words is learned as the phrase the person typed: runs of up to 4 words.
+@Test func learnsCorrectedPhrases() {
+    let words: Set<String> = dictionary.union(["ask", "explore", "post", "thread", "x", "grower", "check", "replies", "and", "then"])
+    let isKnown = { words.contains($0) }
+    #expect(VocabularyLearner.corrections(inserted: "Ask explore to post the thread today.", edited: "Ask X Grower to post the thread today.", isKnownWord: isKnown) == ["X Grower"])
+    #expect(VocabularyLearner.corrections(inserted: "Push it to get hub today.", edited: "Push it to GitHub today.", isKnownWord: isKnown) == ["GitHub"])
+    // Ordinary words typed in, a long rewrite, or a phrase far longer than what was said: nothing.
+    #expect(VocabularyLearner.corrections(inserted: "Check the replies today.", edited: "Check the thread and replies today.", isKnownWord: isKnown).isEmpty)
+    #expect(VocabularyLearner.corrections(inserted: "Ask explore to post.", edited: "Tell Marketing Team Lead Dana to post it all.", isKnownWord: isKnown).isEmpty)
+    #expect(VocabularyLearner.corrections(inserted: "Ask it to post the thread today.", edited: "Ask Sir Reginald Worthington to post the thread today.", isKnownWord: isKnown).isEmpty)
+}

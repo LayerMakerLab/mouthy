@@ -47,6 +47,10 @@ func meetingNotesFromFolder() async throws {
     a.syncNow()
     #expect(b.preferences.vocabulary == "Nimbus\nZephyr")
     #expect(a.preferences.vocabulary == "Zephyr\nNimbus")
+    // A word removed on one Mac stays removed there and leaves the shared file; the other Mac keeps its own copy.
+    a.preferences.vocabulary = "Zephyr"; a.syncNow()
+    #expect(a.preferences.vocabulary == "Zephyr")
+    #expect(try JSONDecoder().decode(SyncDocument.self, from: Data(contentsOf: shared.appendingPathComponent(SyncDocument.fileName))).vocabulary == ["Zephyr"])
     // An unreadable sync file is preserved, not overwritten.
     let file = shared.appendingPathComponent(SyncDocument.fileName)
     try Data("not json".utf8).write(to: file)

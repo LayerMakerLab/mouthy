@@ -45,6 +45,11 @@ public enum VoicePrint {
         return print
     }
 
+    /// The voiceprint the person trained in Mouthy (Settings → Speech), for host apps' `DictationConfiguration.voiceprint`.
+    /// Read-only: it is read from Mouthy's support folder (`~/Library/Application Support/Mouthy/voiceprint.json`) and
+    /// never written, so "Forget my voice" in Mouthy holds for hosts too once they read it again. Nil when there is none.
+    public static func loadFromMouthy() -> Voiceprint? { load(in: LocalStore.supportDirectory) }
+
     /// Saved owner-only (0600) in the support folder; never sent anywhere.
     public static func save(_ print: Voiceprint, in directory: URL) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

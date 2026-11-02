@@ -3,7 +3,7 @@ import MouthyNotch
 
 enum TileStyle { case standard, raised, hero, dashed }
 
-/// A floating content card: opaque warm cocoa over the backdrop, a hoof hairline, a cream top highlight
+/// A floating content card: an opaque surface over the backdrop, a hoof hairline, a lit top edge
 /// and a soft shadow. Glass is reserved for the control layer, so tiles stay solid.
 struct Tile<Content: View>: View {
     var padding: CGFloat
@@ -31,7 +31,7 @@ struct TileBackground: View {
             shape.strokeBorder(MouthyTheme.cream2.opacity(0.35), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
         } else {
             shape.fill(style == .raised ? MouthyTheme.raised.opacity(0.94) : MouthyTheme.surface.opacity(0.88))
-                .overlay(shape.fill(LinearGradient(stops: [.init(color: MouthyTheme.cream.opacity(0.10), location: 0), .init(color: .clear, location: 0.4)],
+                .overlay(shape.fill(LinearGradient(stops: [.init(color: MouthyTheme.highlight, location: 0), .init(color: .clear, location: 0.4)],
                                                    startPoint: .top, endPoint: .bottom)))
                 .overlay(shape.strokeBorder(MouthyTheme.hoof, lineWidth: 1))
                 .shadow(color: MouthyTheme.shadow, radius: MouthyTheme.shadowRadius, y: MouthyTheme.shadowY)

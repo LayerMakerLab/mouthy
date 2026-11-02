@@ -118,6 +118,8 @@ public struct Preferences: Codable {
     public var learnWords = true
     /// First-run setup finished. Fresh installs start false; existing settings files count as set up.
     public var onboarded = false
+    /// The person answered the one-time hint to use the built-in microphone instead of a Bluetooth headset.
+    public var microphoneHintSeen = false
     /// Folder holding "Mouthy Sync.json" (any synced or shared folder); empty turns sync off.
     public var syncFolder = ""
     /// A daily check of mouthy.dev for a new version, downloaded quietly and installed when Mouthy quits.
@@ -130,51 +132,48 @@ public struct Preferences: Codable {
     enum CodingKeys: String, CodingKey {
         case speechEngine, whisperModel, whisperLanguage, whisperTranslateToEnglish, locale, inputDeviceUID, holdToTalk, shortcut, customKeyCode, customModifiers, customShortcutLabel, autoInsert, keepHistory, historyLimit, mode,
              customInstructions, vocabulary, replacements, punctuationCommands, showOverlay, notchHub, islandCorner, rewriteSelection, 
-             smartFormatting, mediaWhileDictating, playSounds, modes, agentVoice, speakAgentQuestions, localOnly, automaticActivation, removeFillers, learnWords, onboarded, syncFolder, checkForUpdates, onlyMyVoice
+             smartFormatting, mediaWhileDictating, playSounds, modes, agentVoice, speakAgentQuestions, localOnly, automaticActivation, removeFillers, learnWords, onboarded, syncFolder, checkForUpdates, onlyMyVoice, microphoneHintSeen
     }
+    /// Missing keys keep the defaults above, written once. Two differ for a file that lacks them, since it comes from
+    /// an older build: its shortcut was ⌃⌥Space and its owner already finished setup.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        speechEngine = (try? c.decode(SpeechEngine.self, forKey: .speechEngine)) ?? .apple
-        whisperModel = (try? c.decode(WhisperModel.self, forKey: .whisperModel)) ?? .baseEnglish
-        whisperLanguage = try c.decodeIfPresent(String.self, forKey: .whisperLanguage) ?? "auto"
-        whisperTranslateToEnglish = try c.decodeIfPresent(Bool.self, forKey: .whisperTranslateToEnglish) ?? false
-        locale = try c.decodeIfPresent(String.self, forKey: .locale) ?? "en-US"
-        inputDeviceUID = try c.decodeIfPresent(String.self, forKey: .inputDeviceUID) ?? ""
-        holdToTalk = try c.decodeIfPresent(Bool.self, forKey: .holdToTalk) ?? false
-        shortcut = try c.decodeIfPresent(Int.self, forKey: .shortcut) ?? 0
-        customKeyCode = try c.decodeIfPresent(UInt32.self, forKey: .customKeyCode) ?? 49
-        customModifiers = try c.decodeIfPresent(UInt32.self, forKey: .customModifiers) ?? 6144
-        customShortcutLabel = try c.decodeIfPresent(String.self, forKey: .customShortcutLabel) ?? "⌃ ⌥ Space"
-        autoInsert = try c.decodeIfPresent(Bool.self, forKey: .autoInsert) ?? true
-        keepHistory = try c.decodeIfPresent(Bool.self, forKey: .keepHistory) ?? false
-        historyLimit = max(10, min(1000, try c.decodeIfPresent(Int.self, forKey: .historyLimit) ?? 100))
-        mode = try c.decodeIfPresent(WritingMode.self, forKey: .mode) ?? .verbatim
-        customInstructions = try c.decodeIfPresent(String.self, forKey: .customInstructions) ?? "Preserve my wording and organize it into clear paragraphs."
-        vocabulary = try c.decodeIfPresent(String.self, forKey: .vocabulary) ?? ""
-        replacements = try c.decodeIfPresent([Replacement].self, forKey: .replacements) ?? []
-        punctuationCommands = try c.decodeIfPresent(Bool.self, forKey: .punctuationCommands) ?? true
-        showOverlay = try c.decodeIfPresent(Bool.self, forKey: .showOverlay) ?? true
-        notchHub = try c.decodeIfPresent(Bool.self, forKey: .notchHub) ?? true
-        islandCorner = try c.decodeIfPresent(Int.self, forKey: .islandCorner) ?? 2
-        rewriteSelection = try c.decodeIfPresent(Bool.self, forKey: .rewriteSelection) ?? false
-        smartFormatting = try c.decodeIfPresent(Bool.self, forKey: .smartFormatting) ?? true
-        mediaWhileDictating = (try? c.decode(MediaWhileDictating.self, forKey: .mediaWhileDictating)) ?? .nothing
-        playSounds = try c.decodeIfPresent(Bool.self, forKey: .playSounds) ?? false
-        modes = (try? c.decodeIfPresent([DictationMode].self, forKey: .modes)) ?? []
-        agentVoice = try c.decodeIfPresent(Bool.self, forKey: .agentVoice) ?? true
-        speakAgentQuestions = try c.decodeIfPresent(Bool.self, forKey: .speakAgentQuestions) ?? false
-        localOnly = try c.decodeIfPresent(Bool.self, forKey: .localOnly) ?? false
-        automaticActivation = try c.decodeIfPresent(Bool.self, forKey: .automaticActivation) ?? false
-        removeFillers = try c.decodeIfPresent(Bool.self, forKey: .removeFillers) ?? true
-        learnWords = try c.decodeIfPresent(Bool.self, forKey: .learnWords) ?? true
-        onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? true
-        syncFolder = try c.decodeIfPresent(String.self, forKey: .syncFolder) ?? ""
-        checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? true
-        onlyMyVoice = try c.decodeIfPresent(Bool.self, forKey: .onlyMyVoice) ?? false
+        self.init()
+        shortcut = 0; onboarded = true
+        func read<T: Decodable>(_ key: CodingKeys, _ value: inout T) throws {
+            if let decoded = try c.decodeIfPresent(T.self, forKey: key) { value = decoded }
+        }
+        /// A value this build does not know (an engine or mode from a newer one) keeps the default.
+        func readOrKeep<T: Decodable>(_ key: CodingKeys, _ value: inout T) {
+            if let decoded = try? c.decodeIfPresent(T.self, forKey: key) { value = decoded }
+        }
+        readOrKeep(.speechEngine, &speechEngine); readOrKeep(.whisperModel, &whisperModel)
+        readOrKeep(.mediaWhileDictating, &mediaWhileDictating); readOrKeep(.modes, &modes)
+        try read(.whisperLanguage, &whisperLanguage); try read(.whisperTranslateToEnglish, &whisperTranslateToEnglish)
+        try read(.locale, &locale); try read(.inputDeviceUID, &inputDeviceUID); try read(.holdToTalk, &holdToTalk)
+        try read(.shortcut, &shortcut); try read(.customKeyCode, &customKeyCode); try read(.customModifiers, &customModifiers)
+        try read(.customShortcutLabel, &customShortcutLabel); try read(.autoInsert, &autoInsert); try read(.keepHistory, &keepHistory)
+        try read(.historyLimit, &historyLimit); historyLimit = max(10, min(1000, historyLimit))
+        try read(.mode, &mode); try read(.customInstructions, &customInstructions); try read(.vocabulary, &vocabulary)
+        try read(.replacements, &replacements); try read(.punctuationCommands, &punctuationCommands); try read(.showOverlay, &showOverlay)
+        try read(.notchHub, &notchHub); try read(.islandCorner, &islandCorner); try read(.rewriteSelection, &rewriteSelection)
+        try read(.smartFormatting, &smartFormatting); try read(.playSounds, &playSounds); try read(.agentVoice, &agentVoice)
+        try read(.speakAgentQuestions, &speakAgentQuestions); try read(.localOnly, &localOnly)
+        try read(.automaticActivation, &automaticActivation); try read(.removeFillers, &removeFillers); try read(.learnWords, &learnWords)
+        try read(.onboarded, &onboarded); try read(.syncFolder, &syncFolder); try read(.checkForUpdates, &checkForUpdates)
+        try read(.onlyMyVoice, &onlyMyVoice); try read(.microphoneHintSeen, &microphoneHintSeen)
     }
 }
 
 public enum TextPipeline {
+    /// A dictation that is nothing but one replacement's phrase ("My email.") is that replacement exactly as written:
+    /// a snippet keeps its own case and gets no sentence period. Case, spaces and punctuation are ignored.
+    public static func wholeReplacement(_ text: String, replacements: [Replacement]) -> String? {
+        func key(_ s: String) -> String { String(s.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(Character.init)) }
+        let spoken = key(text)
+        guard !spoken.isEmpty else { return nil }
+        return replacements.first { !$0.replacement.isEmpty && key($0.phrase) == spoken }?.replacement
+    }
     public static func process(_ text: String, replacements: [Replacement], punctuation: Bool) -> String {
         var output = stripLeadingPunctuation(removeHesitationDots(text))
         if punctuation { output = Backtrack.apply(output) }
@@ -183,7 +182,8 @@ public enum TextPipeline {
         rules.sort { $0.phrase.count > $1.phrase.count }
         guard !rules.isEmpty else { return punctuation ? SpokenPunctuation.apply(output) : output }
         let alternatives = rules.map { NSRegularExpression.escapedPattern(for: $0.phrase) }
-        let pattern = "(?<![\\p{L}\\p{N}_])(?:" + alternatives.joined(separator: "|") + ")(?![\\p{L}\\p{N}_])"
+        // Never the start of a "n't" contraction: a learned "won" → "Juan" must leave "won't" alone.
+        let pattern = "(?<![\\p{L}\\p{N}_])(?:" + alternatives.joined(separator: "|") + ")(?![\\p{L}\\p{N}_])(?!['’]t(?![\\p{L}\\p{N}_]))"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return output }
         let matches = regex.matches(in: output, range: NSRange(output.startIndex..., in: output))
         for match in matches.reversed() {
@@ -244,8 +244,14 @@ public enum DeliveryPolicy {
         "AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXMenuButton", "AXMenuItem", "AXMenu",
         "AXMenuBar", "AXMenuBarItem", "AXStaticText", "AXImage", "AXLink", "AXDisclosureTriangle",
         "AXScrollBar", "AXSlider", "AXIncrementor", "AXTabGroup", "AXToolbar", "AXSplitter", "AXDockItem"]
+    /// Secure input outside a password field is someone's Secure Keyboard Entry (Terminal's setting, a password prompt
+    /// or manager that kept it), not the focused field. Which app holds it is not reliably knowable (the session's
+    /// undocumented holder key reports the frontmost app for a windowless holder), so the message names none.
     public static func refusal(role: String?, subrole: String?, secureInput: Bool) -> String? {
-        if secureInput || subrole == "AXSecureTextField" { return "A password field is active; nothing was inserted." }
+        if subrole == "AXSecureTextField" { return "A password field is active; nothing was inserted." }
+        if secureInput {
+            return "Secure Keyboard Entry is on (an app's setting, such as Terminal's, or a password prompt), which blocks typing; nothing was inserted."
+        }
         if let role, nonEditableRoles.contains(role) { return "The focused item does not accept text." }
         return nil
     }

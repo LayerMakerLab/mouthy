@@ -20,10 +20,7 @@ enum Corpus {
 
     static func say(_ text: String, voice: String? = nil, in folder: URL) throws -> [Float] {
         let url = folder.appendingPathComponent(UUID().uuidString + ".wav")
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/say")
-        process.arguments = (voice.map { ["-v", $0] } ?? []) + ["-o", url.path, "--data-format=LEI16@16000", text]
-        try process.run(); process.waitUntilExit()
+        try speak(text, to: url, voice: voice, pcm16k: true)
         let file = try AVAudioFile(forReading: url)
         let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)))
         try file.read(into: buffer)

@@ -126,7 +126,8 @@
       <div class="row"><label for="localOnly">Local Only Mode: block model downloads</label><input type="checkbox" id="localOnly"></div>
       <div class="row"><label for="syncFolder">Sync folder (shared with your other machines; syncs vocabulary and replacements)</label><input type="text" id="syncFolder" placeholder="e.g. Z:\\Mouthy or /mnt/share/Mouthy"></div>
       <div class="row"><label for="agent">Let AI agents ask me questions by voice (MCP, this computer only)</label><input type="checkbox" id="agent"></div>
-      <p class="hint">Claude Code: <code id="bridge"></code></p></div>
+      <p class="hint">Claude Code: <code id="bridge"></code></p>
+      <div class="row"><span>Privacy policy: what Mouthy stores and when it goes online</span><button class="act" id="privacyPolicy" aria-label="Read the privacy policy">Read</button></div></div>
   </section>
   <footer id="status">Ready.</footer>
 </main>
@@ -135,6 +136,7 @@ const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 let snap, settings;
 const $ = id => document.getElementById(id);
+$('privacyPolicy').onclick = () => invoke('open_privacy_policy');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {

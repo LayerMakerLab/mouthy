@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import MouthyKit
+import MouthyCore
 
 // Which audio LiveTranscriber recognizes, and with how much context, against a scripted recognizer and synthetic
 // tone bursts. No models, microphone or real time: the recording grows 100 ms per tick.
@@ -34,7 +35,7 @@ private struct Recording {
             if cost > 0 { try await Task.sleep(for: .seconds(cost * Double(samples.count) / Double(Self.rate))) }
             return "w\(samples.count)"
         },
-                                   decodeAfter: context ? { samples, from in calls.add(samples.count, true, from); return "t\(samples.count - from)" } : nil,
+                                   decodeAfter: context ? { samples, from in calls.add(samples.count, true, from); return ContextWords(after: "t\(samples.count - from)") } : nil,
                                    hearsSpeech: hearsSpeech, count: { recorded }, read: { Array(audio[$0.clamped(to: 0..<recorded)]) })
         while recorded < audio.count {
             recorded = min(audio.count, recorded + Self.rate / 10)
@@ -203,7 +204,7 @@ private func on(_ cost: Double, _ body: () async throws -> Void) async rethrows 
             return samples.count < rate * 2 ? "The morning light filled the garden." : expected
         }, decodeAfter: { samples, from in
             calls.add(samples.count, true, from)
-            return "made a cup of coffee."
+            return ContextWords(after: "made a cup of coffee.")
         }, speakers: nil, count: { recorded }, read: { Array(audio[$0.clamped(to: 0..<recorded)]) })
         while recorded < audio.count {
             recorded = min(audio.count, recorded + Recording.rate / 10)

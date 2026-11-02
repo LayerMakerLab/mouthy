@@ -18,7 +18,7 @@ struct MouthyPrimaryButtonStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .font(.system(size: height > 44 ? 16 : 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(enabled ? MouthyTheme.night : MouthyTheme.cream)
+                .foregroundStyle(enabled ? MouthyTheme.onOrange : MouthyTheme.cream)
                 .labelStyle(.titleAndIcon)
                 .padding(.horizontal, 22)
                 .frame(minHeight: height)

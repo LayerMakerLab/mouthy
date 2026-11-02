@@ -39,6 +39,13 @@ final class HotkeyService {
     private var retries: [DispatchWorkItem] = []
     /// A shortcut is being recorded (`suspend()`): nothing re-registers until the next explicit `register`.
     private(set) var isSuspended = false
+    /// True while the chosen modifier shortcut (double-tap right ⌘, Hold Fn) cannot be received: without
+    /// Accessibility the global monitors deliver no events at all, so the shortcut would fail silently. ⌃⌥Space
+    /// (a Carbon hotkey, which needs no permission) stands in until the next `register`, which the permission
+    /// change triggers (`AppModel.refreshPermissions`).
+    private(set) var standsIn = false
+    /// Whether this process is trusted under Accessibility (`register` asks it; a seam for tests).
+    var trusted: @MainActor () -> Bool = { TextDelivery.accessibilityAllowed }
     /// False for a dry service (tests): `register` only records its arguments and never touches Carbon or event monitors.
     private let live: Bool
     /// Times `register` ran, including re-registration after wake.
@@ -83,17 +90,19 @@ final class HotkeyService {
         if let globalMonitor { NSEvent.removeMonitor(globalMonitor); self.globalMonitor = nil }
         if let localMonitor { NSEvent.removeMonitor(localMonitor); self.localMonitor = nil }
         doubleTap.reset()
+        standsIn = false
     }
     func register(preset: Int, customKeyCode: UInt32 = 49, customModifiers: UInt32 = 6144, modeShortcuts: [ModeShortcut?] = []) -> Bool {
         teardown()
         isSuspended = false
         registrations += 1
         lastRegistration = Registration(preset: preset, keyCode: customKeyCode, modifiers: customModifiers, modes: modeShortcuts)
+        standsIn = (preset == 4 || preset == 5) && !trusted()
         guard live else { return true }
         currentPreset = preset
         carbonKeys = (preset, customKeyCode, customModifiers, modeShortcuts)
         let registered: Bool
-        if preset == 4 || preset == 5 {
+        if (preset == 4 || preset == 5) && !standsIn {
             let mask: NSEvent.EventTypeMask = [.flagsChanged, .keyDown]
             globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] event in self?.handleModifier(event) }
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in self?.handleModifier(event); return event }
@@ -116,7 +125,7 @@ final class HotkeyService {
                     MainActor.assumeIsolated {
                         guard let self, !self.allCarbonKeysRegistered else { return }
                         let hadMain = self.mainKeyRegistered
-                        if self.registerCarbonKeys(), !hadMain, self.carbonKeys.preset < 4 { self.onLateRegistration?() }
+                        if self.registerCarbonKeys(), !hadMain, self.carbonKeys.preset < 4 || self.standsIn { self.onLateRegistration?() }
                     }
                 }
                 retries.append(retry)
@@ -125,7 +134,7 @@ final class HotkeyService {
         }
         return registered
     }
-    private var mainKeyRegistered: Bool { carbonKeys.preset >= 4 || reference != nil }
+    private var mainKeyRegistered: Bool { (carbonKeys.preset >= 4 && !standsIn) || reference != nil }
     private var allCarbonKeysRegistered: Bool {
         let modes = carbonKeys.modes.indices.allSatisfy { carbonKeys.modes[$0] == nil || modeReferences[$0] != nil }
         return mainKeyRegistered && pasteLastReference != nil && hubReference != nil && modes
@@ -150,11 +159,13 @@ final class HotkeyService {
             RegisterEventHotKey(UInt32(kVK_ANSI_N), UInt32(controlKey | optionKey), EventHotKeyID(signature: 0x564F4943, id: 3), target, 0, &hubReference)
         }
         let preset = carbonKeys.preset
-        guard preset < 4 else { return true }
+        guard preset < 4 || standsIn else { return true }
         if reference == nil {
             let modifiers = [UInt32(controlKey | optionKey), UInt32(cmdKey | shiftKey), UInt32(controlKey | shiftKey)]
-            RegisterEventHotKey(preset == 3 ? carbonKeys.keyCode : UInt32(kVK_Space), preset == 3 ? carbonKeys.modifiers : modifiers[max(0, min(2, preset))],
-                                EventHotKeyID(signature: 0x564F4943, id: 1), target, 0, &reference)
+            // Standing in for a modifier shortcut: ⌃⌥Space, the first preset.
+            let keyCode = preset == 3 ? carbonKeys.keyCode : UInt32(kVK_Space)
+            let combination = standsIn ? modifiers[0] : preset == 3 ? carbonKeys.modifiers : modifiers[max(0, min(2, preset))]
+            RegisterEventHotKey(keyCode, combination, EventHotKeyID(signature: 0x564F4943, id: 1), target, 0, &reference)
         }
         return reference != nil
     }
@@ -238,7 +249,37 @@ final class TextDelivery {
     static var pasteboard = NSPasteboard.general
     /// The field, position and text of the last verified insertion, for learning corrected words.
     static var lastInsertion: (element: AXUIElement, location: Int, text: String)?
+    /// The person's custom words, set before each delivery: smart formatting keeps their capitals mid-sentence.
+    static var customWords: [String] = []
     static func value(of element: AXUIElement) -> String? { attribute(element, kAXValueAttribute) as? String }
+
+    /// Calls `changed` on the main thread whenever the field's text changes (an Accessibility notification, no
+    /// polling) until `stop()`. Nil when the app does not offer value notifications for the field.
+    final class FieldWatcher {
+        private var observer: AXObserver?
+        private let element: AXUIElement
+        let changed: () -> Void
+        init?(pid: pid_t, element: AXUIElement, changed: @escaping () -> Void) {
+            self.element = element; self.changed = changed
+            var created: AXObserver?
+            let callback: AXObserverCallback = { _, _, _, refcon in
+                guard let refcon else { return }
+                Unmanaged<FieldWatcher>.fromOpaque(refcon).takeUnretainedValue().changed()
+            }
+            guard AXObserverCreate(pid, callback, &created) == .success, let created else { return nil }
+            guard AXObserverAddNotification(created, element, kAXValueChangedNotification as CFString,
+                                            Unmanaged.passUnretained(self).toOpaque()) == .success else { return nil }
+            CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(created), .defaultMode)
+            observer = created
+        }
+        func stop() {
+            guard let observer else { return }
+            AXObserverRemoveNotification(observer, element, kAXValueChangedNotification as CFString)
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+            self.observer = nil
+        }
+        deinit { stop() }
+    }
     static var postPaste: (pid_t, UInt16) -> Void = { _, keyCode in
         // Through the HID stream: Chromium/Electron editors ignore events posted to a process.
         guard let source = CGEventSource(stateID: .hidSystemState),
@@ -296,13 +337,21 @@ final class TextDelivery {
     }
     /// Presses Return in the focused app, for modes whose output is "Insert and press Return".
     static func pressReturn() {
+        guard let (down, up) = returnKeyEvents() else { return }
+        down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
+    }
+    /// A plain Return. An event made from the HID state takes the modifiers that state reports, which right after
+    /// Mouthy's ⌘V can still include ⌘; a browser treats ⌘Return in a search box or form as "open in a new tab".
+    static func returnKeyEvents() -> (down: CGEvent, up: CGEvent)? {
         guard let source = CGEventSource(stateID: .hidSystemState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: 36, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: 36, keyDown: false) else { return }
-        // Marked so the dictation Return tap lets Mouthy's own Return through.
-        down.setIntegerValueField(.eventSourceUserData, value: ReturnKeyTap.syntheticMarker)
-        up.setIntegerValueField(.eventSourceUserData, value: ReturnKeyTap.syntheticMarker)
-        down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
+              let up = CGEvent(keyboardEventSource: source, virtualKey: 36, keyDown: false) else { return nil }
+        for event in [down, up] {
+            event.flags = []
+            // Marked so the dictation Return tap lets Mouthy's own Return through.
+            event.setIntegerValueField(.eventSourceUserData, value: ReturnKeyTap.syntheticMarker)
+        }
+        return (down, up)
     }
     static func capture() -> InsertionTarget? {
         guard let app = frontmost(),
@@ -347,16 +396,23 @@ final class TextDelivery {
         let range = field.flatMap(selectionRange)
         var text = text
         if smartFormatting, !replacingSelection, let context = surroundings(of: before, range: range) {
-            text = SmartInsertion.adjust(text, before: context.before, after: context.after)
+            text = SmartInsertion.adjust(text, before: context.before, after: context.after, names: customWords)
         }
         let expected = expectedValue(afterInserting: text, into: before, range: range)
         guard await waitForModifierRelease() else { return "Ready to copy. Release the modifier keys to paste." }
         // Focus may have moved while modifiers were held: check again right before the keystrokes.
         guard stillFocused(pid: app.processIdentifier, field: field) else { return "Ready to copy. Focus changed before pasting." }
-        guard paste(text, keyCode: pasteKey, pid: app.processIdentifier) else { return "Text copied. Paste it into your app." }
+        let provider = paste(text, keyCode: pasteKey, pid: app.processIdentifier)
+        // An app that pastes asks for the text. Nobody asking means nothing took it (no text field focused, an app
+        // that ignores ⌘V): say so instead of "Pasted", never send a Return into it, and leave the words on the
+        // clipboard, so the person can paste them and an app that asks late still gets them, never the old clipboard.
+        guard await pasteTaken(provider) else {
+            leaveOnClipboard(text)
+            return "Text copied. Nothing in \(name) took the paste" + (submit ? ", so nothing was sent." : "; paste it yourself.")
+        }
         if submit {
-            // Send right away; give the app a moment to take the paste before Return.
-            try? await Task.sleep(for: .milliseconds(140))
+            // The app has the text; a moment for it to insert before Return.
+            try? await Task.sleep(for: .milliseconds(100))
             guard stillFocused(pid: app.processIdentifier, field: field) else {
                 await restoreClipboard(snapshot)
                 return "Pasted into \(name). Not sent, because focus changed."
@@ -426,21 +482,52 @@ final class TextDelivery {
     /// auto-generated ones as not copied by the person.
     static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
     static let autoGeneratedType = NSPasteboard.PasteboardType("org.nspasteboard.AutoGeneratedType")
+    /// Hands the dictated text over only when an app asks for it, so Mouthy knows whether the paste was taken.
+    final class PasteProvider: NSObject, NSPasteboardItemDataProvider {
+        let text: String
+        private(set) var taken = false
+        init(_ text: String) { self.text = text }
+        func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
+            item.setString(text, forType: type)
+            taken = true
+        }
+    }
+    /// Kept alive while the dictated text is on the clipboard.
+    private static var provider: PasteProvider?
+    /// How long an app may take to ask for the pasted text before Mouthy reports that nothing took it.
+    static var pasteTimeout: Duration = .milliseconds(2000)
     /// Callers have already confirmed the target app is frontmost.
-    private static func paste(_ text: String, keyCode: UInt16, pid: pid_t) -> Bool {
+    private static func paste(_ text: String, keyCode: UInt16, pid: pid_t) -> PasteProvider {
         let clipboard = pasteboard
         // Marked so clipboard history apps never record the dictated words passing through.
         let item = NSPasteboardItem()
-        item.setString(text, forType: .string)
+        let provider = PasteProvider(text)
+        item.setDataProvider(provider, forTypes: [.string])
         item.setData(Data(), forType: transientType)
         item.setData(Data(), forType: autoGeneratedType)
         clipboard.clearContents(); clipboard.writeObjects([item])
+        self.provider = provider
         pastedChangeCount = clipboard.changeCount
         postPaste(pid, keyCode)
-        return true
+        return provider
+    }
+    /// Waits until an app takes the paste (true) or `pasteTimeout` passes (false). Clipboard managers that read every
+    /// change also count; the nspasteboard markers ask them not to.
+    static func pasteTaken(_ provider: PasteProvider) async -> Bool {
+        let deadline = ContinuousClock.now + pasteTimeout
+        while !provider.taken, ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(10)) }
+        return provider.taken
+    }
+    /// Replaces the promised text with a plain copy (no transient marker: the person means to paste it).
+    private static func leaveOnClipboard(_ text: String) {
+        defer { provider = nil }
+        guard pasteboard.changeCount == pastedChangeCount else { return }
+        // Without the spacing fitted to the old cursor: it will most likely be pasted somewhere else.
+        copy(text.trimmingCharacters(in: .whitespaces))
     }
     private static func restoreClipboard(_ snapshot: [[(NSPasteboard.PasteboardType, Data)]]) async {
         let clipboard = pasteboard
+        defer { provider = nil }
         guard clipboard.changeCount == pastedChangeCount else { return }
         clipboard.clearContents()
         let items = snapshot.map { representations -> NSPasteboardItem in
@@ -467,5 +554,5 @@ final class TextDelivery {
         guard range.location <= source.length, range.length <= source.length - range.location else { return nil }
         return source.replacingCharacters(in: NSRange(location: range.location, length: range.length), with: text)
     }
-    static func copy(_ text: String) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
+    static func copy(_ text: String) { pasteboard.clearContents(); pasteboard.setString(text, forType: .string) }
 }

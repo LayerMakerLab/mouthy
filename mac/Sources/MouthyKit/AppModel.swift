@@ -40,6 +40,16 @@ final class AppModel: ObservableObject {
     @Published var microphoneRequestPending = false
     @Published var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published var accessibilityAllowed = false
+    /// The chosen modifier shortcut waits on Accessibility; ⌃⌥Space starts dictation meanwhile (`HotkeyService.standsIn`).
+    @Published var shortcutStandsIn = false
+    /// ⌃⌥Space could not stand in: another app or a mode shortcut already uses it. Set with `shortcutStandsIn`.
+    @Published var standInTaken = false
+    /// ⌃⌥Space is the shortcut that starts dictation right now.
+    var standInActive: Bool { shortcutStandsIn && !standInTaken }
+    /// The preset that describes the active shortcut's gesture: 0 (press ⌃⌥Space, a toggle) while it stands in.
+    var activeShortcut: Int { standInActive ? 0 : preferences.shortcut }
+    /// Whether this process is trusted under Accessibility (`refreshPermissions` and the shortcuts ask it; a seam for tests).
+    let accessibilityCheck: @MainActor () -> Bool
     @Published var speechAssetsReady = false
     @Published var intelligenceReady = false
     @Published var selectedPage = "Dictate"
@@ -168,6 +178,7 @@ final class AppModel: ObservableObject {
 
     /// A microphone level (dictation or meeting), sent on at most every 80 ms while listening.
     func receiveLevel(_ value: Float) {
+        if phase == .listening { silence.receive(level: value) }
         let value = phase == .listening ? value : 0
         levelDecay.fireDate = value > 0 ? Date().addingTimeInterval(0.25) : .distantFuture
         guard value == 0 || Date().timeIntervalSince(lastLevelUpdate) >= 0.08 else { return }
@@ -175,19 +186,33 @@ final class AppModel: ObservableObject {
         level = value
     }
     private var stopRequested = false
+    /// A dictation stops itself after this long and says so (a seam for the state tests).
+    var dictationLimit: TimeInterval = 600
+    static func limitNotice(_ seconds: TimeInterval) -> String {
+        seconds >= 60 ? "Stopped at the \(Int((seconds / 60).rounded()))-minute limit." : "Stopped at the \(Int(seconds))-second limit."
+    }
+    /// Whether this recording heard any level above the noise floor (`MicrophoneSilence`, shared with `DictationSession`).
+    private var silence = MicrophoneSilence()
     private var generation = UUID()
     private var config = Preferences()
     private var isFailing = false
     private let enablesHotkey: Bool
     var busy: Bool { batchToken != nil || [.preparing, .listening, .finishing, .delivering, .cancelling].contains(phase) }
-    var shortcutLabel: String { preferences.shortcut == 5 ? "Hold Fn" : preferences.shortcut == 4 ? "Double-tap Right ⌘" : preferences.shortcut == 3 ? preferences.customShortcutLabel : HotkeyService.labels[max(0, min(2, preferences.shortcut))] }
+    /// The shortcut that starts dictation right now: ⌃⌥Space while it stands in for the chosen one.
+    var shortcutLabel: String { standInActive ? HotkeyService.labels[0] : chosenShortcutLabel }
+    var chosenShortcutLabel: String { preferences.shortcut == 5 ? "Hold Fn" : preferences.shortcut == 4 ? "Double-tap Right ⌘" : preferences.shortcut == 3 ? preferences.customShortcutLabel : HotkeyService.labels[max(0, min(2, preferences.shortcut))] }
 
-    init(store suppliedStore: LocalStore? = nil, enablesHotkey: Bool = true, speech suppliedSpeech: (any DictationSpeech)? = nil) {
+    init(store suppliedStore: LocalStore? = nil, enablesHotkey: Bool = true, speech suppliedSpeech: (any DictationSpeech)? = nil,
+         accessibilityCheck: (@MainActor () -> Bool)? = nil) {
         let store = suppliedStore ?? LocalStore()
         self.store = store
         self.enablesHotkey = enablesHotkey
+        // A headless model (tests, hosts) has no global shortcut to lose: it counts as trusted unless told otherwise.
+        let check: @MainActor () -> Bool = accessibilityCheck ?? (enablesHotkey ? { TextDelivery.accessibilityAllowed } : { true })
+        self.accessibilityCheck = check
         speech = suppliedSpeech ?? SpeechService()
         hotkey = HotkeyService(live: enablesHotkey)
+        hotkey.trusted = check
         do {
             preferences = try store.load("preferences.json", as: Preferences.self) ?? Preferences()
         } catch { status = "Settings could not be read: \(error.localizedDescription)" }
@@ -219,6 +244,8 @@ final class AppModel: ObservableObject {
         hotkey.onPress = { [weak self] in
             guard let self, !self.meetingCapture else { return }
             self.stopCut = self.busy ? self.hotkey.gestureStartedAt : nil
+            // ⌃⌥Space standing in for a modifier shortcut that Accessibility blocks: a plain toggle.
+            if self.hotkey.standsIn { self.toggle(captureTarget: true); return }
             if self.preferences.shortcut == 5 { if !self.busy { self.begin(captureTarget: true) }; return }
             if self.preferences.automaticActivation && self.preferences.shortcut != 4 {
                 if self.busy { self.stop() } else { self.begin(captureTarget: true); self.pressStarted = Date() }
@@ -229,6 +256,8 @@ final class AppModel: ObservableObject {
         }
         hotkey.onRelease = { [weak self] in
             guard let self, !self.meetingCapture else { return }
+            // The stand-in's release stops nothing, so it leaves no cut for a later stop to use.
+            if self.hotkey.standsIn { return }
             self.stopCut = self.busy ? self.hotkey.gestureStartedAt : nil
             if self.preferences.shortcut == 5 { self.stop(); return }
             if self.preferences.automaticActivation, let pressed = self.pressStarted {
@@ -259,6 +288,7 @@ final class AppModel: ObservableObject {
         // Settings save themselves: 0.4 s after the last change, written once, shortcuts re-registered only
         // when they changed. No timer runs while nothing changes.
         persistedPreferences = Self.encoded(preferences)
+        lastSynced = preferences
         autosave = $preferences.dropFirst()
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
             .sink { [weak self] _ in self?.persistPreferences() }
@@ -301,9 +331,32 @@ final class AppModel: ObservableObject {
     func registerHotkey() {
         registeredHotkeyKeys = HotkeyKeys(preferences)
         let inUse = "That shortcut is already in use. Choose another in Settings."
-        hotkey.onLateRegistration = { [weak self] in if self?.status == inUse { self?.status = "Ready." } }
-        if !hotkey.register(preset: preferences.shortcut, customKeyCode: preferences.customKeyCode, customModifiers: preferences.customModifiers, modeShortcuts: preferences.modes.map(\.shortcut)) { status = inUse }
+        hotkey.onLateRegistration = { [weak self] in
+            guard let self else { return }
+            if self.hotkey.standsIn { self.standInTaken = false }
+            if self.status == inUse { self.status = "Ready." }
+            else if self.hotkey.standsIn, Self.standInStatuses.contains(self.status) { self.status = Self.standInStatus(shortcut: self.preferences.shortcut, taken: false) }
+        }
+        let registered = hotkey.register(preset: preferences.shortcut, customKeyCode: preferences.customKeyCode, customModifiers: preferences.customModifiers, modeShortcuts: preferences.modes.map(\.shortcut))
+        let wasStandingIn = shortcutStandsIn
+        shortcutStandsIn = hotkey.standsIn
+        standInTaken = shortcutStandsIn && !registered
+        if shortcutStandsIn {
+            // Only a neutral status gives way: an error from loading settings or history stays visible.
+            if Self.neutralStatuses.contains(status) || Self.standInStatuses.contains(status) { status = Self.standInStatus(shortcut: preferences.shortcut, taken: !registered) }
+        } else {
+            if wasStandingIn, Self.standInStatuses.contains(status) { status = "Ready." }
+            if !registered { status = inUse }
+        }
     }
+    /// What the status says while the chosen modifier shortcut waits on Accessibility (`taken`: ⌃⌥Space is already in use, by another app or a mode shortcut).
+    static func standInStatus(shortcut: Int, taken: Bool) -> String {
+        let chosen = shortcut == 5 ? "Hold Fn" : "Double-tap right ⌘"
+        let meanwhile = taken ? "\(HotkeyService.labels[0]) would stand in, but another shortcut already uses it." : "Until then, press \(HotkeyService.labels[0]) to dictate."
+        return "\(chosen) works once Mouthy is allowed in System Settings → Privacy & Security → Accessibility. " + meanwhile
+    }
+    static let standInStatuses = [4, 5].flatMap { shortcut in [false, true].map { standInStatus(shortcut: shortcut, taken: $0) } }
+    static let neutralStatuses = ["", "Ready.", "Ready to record."]
     /// Teaches a word: adds it to the vocabulary (Parakeet boosts it, Apple gets it as context) and, when
     /// the misheard form is given, an exact replacement from it.
     func teach(heard: String, meant: String) {
@@ -376,7 +429,7 @@ final class AppModel: ObservableObject {
     func refreshPermissions() {
         microphoneAllowed = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
         let hadAccessibility = accessibilityAllowed
-        accessibilityAllowed = TextDelivery.accessibilityAllowed
+        accessibilityAllowed = accessibilityCheck()
         // Global modifier monitors created before a TCC grant do not start receiving
         // events automatically. Recreate them when permission changes.
         if accessibilityAllowed != hadAccessibility && (preferences.shortcut == 4 || preferences.shortcut == 5) && !hotkey.isSuspended {
@@ -505,7 +558,9 @@ final class AppModel: ObservableObject {
         }
         selectedForRewrite = !(target?.selectedText.isEmpty ?? true)
         phase = .preparing; status = "Preparing microphone…"; liveText = ""; output = ""; document = TranscriptionDocument(text: ""); elapsed = 0; stopRequested = false
-        captureNotice = nil
+        captureNotice = nil; silence = MicrophoneSilence()
+        // A new dictation ends the watch on the last one's text (learning from its last edit) and its Undo.
+        learnedTerms = []; lastLearned = nil; correctionWatch?.finish()
         Diagnostics.dictation.notice("dictation start: engine \(self.config.speechEngine.rawValue, privacy: .public)")
         sentSegments = 0; lastSentText = ""; splitFailure = nil
         requested = Date(); stopTime = nil; startupSeconds = nil; finishSeconds = nil
@@ -526,12 +581,17 @@ final class AppModel: ObservableObject {
                 guard generation == token else { return }
                 watchdog?.cancel()
                 phase = .listening; status = "Listening…"; started = Date(); segmentStart = started
+                silence.start(at: started.timeIntervalSinceReferenceDate)
                 let insertsText = (activeOutput == .insert || activeOutput == .insertAndReturn) && config.autoInsert && !(config.rewriteSelection && selectedForRewrite)
                 if target != nil, agentReply == nil, insertsText, interactive, !returnTap.start() {
                     status = "Listening… (Enter-to-send is unavailable: allow Mouthy under Privacy & Security → Input Monitoring.)"
                 }
                 startupSeconds = started.timeIntervalSince(requested)
                 currentInputName = speech.inputDeviceName
+                if !preferences.microphoneHintSeen, microphoneHint == nil, let device = speech.inputDevice, isBluetoothInput(device) {
+                    builtInMicrophone = usableBuiltInInput()
+                    microphoneHint = Self.microphoneHint(input: device.name, builtInAvailable: builtInMicrophone != nil)
+                }
                 startElapsedTimer()
                 if stopRequested { stop() }
             } catch {
@@ -549,7 +609,7 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 let now = Date().timeIntervalSince(self.started)
                 if Int(now) != Int(self.elapsed) { self.elapsed = now }
-                if now >= 600 { self.stop() }
+                if now >= self.dictationLimit { self.captureNotice = Self.limitNotice(self.dictationLimit); self.stop() }
             }
         }
         self.timer = timer
@@ -589,14 +649,8 @@ final class AppModel: ObservableObject {
         return true
     }
 
-    /// The text rules every result goes through before a style or delivery: one set for the finish and the Enter
-    /// split. Prose opens a sentence, so a recognizer that wrote its first word in lowercase gets the capital here;
-    /// code dictation keeps its case ("git commit -m").
-    private func shape(_ raw: String, code: Bool) -> String {
-        var text = TextPipeline.process(raw, replacements: config.replacements, punctuation: config.punctuationCommands)
-        if config.removeFillers { text = Fillers.remove(text) }
-        return code ? CodeDictation.apply(text) : SmartInsertion.capitalizingFirstWord(text)
-    }
+    /// The text rules every result goes through (`DictationText`): one set for the finish and the Enter split.
+    private func shape(_ raw: String, code: Bool) -> String { DictationText.shape(raw, code: code, config: config) }
     /// Pastes text taken at an Enter split and sends it with Return when `endWithReturn`.
     /// Stops before pasting if the session was cancelled meanwhile (`token` no longer current).
     private func sendSegments(_ raw: String, endWithReturn: Bool, token: UUID) async {
@@ -615,6 +669,7 @@ final class AppModel: ObservableObject {
             }
             guard generation == token, !Task.isCancelled else { return }
             let spokenUntil = Date()
+            TextDelivery.customWords = VocabularyLearner.terms(config.vocabulary)
             status = await deliverText(text, nil, config.smartFormatting, false, part.submit)
             if status.hasPrefix("Sent") || status.hasPrefix("Inserted") || status.hasPrefix("Pasted") {
                 recordUsage(text, until: spokenUntil)
@@ -690,15 +745,20 @@ final class AppModel: ObservableObject {
             // split keeps its own message and clipboard text. Status comes before hide(), which reads it.
             if let splitFailure { status = splitFailure }
             else if sentSegments > 0 { output = lastSentText; status = "Sent." }
+            else if liveText.isEmpty, silence.isSilent(at: (stopTime ?? Date()).timeIntervalSinceReferenceDate, after: MicrophoneSilence.reportAfter) {
+                status = MicrophoneHealth.silenceMessage(input: currentInputName) + " Nothing was inserted."
+            }
             else if liveText.isEmpty { status = "No speech detected. Nothing was inserted." }
             else { output = liveText; status = "No final transcript arrived. The preview is preserved; nothing was inserted." }
             watchdog?.cancel(); phase = .idle; overlay?.hide()
             return
         }
-        if dictation, let command = voiceRouter.command(in: raw, fromNotch: startedInNotch) {
-            // A command or question lands in the notch: never pasted, never in history or Paste last. The
-            // dictation ends first (quietly: this status shows no outcome) so the notch is free for its peek.
+        if dictation, let command = voiceRouter.command(in: raw, fromNotch: startedInNotch, replacements: config.replacements) {
+            // A command or question lands in the notch: never pasted, never in history. The dictation ends first
+            // (quietly: this status shows no outcome) so the notch is free for its peek. Words said to Mouthy by
+            // name from any app are kept for Paste last, in case they were meant as text.
             status = "Handled in the notch."
+            if !startedInNotch { output = shape(raw, code: false) }
             watchdog?.cancel(); phase = .idle; overlay?.hide(); level = 0
             status = await voiceRouter.run(command)
             return
@@ -762,6 +822,7 @@ final class AppModel: ObservableObject {
         else if activeOutput == .historyOnly { status = historyNote ?? "Saved to history."; historyNote = nil }
         else if shouldInsert && target != nil {
             phase = .delivering
+            TextDelivery.customWords = VocabularyLearner.terms(config.vocabulary)
             status = await deliverText(text, target, config.smartFormatting, rewroteSelection, activeOutput == .insertAndReturn)
             if status.hasPrefix("Inserted") { learnFromCorrections() }
             if status.hasPrefix("Inserted") || status.hasPrefix("Pasted") || status.hasPrefix("Sent") { recordUsage(text, until: stopTime ?? Date()) }
@@ -827,34 +888,110 @@ final class AppModel: ObservableObject {
         agentReply = nil; agentQuestion = nil; agentExchange = nil
         reply.resume(returning: answer)
     }
-    /// Looks at the inserted text again after 10 and 30 seconds; a word the person corrected is added
-    /// to the vocabulary so recognition gets it right next time. Reads only the inserted range.
+    /// Watches the inserted text for up to 60 s: every edit is noted as it happens, and when the person sends or
+    /// clears the field, starts the next dictation, or the minute ends, the last edit is compared with what Mouthy
+    /// wrote. Corrected words and short phrases are added to the vocabulary so recognition gets them right next
+    /// time. Reads only the inserted range; apps without value notifications are read at 10 and 30 s instead.
+    private var correctionWatch: (finish: () -> Void, watcher: TextDelivery.FieldWatcher?)?
     private func learnFromCorrections() {
+        correctionWatch?.finish()
         guard config.learnWords, let insertion = TextDelivery.lastInsertion else { return }
         TextDelivery.lastInsertion = nil
-        Task { [weak self] in
-            for delay in [10, 20] {
-                try? await Task.sleep(for: .seconds(delay))
-                guard let self, let value = TextDelivery.value(of: insertion.element) else { return }
-                let source = value as NSString
-                guard insertion.location < source.length else { return }
-                let length = min(source.length - insertion.location, (insertion.text as NSString).length + 60)
-                let region = source.substring(with: NSRange(location: insertion.location, length: length))
-                let count = insertion.text.split(whereSeparator: { $0.isWhitespace }).count
-                let edited = region.split(whereSeparator: { $0.isWhitespace }).prefix(count).joined(separator: " ")
-                let isKnownWord = { (word: String) in NSSpellChecker.shared.checkSpelling(of: word, startingAt: 0).location == NSNotFound }
-                let learned = VocabularyLearner.corrections(inserted: insertion.text, edited: edited, isKnownWord: isKnownWord)
-                let soundAlikes = VocabularyLearner.soundAlikes(inserted: insertion.text, edited: edited, isKnownWord: isKnownWord)
-                    .filter { pair in !self.preferences.replacements.contains { $0.phrase.caseInsensitiveCompare(pair.heard) == .orderedSame } }
-                guard !learned.isEmpty || !soundAlikes.isEmpty else { continue }
-                self.preferences.vocabulary = VocabularyLearner.merge(learned + soundAlikes.map(\.meant), into: self.preferences.vocabulary)
-                self.preferences.replacements += soundAlikes.map { Replacement(phrase: $0.heard, replacement: $0.meant) }
-                self.savePreferences()
-                let words = learned + soundAlikes.map(\.meant)
-                if !self.busy { self.status = "Learned " + words.map { "“\($0)”" }.joined(separator: ", ") + " for next time." }
-                return
+        let count = insertion.text.split(whereSeparator: { $0.isWhitespace }).count
+        /// The inserted range as it reads now (nil once the field no longer holds it: sent or cleared).
+        func region() -> String? {
+            guard let value = TextDelivery.value(of: insertion.element) else { return nil }
+            let source = value as NSString
+            guard insertion.location < source.length else { return nil }
+            let length = min(source.length - insertion.location, (insertion.text as NSString).length + 60)
+            return source.substring(with: NSRange(location: insertion.location, length: length))
+        }
+        var latest = insertion.text
+        var done = false
+        let finish = { [weak self] in
+            guard !done else { return }
+            done = true
+            self?.correctionWatch?.watcher?.stop(); self?.correctionWatch = nil
+            self?.learn(inserted: insertion.text, region: latest, wordCount: count)
+        }
+        var pid: pid_t = 0
+        AXUIElementGetPid(insertion.element, &pid)
+        let watcher = TextDelivery.FieldWatcher(pid: pid, element: insertion.element) {
+            MainActor.assumeIsolated {
+                guard !done else { return }
+                if let now = region(), !now.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { latest = now } else { finish() }
             }
         }
+        correctionWatch = (finish, watcher)
+        Task { [weak self] in
+            if watcher == nil {
+                for delay in [10, 20] {
+                    try? await Task.sleep(for: .seconds(delay))
+                    guard !done else { return }
+                    if let now = region() { latest = now }
+                    if self?.learn(inserted: insertion.text, region: latest, wordCount: count, finalRead: false) == true { done = true; self?.correctionWatch = nil; return }
+                }
+                finish()
+            } else {
+                try? await Task.sleep(for: .seconds(60))
+                finish()
+            }
+        }
+    }
+    /// Learns from one read of the inserted range; true when something was learned.
+    @discardableResult
+    func learn(inserted: String, region: String, wordCount: Int, finalRead: Bool = true) -> Bool {
+        let words = region.split(whereSeparator: { $0.isWhitespace })
+        let edited = words.prefix(wordCount).joined(separator: " ")
+        let wider = words.prefix(wordCount + 4).joined(separator: " ")
+        let isKnownWord = { (word: String) in NSSpellChecker.shared.checkSpelling(of: word, startingAt: 0).location == NSNotFound }
+        let learned = VocabularyLearner.corrections(inserted: inserted, edited: wider, isKnownWord: isKnownWord)
+        let soundAlikes = VocabularyLearner.soundAlikes(inserted: inserted, edited: edited, isKnownWord: isKnownWord)
+            .filter { pair in !preferences.replacements.contains { $0.phrase.caseInsensitiveCompare(pair.heard) == .orderedSame } }
+        guard !learned.isEmpty || !soundAlikes.isEmpty else { return false }
+        let before = (vocabulary: preferences.vocabulary, replacements: preferences.replacements)
+        preferences.vocabulary = VocabularyLearner.merge(learned + soundAlikes.map(\.meant), into: preferences.vocabulary)
+        preferences.replacements += soundAlikes.map { Replacement(phrase: $0.heard, replacement: $0.meant) }
+        savePreferences()
+        lastLearned = before
+        let terms = learned + soundAlikes.map(\.meant)
+        learnedTerms = terms
+        if !busy { status = "Learned " + terms.map { "“\($0)”" }.joined(separator: ", ") + " for next time." }
+        return true
+    }
+    /// What the vocabulary and replacements were before the last thing Mouthy learned, for Undo.
+    private var lastLearned: (vocabulary: String, replacements: [Replacement])?
+    /// The words or phrases the last correction taught (shown with Undo until the next dictation).
+    @Published private(set) var learnedTerms: [String] = []
+    /// Takes back the last thing Mouthy learned from a correction.
+    /// One-time hint while dictating through a Bluetooth headset, offered only when the built-in microphone can be used.
+    @Published var microphoneHint: String?
+    private var builtInMicrophone: InputDevice?
+    /// Seams for the state tests: whether an input is a Bluetooth headset, and the built-in microphone when it can be used.
+    var isBluetoothInput: (InputDevice) -> Bool = MicrophoneHealth.isBluetoothHeadset
+    var usableBuiltInInput: () -> InputDevice? = { AudioDevices.lidClosed ? nil : AudioDevices.inputs().first(where: AudioDevices.isBuiltIn) }
+    static func microphoneHint(input: String, builtInAvailable: Bool) -> String? {
+        builtInAvailable ? "\(input) records at call quality over Bluetooth. The built-in microphone hears words more clearly." : nil
+    }
+    /// Answers the hint: `useBuiltIn` makes the built-in microphone Mouthy's input (Settings → Speech changes it back).
+    func answerMicrophoneHint(useBuiltIn: Bool) {
+        if useBuiltIn, let builtInMicrophone {
+            preferences.inputDeviceUID = builtInMicrophone.id
+            if !busy { status = "Mouthy now uses \(builtInMicrophone.name). Change it in Settings → Speech." }
+        }
+        preferences.microphoneHintSeen = true
+        savePreferences()
+        microphoneHint = nil; builtInMicrophone = nil
+    }
+
+    func undoLearned() {
+        guard let lastLearned else { return }
+        preferences.vocabulary = lastLearned.vocabulary
+        preferences.replacements = lastLearned.replacements
+        savePreferences()
+        self.lastLearned = nil
+        status = "Forgot " + learnedTerms.map { "“\($0)”" }.joined(separator: ", ") + "."
+        learnedTerms = []
     }
     /// Engines this Mac can run: Apple speech and Whisper need Apple silicon; Parakeet runs everywhere.
     var availableEngines: [SpeechEngine] {
@@ -883,6 +1020,8 @@ final class AppModel: ObservableObject {
         }
     }
     private var syncing = false
+    /// The settings as of the last sync (or launch), so what was removed since is not merged back in.
+    private var lastSynced: Preferences?
     /// Merges "Mouthy Sync.json" in the sync folder into these settings, then writes the union back.
     func syncNow(quiet: Bool = false) {
         guard !preferences.syncFolder.isEmpty, !syncing else { return }
@@ -891,13 +1030,15 @@ final class AppModel: ObservableObject {
         do {
             if FileManager.default.fileExists(atPath: file.path) {
                 let remote = try JSONDecoder().decode(SyncDocument.self, from: Data(contentsOf: file))
-                if remote.apply(to: &preferences) {
+                let removed = SyncDocument.Removed(from: lastSynced ?? preferences, to: preferences)
+                if remote.apply(to: &preferences, removed: removed) {
                     try store.save(preferences, as: "preferences.json"); persistedPreferences = Self.encoded(preferences)
                     registerHotkeyIfChanged()
                 }
             }
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(SyncDocument(preferences)).write(to: file, options: .atomic)
+            lastSynced = preferences
             if !quiet { status = "Synced with \(file.deletingLastPathComponent().lastPathComponent)." }
         } catch {
             // An unreadable sync file is left untouched.
@@ -909,7 +1050,7 @@ final class AppModel: ObservableObject {
         panel.prompt = "Sync here"; panel.message = "Choose a folder your machines share. Mouthy keeps one small file there."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         preferences.syncFolder = url.path
-        try? store.save(preferences, as: "preferences.json")
+        if (try? store.save(preferences, as: "preferences.json")) != nil { persistedPreferences = Self.encoded(preferences) }
         syncNow()
     }
 
@@ -1024,26 +1165,10 @@ final class AppModel: ObservableObject {
             catch {}
         }
     }
-    enum RefineResult { case done(String), failed(Error), timedOut }
-    /// Runs cleanup or a rewrite against `cleanupTimeout`. Whichever ends first wins and the other is cancelled;
-    /// a model that ignores cancellation is simply not waited for (a task group would wait for it).
+    typealias RefineResult = TextEnhancer.Outcome
+    /// Runs cleanup or a rewrite against `cleanupTimeout` (`TextEnhancer.bounded`, shared with `DictationPolish`).
     func refine(_ work: @escaping @MainActor () async throws -> String) async -> RefineResult {
-        let timeout = cleanupTimeout
-        let gate = RefineGate()
-        return await withTaskCancellationHandler {
-            await withCheckedContinuation { (continuation: CheckedContinuation<RefineResult, Never>) in
-                gate.continuation = continuation
-                gate.work = Task { @MainActor in
-                    do { gate.finish(.done(try await work())) } catch { gate.finish(.failed(error)) }
-                }
-                gate.timer = Task { @MainActor in
-                    try? await Task.sleep(for: timeout)
-                    if !Task.isCancelled { gate.finish(.timedOut) }
-                }
-            }
-        } onCancel: {
-            Task { @MainActor in gate.finish(.failed(CancellationError())) }
-        }
+        await TextEnhancer.bounded(timeout: cleanupTimeout, work)
     }
     func startMeeting() {
         guard !busy, !setupBusy else { return }
@@ -1141,6 +1266,7 @@ final class AppModel: ObservableObject {
             let imported = try SettingsBackup.read(Data(contentsOf: url))
             // Persist successfully before changing the active runtime.
             try store.save(imported, as: "preferences.json")
+            persistedPreferences = Self.encoded(imported)
             preferences = imported; registerHotkey(); overlay?.hide()
             status = "Settings imported. Review voice actions before enabling them."
             Task { await refreshCapabilities() }
@@ -1161,23 +1287,11 @@ final class AppModel: ObservableObject {
     func clearHistory() { history = []; persistHistory() }
     func shutdown() async {
         generation = UUID(); operation?.cancel(); watchdog?.cancel(); timer?.invalidate(); level = 0; media.release()
-        await meeting.stop()
-        await speech.cancel()
-        await ParakeetRecognizer.shared.releaseIfIdle()
-        await WhisperRecognizer.shared.releaseIfIdle()
-    }
-}
-
-/// Resumes `AppModel.refine` once, with the first of: the work's result, the timeout or cancellation.
-@MainActor
-private final class RefineGate {
-    var continuation: CheckedContinuation<AppModel.RefineResult, Never>?
-    var work: Task<Void, Never>?
-    var timer: Task<Void, Never>?
-    func finish(_ result: AppModel.RefineResult) {
-        guard let continuation else { return }
-        self.continuation = nil
-        work?.cancel(); timer?.cancel()
-        continuation.resume(returning: result)
+        let log = Diagnostics.dictation
+        log.notice("shutdown: meeting"); await meeting.stop()
+        log.notice("shutdown: speech"); await speech.cancel()
+        log.notice("shutdown: parakeet"); await ParakeetRecognizer.shared.releaseIfIdle()
+        log.notice("shutdown: whisper"); await WhisperRecognizer.shared.releaseIfIdle()
+        log.notice("shutdown: done")
     }
 }

@@ -3,6 +3,8 @@
 # ../dist/appcast.xml. A ZIP rather than a DMG: Gatekeeper and syspolicy_check accept a downloaded ZIP of a notarized,
 # stapled app, while a DMG must itself be notarized (a signed, unnotarized DMG is rejected; so is an unsigned one).
 #   Default: signed with the local identity (opens cleanly only on this Mac).
+#   MOUTHY_XCODE_TEAM=<TEAMID>: signs here with that team's cloud-managed Developer ID certificate through the Apple
+#     account Xcode is signed in to (no certificate or key in this Mac's keychain), notarizes and staples. The release path.
 #   MOUTHY_DEVELOPER_ID="Developer ID Application: Name (TEAMID)" MOUTHY_DEVELOPER_ID_HOST=<ssh host>:
 #     signs with that identity in the host Mac's keychain and notarizes the app through the Apple account Xcode
 #     is signed in to there (stapled). The extracted app must pass Gatekeeper's check for downloaded apps, or
@@ -24,7 +26,53 @@ rm -rf "$stage"; mkdir -p "$stage" ../dist; rm -f "$zip" "../dist/Mouthy-$versio
 # build.sh strips the executable and the two bundled Intel dylibs before any signing.
 # Developer ID signing below therefore never needs to mutate a signed Mach-O.
 MOUTHY_APP_PATH="$stage/Mouthy.app" ./scripts/build.sh
-if [[ -n "${MOUTHY_DEVELOPER_ID_HOST:-}" ]]; then
+if [[ -n "${MOUTHY_XCODE_TEAM:-}" ]]; then
+    # Xcode re-signs every nested binary with the team's Developer ID when it exports the archive; the app's
+    # entitlements come from its signature, so it is first signed ad hoc with the release entitlements (build.sh adds
+    # a local-only library-validation exception that must not ship).
+    team="$MOUTHY_XCODE_TEAM"
+    build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$stage/Mouthy.app/Contents/Info.plist")
+    work=$(mktemp -d "${TMPDIR:-/tmp}/mouthy-package.XXXXXX")
+    archive="$work/Mouthy.xcarchive"
+    mkdir -p "$archive/Products/Applications"
+    ditto "$stage/Mouthy.app" "$archive/Products/Applications/Mouthy.app"
+    codesign --force --options runtime --entitlements Resources/Mouthy.entitlements --identifier dev.mouthy.Mouthy --sign - "$archive/Products/Applications/Mouthy.app"
+    cat > "$archive/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>ApplicationProperties</key><dict>
+<key>ApplicationPath</key><string>Applications/Mouthy.app</string>
+<key>CFBundleIdentifier</key><string>dev.mouthy.Mouthy</string>
+<key>CFBundleShortVersionString</key><string>$version</string>
+<key>CFBundleVersion</key><string>$build</string>
+<key>Team</key><string>$team</string>
+</dict>
+<key>ArchiveVersion</key><integer>2</integer>
+<key>CreationDate</key><date>$(date -u +%Y-%m-%dT%H:%M:%SZ)</date>
+<key>Name</key><string>Mouthy</string>
+<key>SchemeName</key><string>Mouthy</string>
+</dict></plist>
+PLIST
+    cat > "$work/ExportOptions.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>method</key><string>developer-id</string>
+<key>destination</key><string>upload</string>
+<key>teamID</key><string>$team</string>
+<key>signingStyle</key><string>automatic</string>
+</dict></plist>
+PLIST
+    xcodebuild -exportArchive -archivePath "$archive" -exportOptionsPlist "$work/ExportOptions.plist" -exportPath "$work/upload" -allowProvisioningUpdates
+    # Apple's notary service usually takes under an hour, but on 2026-10-10 Xcode uploads took two to three hours;
+    # wait up to four.
+    for i in {1..480}; do xcodebuild -exportNotarizedApp -archivePath "$archive" -exportPath "$work/notarized" >/dev/null 2>&1 && break; sleep 30; done
+    [[ -d "$work/notarized/Mouthy.app" ]] || { print -u2 "Notarization did not finish; the archive is in $work."; exit 1; }
+    xcrun stapler validate "$work/notarized/Mouthy.app"
+    ditto -c -k --sequesterRsrc --keepParent "$work/notarized/Mouthy.app" "$zip"
+    rm -rf "$work"
+elif [[ -n "${MOUTHY_DEVELOPER_ID_HOST:-}" ]]; then
     # Sign with the Developer ID in that Mac's keychain and notarize through the Apple account Xcode
     # is signed in to there, all inside its logged-in session (no keys or passwords leave it).
     host="$MOUTHY_DEVELOPER_ID_HOST"
@@ -86,6 +134,16 @@ SIGN
     ssh "$host" "grep -q NOTARIZED-AND-SIGNED $remote/package.log" || { print -u2 'Developer ID signing or notarization failed.'; exit 1; }
     scp -q "$host:$remote/Mouthy.zip" "$zip"
     ssh "$host" "rm -rf $remote"
+else
+    if [[ -n "${MOUTHY_NOTARY_PROFILE:-}" ]]; then
+        ditto -c -k --sequesterRsrc --keepParent "$stage/Mouthy.app" "$zip"
+        xcrun notarytool submit "$zip" --keychain-profile "$MOUTHY_NOTARY_PROFILE" --wait
+        xcrun stapler staple "$stage/Mouthy.app"
+        rm -f "$zip"
+    fi
+    ditto -c -k --sequesterRsrc --keepParent "$stage/Mouthy.app" "$zip"
+fi
+if [[ -n "${MOUTHY_XCODE_TEAM:-}${MOUTHY_DEVELOPER_ID_HOST:-}" ]]; then
     # The ZIP is what people download: unzipped with a browser's quarantine flag, Gatekeeper must accept the app
     # as notarized Developer ID with its ticket stapled.
     check="$PWD/build/package-check"
@@ -95,14 +153,6 @@ SIGN
     spctl -a -t exec -vv "$check/Mouthy.app" 2>&1 | grep -q 'source=Notarized Developer ID' && xcrun stapler validate "$check/Mouthy.app" >/dev/null 2>&1 ||
         { print -u2 "$zip does not hold a notarized, stapled Developer ID app."; rm -rf "$check"; rm -f "$zip"; exit 1; }
     rm -rf "$check"
-else
-    if [[ -n "${MOUTHY_NOTARY_PROFILE:-}" ]]; then
-        ditto -c -k --sequesterRsrc --keepParent "$stage/Mouthy.app" "$zip"
-        xcrun notarytool submit "$zip" --keychain-profile "$MOUTHY_NOTARY_PROFILE" --wait
-        xcrun stapler staple "$stage/Mouthy.app"
-        rm -f "$zip"
-    fi
-    ditto -c -k --sequesterRsrc --keepParent "$stage/Mouthy.app" "$zip"
 fi
 rm -rf "$stage"
 # The signed static update feed, written beside the ZIP and uploaded nowhere: Sparkle's generate_appcast signs

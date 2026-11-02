@@ -53,7 +53,6 @@ struct HistoryView: View {
                              message: "Nothing is kept. Turn it on to keep your dictations on this Mac only.",
                              actionTitle: "Turn on history") {
                 model.preferences.keepHistory = true
-                model.savePreferences()
             }
         }
     }
@@ -112,7 +111,7 @@ struct HistoryView: View {
     private var moreMenu: some View {
         Menu {
             Toggle("Keep new dictations", isOn: Binding(get: { model.preferences.keepHistory },
-                                                         set: { model.preferences.keepHistory = $0; model.savePreferences() }))
+                                                         set: { model.preferences.keepHistory = $0 }))
             Divider()
             Button("Clear history…", role: .destructive) { clearConfirmation = true }
         } label: {

@@ -94,10 +94,7 @@ import MouthyCore
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         let audio = folder.appendingPathComponent("terms.wav")
-        let say = Process()
-        say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
-        say.arguments = ["-o", audio.path, "--data-format=LEI16@16000", "Siobhan asked Nguyen to deploy the Tauri build with kubectl before the Anthropic review."]
-        try say.run(); say.waitUntilExit()
+        try speak("Siobhan asked Nguyen to deploy the Tauri build with kubectl before the Anthropic review.", to: audio, pcm16k: true)
         try await ParakeetRecognizer.shared.prepare(download: true) { _ in }
         #expect(ParakeetRecognizer.boostingInstalled)
         let terms = ["Siobhan", "Nguyen", "Tauri", "kubectl", "Anthropic"]

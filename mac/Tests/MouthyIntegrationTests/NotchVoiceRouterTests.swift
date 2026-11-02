@@ -22,6 +22,9 @@ import MouthyCore
     let hubOpen = PassthroughSubject<Bool, Never>()
     func setHub(open: Bool) { hubOpen.send(open); hubIsOpen = open }
     var timers: [Int] = []
+    /// Whether a timer is running for the stop command, and how many times it was stopped.
+    var timerRunning = false
+    var stops = 0
     var notes: [String] = []
     var reminders: [(title: String, due: Date)] = []
     /// Set to make the reminder fail the way CalendarTab does when access is off.
@@ -64,6 +67,10 @@ private final class StubAnswerModel: NotchAnswerModel, @unchecked Sendable {
     model.voiceRouter.hubIsOpen = { peeks.hubIsOpen }
     model.voiceRouter.hubOpenChanges = peeks.hubOpen.eraseToAnyPublisher()
     model.voiceRouter.startTimer = { peeks.timers.append($0) }
+    model.voiceRouter.stopTimer = {
+        guard peeks.timerRunning else { return false }
+        peeks.timerRunning = false; peeks.stops += 1; return true
+    }
     model.voiceRouter.addNote = { peeks.notes.append($0) }
     model.voiceRouter.addReminder = { title, due in
         if peeks.remindersDenied { throw MouthyFailure("Reminders access is off. Turn it on in Privacy & Security.") }
@@ -93,6 +100,50 @@ private final class StubAnswerModel: NotchAnswerModel, @unchecked Sendable {
         #expect(peeks.shown == [.confirmation(line: "10-minute timer", ear: "10 min", ok: true)])
         // Nothing else keeps running: the router holds no task, the model is idle.
         #expect(model.voiceRouter.answerTask == nil && !model.busy)
+    }
+
+    @Test func misheardNameStillStartsTheTimer() async throws {
+        let (model, log, peeks) = routedModel("And Mouthy, set a timer for ten minutes.")
+        try await dictate(model, fromNotch: false)
+        #expect(peeks.timers == [600])
+        #expect(log.texts.isEmpty, "the command must not be typed into the app")
+        #expect(model.output == "And Mouthy, set a timer for ten minutes.", "words said to Mouthy by name stay in Paste last")
+        #expect(model.history.isEmpty)
+    }
+
+    @Test func theNameTaughtAsAReplacementReachesTheCommand() async throws {
+        let (model, log, peeks) = routedModel("Mowgli, set a timer for ten minutes.")
+        var preferences = model.preferences
+        preferences.replacements = [Replacement(phrase: "Mowgli", replacement: "Mouthy")]
+        model.preferences = preferences
+        try await dictate(model, fromNotch: false)
+        #expect(peeks.timers == [600])
+        #expect(log.texts.isEmpty)
+    }
+
+    @Test func stopTheTimerByVoice() async throws {
+        let (model, log, peeks) = routedModel("Mouthy, stop the timer.")
+        peeks.timerRunning = true
+        try await dictate(model, fromNotch: false)
+        #expect(peeks.stops == 1 && log.texts.isEmpty)
+        #expect(peeks.shown == [.confirmation(line: "Timer stopped", ear: "Stopped", ok: true)])
+    }
+
+    @Test func stoppingWithNoTimerSaysSo() async throws {
+        let (model, log, peeks) = routedModel("stop timer")
+        try await dictate(model, fromNotch: true)
+        #expect(peeks.stops == 0 && log.texts.isEmpty)
+        #expect(peeks.shown == [.confirmation(line: "No timer is running", ear: "No timer", ok: false)])
+    }
+
+    @Test func aCommandNotUnderstoodIsShownNotTyped() async throws {
+        let (model, log, peeks) = routedModel("Mouthy, set a timer for later.")
+        try await dictate(model, fromNotch: false)
+        #expect(log.texts.isEmpty, "\"Mouthy, …\" is never typed into the app")
+        #expect(peeks.timers.isEmpty && model.history.isEmpty)
+        guard case .confirmation(let line, _, let ok, let detail)? = peeks.shown.last else { Issue.record("no peek"); return }
+        #expect(!ok && line == "Didn't catch that" && detail?.contains("set a timer for later") == true)
+        #expect(model.output == "Mouthy, set a timer for later.", "Paste last keeps the words")
     }
 
     @Test func notchNoteLandsInNotes() async throws {
@@ -336,39 +387,10 @@ private final class StubAnswerModel: NotchAnswerModel, @unchecked Sendable {
         ]
         var over: [String] = []
         for (name, view) in cards {
-            let percent = hostedCPUPercent(view, seconds: 10)
+            let percent = hostedCPUPercent(view, seconds: 10, size: CGSize(width: NotchMetrics.peekWidth + 80, height: 200))
             print(String(format: "CPU %@: %.2f%%", name, percent))
             if percent > 1.0 { over.append(name) }
         }
         #expect(over.isEmpty, "over 1% CPU: \(over.joined(separator: ", "))")
     }
-}
-
-private func processCPUSeconds() -> Double {
-    var usage = rusage()
-    getrusage(RUSAGE_SELF, &usage)
-    func seconds(_ time: timeval) -> Double { Double(time.tv_sec) + Double(time.tv_usec) / 1e6 }
-    return seconds(usage.ru_utime) + seconds(usage.ru_stime)
-}
-
-/// CPU percent of one core while `view` sits in a borderless window far off screen for `seconds`.
-@MainActor private func hostedCPUPercent(_ view: some View, seconds: TimeInterval) -> Double {
-    let size = CGSize(width: NotchMetrics.peekWidth + 80, height: 200)
-    let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height, alignment: .top).environment(\.colorScheme, .dark))
-    host.frame = NSRect(origin: .zero, size: size)
-    let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: size.width, height: size.height),
-                          styleMask: .borderless, backing: .buffered, defer: false)
-    window.isReleasedWhenClosed = false
-    window.backgroundColor = .clear
-    window.contentView = host
-    window.orderFrontRegardless()
-    RunLoop.main.run(until: Date().addingTimeInterval(1))
-    let before = processCPUSeconds(), started = Date()
-    RunLoop.main.run(until: started.addingTimeInterval(seconds))
-    let used = processCPUSeconds() - before
-    let wall = Date().timeIntervalSince(started)
-    window.orderOut(nil)
-    window.contentView = nil
-    window.close()
-    return used / wall * 100
 }

@@ -53,7 +53,6 @@ struct WorkspaceView: View {
             StatusToast(model: model).padding(.bottom, 22).padding(.leading, 240)
         }
         .tint(MouthyTheme.orange)
-        .preferredColorScheme(.dark)
         .foregroundStyle(MouthyTheme.cream)
         .sensoryFeedback(.selection, trigger: page)
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.refreshCapabilities() } } }
@@ -120,7 +119,7 @@ struct WorkspaceSidebar: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         KeycapRow(shortcut: model.shortcutLabel)
-                        Text(DictateHero.gesture(preset: model.preferences.shortcut, holdToTalk: model.preferences.holdToTalk) + " to talk")
+                        Text(DictateHero.gesture(preset: model.activeShortcut, holdToTalk: model.preferences.holdToTalk && !model.standInActive) + " to talk")
                             .font(MouthyType.caption).foregroundStyle(MouthyTheme.cream2)
                             .lineLimit(1)
                     }

@@ -19,11 +19,16 @@ enum AudioDevices {
         defer { IOObjectRelease(service) }
         return IORegistryEntryCreateCFProperty(service, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Bool ?? false
     }
-    static func isBuiltIn(_ device: InputDevice) -> Bool {
+    private static func transport(_ device: InputDevice) -> UInt32? {
         var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyTransportType, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var transport: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
-        return AudioObjectGetPropertyData(device.objectID, &address, 0, nil, &size, &transport) == noErr && transport == kAudioDeviceTransportTypeBuiltIn
+        return AudioObjectGetPropertyData(device.objectID, &address, 0, nil, &size, &transport) == noErr ? transport : nil
+    }
+    static func isBuiltIn(_ device: InputDevice) -> Bool { transport(device) == kAudioDeviceTransportTypeBuiltIn }
+    /// A Bluetooth headset (AirPods and the like): while its microphone is open it records at call quality.
+    static func isBluetooth(_ device: InputDevice) -> Bool {
+        transport(device).map { $0 == kAudioDeviceTransportTypeBluetooth || $0 == kAudioDeviceTransportTypeBluetoothLE } ?? false
     }
     static func inputs() -> [InputDevice] {
         var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices,

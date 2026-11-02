@@ -126,7 +126,7 @@ func meetingsRendersForVisualReview() throws {
             .tint(MouthyTheme.orange)
             .foregroundStyle(MouthyTheme.cream)
     }
-    if let url = try renderOffscreen(page(empty), size: size, name: "meetings-empty") { assertNoBlue(url) }
+    if let url = try renderOffscreen(page(empty), size: size, name: "meetings-empty", scheme: .light) { assertNoBlue(url) }
 
     let filled = MeetingLibrary(defaults: defaults)
     for (index, notes) in [true, false, false].enumerated() {
@@ -136,7 +136,7 @@ func meetingsRendersForVisualReview() throws {
         if notes { try "# Notes".write(to: folder.appendingPathComponent("Meeting notes.md"), atomically: true, encoding: .utf8) }
         filled.remember(folder)
     }
-    if let url = try renderOffscreen(page(filled), size: size, name: "meetings-past") { assertNoBlue(url) }
+    if let url = try renderOffscreen(page(filled), size: size, name: "meetings-past", scheme: .light) { assertNoBlue(url) }
 }
 
 /// A short 16 kHz mono WAV of silence (for duration only).
@@ -152,7 +152,7 @@ private func writeSilence(seconds: Double, to url: URL) throws {
 @MainActor @Test(.enabled(if: ProcessInfo.processInfo.environment["MOUTHY_RENDER_TRANSCRIPT"] != nil))
 func renderTranscript() throws {
     let folder = URL(fileURLWithPath: ProcessInfo.processInfo.environment["MOUTHY_RENDER_TRANSCRIPT"]!)
-    let view = try #require(TranscriptView(folder: folder) {}).frame(width: 760, height: 360).background(Palette.background).preferredColorScheme(.dark)
+    let view = try #require(TranscriptView(folder: folder) {}).frame(width: 760, height: 360).background(MouthyTheme.night).mouthyAppearance(.light)
     let renderer = ImageRenderer(content: view); renderer.scale = 2
     let image = try #require(renderer.cgImage)
     try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])).write(to: folder.appendingPathComponent("transcript.png"))

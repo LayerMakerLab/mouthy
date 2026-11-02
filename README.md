@@ -44,6 +44,8 @@ Every engine runs on your own computer. A model downloads once, when you choose 
 
 ## If something isn't right
 
+- **Mouthy won't open (Mac).** It needs macOS 26 or later.
+- **The shortcut does nothing (Mac).** Double-tap right ⌘ and Hold Fn need Accessibility: turn Mouthy on in System Settings → Privacy & Security → Accessibility. Until then, ⌃⌥Space starts dictation.
 - **Nothing types (Mac).** Turn Mouthy on in System Settings → Privacy & Security → Accessibility.
 - **A word keeps coming out wrong.** On the Mac, add it in Vocabulary. Anywhere, another speech engine in Settings may suit your voice better.
 - **Anything else.** [Open an issue](https://github.com/LayerMakerLab/mouthy/issues/new/choose). A short description and your platform are enough.

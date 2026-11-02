@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.5
+
+- Sentences no longer break in the middle with a stray period: soft words are no longer taken for pauses, and a word is no longer typed twice where two stretches of speech meet.
+- Voice commands work the way people say them: "Hey Mouthy" or "And Mouthy" first, a misheard "Mouthy" fixed by your replacements, and "Mouthy, stop the timer" to stop a running timer. A command Mouthy doesn't understand shows in the notch instead of being typed.
+- The notch opens with its content right away, and on Timers or Music while one is running.
+- Quitting Mouthy never hangs.
+- About and Settings → Privacy link to the privacy policy.
+- Mouthy's windows follow the Mac's Light or Dark appearance: a sunlit cream look in Light mode, the night palette in Dark. The notch hub and the recording pill stay dark.
+- Spoken clock times are written as digits: "eleven fifty eight", "at 1158" and "ten a.m." become 11:58 and 10 a.m. Counting, years and prices stay as they are.
+- Snippets, contractions, addresses and custom words are kept as written: a dictation that is only a snippet's phrase returns the snippet exactly, replacements never cut into a contraction, an email address or URL at the start is not capitalized, and a custom word keeps its capitals mid-sentence. The words beside a custom word are no longer swapped out with it.
+- Corrections you make to dictated text are learned as you edit, with Undo in the menu panel.
+- Mouthy knows whether an app took a paste. When nothing did, the words stay on the clipboard and the panel says so instead of "Pasted". The Return sent after a paste no longer carries ⌘, so browsers no longer open a new tab.
+- Pause only interrupts a player that is actually playing; paused music is never started.
+- Clearer messages: the app holding Secure Keyboard Entry is named, a microphone that sent only silence is reported as such instead of "No speech detected", and a dictation stopped at the 10-minute limit says so.
+- Dictating through a Bluetooth headset offers the built-in microphone once, for better sound.
+- Words, replacements and modes removed on the Mac stay removed after a sync with another computer.
+- Without Accessibility, double-tap right ⌘ and Hold Fn did nothing at all. Now ⌃⌥Space starts dictation until Accessibility is allowed, Mouthy says so, and the Accessibility setup screen comes back at launch (macOS's own prompt shows only once).
+- Pressing the shortcut before the speech model was downloaded says so: "Download the model in Settings" instead of "Needs attention".
+
 ## 0.1.4
 
 - Only listen to my voice can be trained with a TV or music on: Mouthy keeps your voice and leaves the others out of the voiceprint.

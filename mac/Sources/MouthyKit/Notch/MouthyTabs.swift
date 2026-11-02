@@ -219,20 +219,6 @@ struct NotchSettingsRow: View {
     }
 }
 
-/// The notch palette for tabs. Names describe roles; values are the giraffe theme.
-enum NotchStyle {
-    /// Giraffe orange: rings, prominent controls.
-    static let accent = MouthyTheme.orange
-    /// Mic glow: live states, highlights.
-    static let amber = MouthyTheme.glow
-    /// Quiet second tone (a break, not focus).
-    static let moss = MouthyTheme.cream2
-    static let ember = MouthyTheme.ember
-    static let ink = MouthyTheme.cream
-    static let dim = MouthyTheme.cream2
-    static let faint = MouthyTheme.cream.opacity(0.08)
-}
-
 /// Small JSON documents under `MouthyTabs.storageFolder`. Unreadable files are kept, never overwritten.
 @MainActor enum NotchFile {
     static func load<T: Decodable>(_ type: T.Type, _ name: String) -> T? {
@@ -242,11 +228,9 @@ enum NotchStyle {
         try? FileManager.default.moveItem(at: url, to: url.appendingPathExtension("unreadable-\(Int(Date().timeIntervalSince1970))"))
         return nil
     }
+    /// Owner-only, like settings and history (`LocalStore`): notes and todos are personal.
     static func save<T: Encodable>(_ value: T, _ name: String) {
-        let folder = MouthyTabs.storageFolder
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        guard let data = try? JSONEncoder().encode(value) else { return }
-        try? data.write(to: folder.appendingPathComponent(name), options: .atomic)
+        try? LocalStore(directory: MouthyTabs.storageFolder).save(value, as: name)
     }
 }
 
@@ -281,7 +265,7 @@ struct PillButton: View {
             }
             .font(.system(size: 13, weight: .semibold, design: .rounded))
             .padding(.horizontal, 11).frame(minHeight: 26)
-            .foregroundStyle(prominent ? MouthyTheme.night : MouthyTheme.cream)
+            .foregroundStyle(prominent ? MouthyTheme.onOrange : MouthyTheme.cream)
             .background {
                 if prominent {
                     Capsule(style: .circular).fill(MouthyTheme.primaryFill)
@@ -370,9 +354,6 @@ struct GlowRing: View {
         }
     }
 }
-
-/// Bars and fills: mic-glow high at the top fading to giraffe orange.
-let barGradient = NotchPalette.sheen
 
 /// Hue of the mic-glow amber (#FFB547), 0…1.
 let glowHue = 35.8 / 360

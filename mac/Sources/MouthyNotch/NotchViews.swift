@@ -67,10 +67,7 @@ public enum NotchPalette {
     /// Warm polished fill: glow high, giraffe orange, amber patch.
     public static let metal = MouthyTheme.metal
     /// Vertical bars and progress: glow high fading to giraffe orange.
-    public static let sheen = LinearGradient(colors: [MouthyTheme.glowHi, MouthyTheme.orange], startPoint: .top, endPoint: .bottom)
-    // Old names kept so existing views compile against the new look.
-    static let copper = silver
-    static let amber = shine
+    public static let sheen = MouthyTheme.barFill
 }
 
 /// What the notch is showing, in priority order. Each state has one size; the single black shape morphs
@@ -586,7 +583,6 @@ struct OpenLayers: View {
     let notchWidth: CGFloat
     let size: CGSize
     @Namespace private var rail
-    @State private var railIn = false
     @State private var bodyIn = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let shoulder = MorphingNotch.openShoulder
@@ -604,7 +600,6 @@ struct OpenLayers: View {
             HStack(spacing: 0) {
                 TabRail(tabs: tabs, selectedID: hub.selectedID, namespace: rail, compact: true) { hub.select($0) }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .offset(y: railIn ? 0 : -4)
                 Color.clear.frame(width: max(notchWidth, 60))
                 // The right wing names the selected tab, then the host's status: "Timers · 82%". The band then
                 // reads left to right, icons to title, and the wing is not left holding a lone number.
@@ -634,7 +629,6 @@ struct OpenLayers: View {
             }
             .frame(height: notchHeight)
             .padding(.horizontal, 14 + shoulder)
-            .opacity(railIn ? 1 : 0)
             VStack(spacing: 0) {
                 ZStack(alignment: .topLeading) {
                     if let tab = selected {
@@ -654,7 +648,6 @@ struct OpenLayers: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .animation(MouthyMotion.resolve(MouthyMotion.tab, reduceMotion: reduceMotion), value: hub.selectedID)
                 .opacity(bodyIn ? 1 : 0)
-                .blur(radius: bodyIn || reduceMotion ? 0 : 6)
                 .scaleEffect(bodyIn || reduceMotion ? 1 : 0.985, anchor: .top)
             }
             .padding(.top, notchHeight + 10)
@@ -666,9 +659,11 @@ struct OpenLayers: View {
         }
         .frame(width: size.width, height: size.height, alignment: .top)
         .foregroundStyle(MouthyTheme.cream)
+        // The content arrives with the shape: the band's tabs from the first frame (no empty band between two states),
+        // the page in a 100 ms dissolve starting at once. A delayed fade behind the spring showed an empty black panel
+        // for the first frames of every open.
         .onAppear {
-            withAnimation(MouthyMotion.resolve(MouthyMotion.notchOpen.delay(0.06), reduceMotion: reduceMotion)) { railIn = true }
-            withAnimation(MouthyMotion.resolve(MouthyMotion.notchOpen.delay(0.10), reduceMotion: reduceMotion)) { bodyIn = true }
+            withAnimation(MouthyMotion.resolve(MouthyMotion.dissolve, reduceMotion: reduceMotion)) { bodyIn = true }
         }
     }
 }
@@ -735,27 +730,6 @@ struct NotchRim: View {
                                     startPoint: .top, endPoint: .bottom), lineWidth: 1)
             .mask(BelowNotchMask(notchHeight: notchHeight, height: height))
             .allowsHitTesting(false)
-    }
-}
-
-/// The open panel drawn statically (renders and tests).
-struct OpenNotch: View {
-    @ObservedObject var hub: NotchHub
-    let notchHeight: CGFloat
-    var notchWidth: CGFloat = 200
-    var body: some View {
-        GeometryReader { proxy in
-            let size = CGSize(width: proxy.size.width - 2 * (NotchGeometry.shadowMargin - MorphingNotch.openShoulder),
-                              height: proxy.size.height - NotchGeometry.shadowMargin)
-            ZStack(alignment: .top) {
-                NotchShape(bottomRadius: 30, shoulder: MorphingNotch.openShoulder).fill(Color.black)
-                    .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
-                OpenLayers(hub: hub, notchHeight: notchHeight, notchWidth: notchWidth, size: size)
-            }
-            .frame(width: size.width, height: size.height)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
-        .tint(MouthyTheme.orange)
     }
 }
 
@@ -1009,7 +983,7 @@ struct NotchBadgeView: View {
             } else if badge.count > 0 {
                 Text("\(min(badge.count, 99))")
                     .font(.system(size: 8.5, weight: .bold, design: .rounded)).monospacedDigit()
-                    .foregroundStyle(MouthyTheme.night)
+                    .foregroundStyle(MouthyTheme.onOrange)
                     .padding(.horizontal, 3.5)
                     .frame(minWidth: 13, minHeight: 13)
                     .background(tint, in: Capsule(style: .circular))

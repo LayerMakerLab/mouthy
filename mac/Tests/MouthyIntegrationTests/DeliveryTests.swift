@@ -70,6 +70,47 @@ final class Harness {
     }
 }
 
+/// Copy buttons and the clipboard output go through the same swappable pasteboard as pasting, so no test
+/// can overwrite the person's clipboard.
+@MainActor @Test func copyUsesTheDeliveryPasteboard() {
+    let saved = TextDelivery.pasteboard
+    defer { TextDelivery.pasteboard = saved }
+    let board = NSPasteboard(name: .init("dev.mouthy.Mouthy.copy-test"))
+    TextDelivery.pasteboard = board
+    let general = NSPasteboard.general.changeCount
+    TextDelivery.copy("copied in a test")
+    #expect(board.string(forType: .string) == "copied in a test")
+    #expect(NSPasteboard.general.changeCount == general)
+    board.releaseGlobally()
+}
+
+/// The dictated text is handed over only when an app asks for it, which is how Mouthy knows a paste was taken.
+@MainActor @Test func pasteProviderKnowsWhenTheTextWasTaken() async {
+    let board = NSPasteboard(name: .init("dev.mouthy.Mouthy.provider-test"))
+    defer { board.releaseGlobally() }
+    let provider = TextDelivery.PasteProvider("hello")
+    let item = NSPasteboardItem()
+    item.setDataProvider(provider, forTypes: [.string])
+    board.clearContents(); board.writeObjects([item])
+    #expect(!provider.taken)
+    #expect(board.types?.contains(.string) == true)   // promised, not yet provided
+    #expect(board.string(forType: .string) == "hello")
+    #expect(provider.taken)
+}
+
+/// The Return sent after a paste must be plain: ⌘Return opens a browser's search or form result in a new tab.
+/// Builds the events only; nothing is posted.
+@MainActor @Test func sentReturnCarriesNoModifier() throws {
+    let (down, up) = try #require(TextDelivery.returnKeyEvents())
+    let modifiers: CGEventFlags = [.maskCommand, .maskShift, .maskAlternate, .maskControl, .maskSecondaryFn, .maskAlphaShift]
+    for (event, isDown) in [(down, true), (up, false)] {
+        #expect(event.flags.intersection(modifiers).isEmpty)
+        #expect(event.getIntegerValueField(.keyboardEventKeycode) == 36)
+        #expect(event.getIntegerValueField(.eventSourceUserData) == ReturnKeyTap.syntheticMarker)
+        #expect(event.type == (isDown ? .keyDown : .keyUp))
+    }
+}
+
 @MainActor @Suite(.serialized, .enabled(if: ProcessInfo.processInfo.environment["MOUTHY_TEST_DELIVERY"] == "1"))
 struct HeadlessDelivery {
     @Test func smartInsertionIsVerifiedAndClipboardRestored() async throws {
@@ -125,6 +166,33 @@ struct HeadlessDelivery {
         let status = await TextDelivery.deliver("that", to: target, replacingSelection: true)
         #expect(status.hasPrefix("Ready to copy"))
         #expect(harness.value == "Keep this text.")
+    }
+    /// An app that never asks for the text (no field took the ⌘V) is reported, no Return is sent, and the words stay
+    /// on the clipboard as a plain copy for the person (and any app that asks late) to paste.
+    @Test func pasteNobodyTakesIsReportedAndNotSent() async throws {
+        let harness = try await Harness(); defer { harness.stop() }
+        harness.pasteboard.clearContents(); harness.pasteboard.setString("previous clipboard", forType: .string)
+        harness.set("Untouched.", cursor: 10)
+        let saved = (TextDelivery.postPaste, TextDelivery.pasteTimeout)
+        defer { (TextDelivery.postPaste, TextDelivery.pasteTimeout) = saved }
+        TextDelivery.postPaste = { _, _ in }   // the ⌘V reaches nothing
+        TextDelivery.pasteTimeout = .milliseconds(300)
+        let status = await TextDelivery.deliver("hello there.", to: TextDelivery.capture(), smartFormatting: true, submit: true)
+        #expect(status == "Text copied. Nothing in target took the paste, so nothing was sent.")
+        #expect(harness.value == "Untouched.")
+        #expect(harness.pasteboard.string(forType: .string) == "Hello there.")
+        #expect(!(harness.pasteboard.types ?? []).contains(TextDelivery.transientType))
+    }
+    /// Edits to the field arrive as Accessibility notifications, so a correction made and sent within seconds is seen.
+    @Test func fieldWatcherSeesEditsAsTheyHappen() async throws {
+        let harness = try await Harness(); defer { harness.stop() }
+        harness.set("Ask explore to post.", cursor: 0)
+        var changes = 0
+        let watcher = try #require(TextDelivery.FieldWatcher(pid: harness.app.processIdentifier, element: harness.field) { changes += 1 })
+        defer { watcher.stop() }
+        harness.set("Ask X Grower to post.", cursor: 0)
+        try await waitFor({ changes > 0 }, seconds: 3)
+        #expect(changes > 0)
     }
     @Test func neverPastesIntoMouthyItself() async throws {
         let harness = try await Harness(); defer { harness.stop() }

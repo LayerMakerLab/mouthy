@@ -62,6 +62,9 @@ struct DictationOutcome: Equatable {
     /// Statuses that need a second look, with the words the pill shows.
     static let attentionWords: [(prefix: String, word: String)] = [
         ("Ready to copy. A password field", "Not into a password field"),
+        ("Ready to copy. Secure Keyboard Entry", "Secure Keyboard Entry is on"),
+        ("The microphone sent only silence", "The microphone is silent"),
+        ("Text copied. Nothing in", "Nothing took the paste"),
         ("Ready to copy. No other app is focused", "Nowhere to type"),
         ("Ready to copy. Focus changed", "The cursor moved"),
         ("Ready to copy. The selection changed", "The selection changed"),
@@ -70,6 +73,8 @@ struct DictationOutcome: Equatable {
         ("Ready to copy", "Ready to copy"),
         ("Text copied", "Copied · paste it yourself"),
         ("Microphone", "Check the microphone"),
+        ("Download the selected model", "Download the model in Settings"),
+        ("Install the Apple speech assets", "Get speech in Settings"),
         ("Enable Mouthy", "Needs permission"),
         ("Allow microphone", "Needs the microphone"),
         ("Transcription timed out", "That took too long"),
@@ -145,6 +150,7 @@ final class OverlayController {
         panel = RecordingPanel(contentRect: .zero,
                                styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.isMovable = false
@@ -300,7 +306,7 @@ final class OverlayController {
             panel.setFrame(next.panel, display: false)
             panel.contentView = NSHostingView(rootView: RecordingIsland(model: model, presenter: presenter, geometry: next)
                 .tint(MouthyTheme.orange)
-                .preferredColorScheme(.dark))
+                .mouthyAppearance(.dark))
         }
         // Above the menu bar so the island reads as part of the screen edge, and above other
         // notch apps so the waveform appears to grow out of their notch.

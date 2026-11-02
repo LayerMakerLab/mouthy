@@ -141,25 +141,30 @@ actor ParakeetRecognizer {
         return result.text
     }
     /// Live dictation's context decode (LiveTranscriber.finish).
-    static let decodeAfter: LiveTranscriber.DecodeAfter = { samples, from in try await shared.transcribe(samples: samples, wordsFrom: from) }
+    static let decodeAfter: LiveTranscriber.DecodeAfter = { samples, from in try await shared.transcribe(samples: samples, contextUntil: from) }
     /// Recognizes `samples` with the vocabulary pass but returns only the words that begin at or after sample
     /// `start`; the audio before it is context for them (see LiveTranscriber.finish).
     func transcribe(samples: [Float], wordsFrom start: Int) async throws -> String {
+        try await transcribe(samples: samples, contextUntil: start).after
+    }
+    /// The words that begin at or after sample `start`, and the words heard in the context before it (empty without
+    /// token times), so the join can tell a boundary word timed on the wrong side from a word said twice.
+    func transcribe(samples: [Float], contextUntil start: Int) async throws -> ContextWords {
         let start = max(0, min(start, samples.count))
-        guard start > 0 else { return try await transcribe(samples: samples) }
+        guard start > 0 else { return ContextWords(after: try await transcribe(samples: samples)) }
         guard !occupied else { throw MouthyFailure("Parakeet is already working. Please wait.") }
         occupied = true; defer { occupied = false; scheduleRelease() }
         try await load(download: false, progress: { _ in })
         lastDocument = TranscriptionDocument(text: "")
         // Parakeet hears only the voice (see transcribe(samples:boost:)); Intel's sherpa path has no voice detector.
         let samples = sherpa == nil ? await VoiceActivity.shared.voiceOnly(samples) ?? samples : samples
-        guard samples.count > start else { return "" }   // no voice at all
+        guard samples.count > start else { return ContextWords(after: "") }   // no voice at all
         let tail = Array(samples[start...])
-        guard tail.contains(where: { abs($0) > 0.0001 }) else { return "" }
+        guard tail.contains(where: { abs($0) > 0.0001 }) else { return ContextWords(after: "") }
         // Without token timings, recognize the new audio alone rather than lose any. With them, no word timed after the
         // context means none was said: noise recognized alone comes back as words ("yeah" from faint music).
-        if let sherpa { return sherpa.transcribe(samples, wordsFrom: start) ?? sherpa.transcribe(tail) }
-        guard let manager = liveManager ?? manager else { return "" }
+        if let sherpa { return ContextWords(after: sherpa.transcribe(samples, wordsFrom: start) ?? sherpa.transcribe(tail)) }
+        guard let manager = liveManager ?? manager else { return ContextWords(after: "") }
         await applyVocabulary()
         var state = TdtDecoderState.make(decoderLayers: AsrModelVersion.v3.decoderLayers)
         let result = try await manager.transcribe(samples, decoderState: &state)
@@ -167,16 +172,22 @@ actor ParakeetRecognizer {
         let from = Double(start) / 16_000
         guard let timings = result.tokenTimings, !timings.isEmpty else {
             var fresh = TdtDecoderState.make(decoderLayers: AsrModelVersion.v3.decoderLayers)
-            return try await manager.transcribe(tail, decoderState: &fresh).text
+            return ContextWords(after: try await manager.transcribe(tail, decoderState: &fresh).text)
+        }
+        func words(_ tokens: ArraySlice<TokenTiming>) -> String {
+            tokens.map(\.token).joined().replacingOccurrences(of: "▁", with: " ").trimmingCharacters(in: .whitespaces)
         }
         // A word starts with a space or SentencePiece's word mark.
-        guard let first = timings.firstIndex(where: { $0.startTime >= from && ($0.token.hasPrefix("▁") || $0.token.hasPrefix(" ")) }) else { return "" }
-        let kept = Array(timings[first...])
-        let text = kept.map(\.token).joined().replacingOccurrences(of: "▁", with: " ").trimmingCharacters(in: .whitespaces)
-        if let boosting, let rescored = await boosting.rescore(text: text, tokenTimings: kept, audioSamples: samples), rescored.wasModified {
-            return rescored.text
+        guard let first = timings.firstIndex(where: { $0.startTime >= from && ($0.token.hasPrefix("▁") || $0.token.hasPrefix(" ")) }) else {
+            return ContextWords(before: words(timings[...]), after: "")
         }
-        return text
+        let kept = Array(timings[first...])
+        let before = words(timings[..<first])
+        let text = words(kept[...])
+        if let boosting, let rescored = await boosting.rescore(text: text, tokenTimings: kept, audioSamples: samples), rescored.wasModified {
+            return ContextWords(before: before, after: Self.guarded(text, rescored))
+        }
+        return ContextWords(before: before, after: text)
     }
     func transcribe(file: URL) async throws -> String {
         guard !occupied else { throw MouthyFailure("Parakeet is already working. Please wait.") }
@@ -198,6 +209,14 @@ actor ParakeetRecognizer {
         lastDocument = document(result)
         return result.text
     }
+    /// The vocabulary pass's text without the swaps `VocabularyGuard` refuses ("code" -> "Codex").
+    static func guarded(_ text: String, _ rescored: VocabularyRescorer.RescoreOutput) -> String {
+        let swaps = rescored.replacements.filter(\.shouldReplace).compactMap { r in r.replacementWord.map { (original: r.originalWord, term: $0) } }
+        // Rebuilt from the recognizer's text whenever a swap is refused or trimmed to the words that sound like it.
+        guard swaps.contains(where: { !VocabularyGuard.keeps(original: $0.original, term: $0.term)
+                                      || VocabularyGuard.trimmed($0.original, to: $0.term) != $0.original }) else { return rescored.text }
+        return VocabularyGuard.apply(text, swaps: swaps) ?? text
+    }
     /// One fresh decoder state per utterance, then CTC vocabulary rescoring when terms are boosted.
     private func recognize(_ samples: [Float], with manager: AsrManager, boost: Bool = true) async throws -> (text: String, timings: [TokenTiming]) {
         var state = TdtDecoderState.make(decoderLayers: AsrModelVersion.v3.decoderLayers)
@@ -205,7 +224,7 @@ actor ParakeetRecognizer {
         let timings = result.tokenTimings ?? []
         guard boost, let boosting, let rescored = await boosting.rescore(text: result.text, tokenTimings: timings, audioSamples: samples),
               rescored.wasModified else { return (result.text, timings) }
-        return (rescored.text, timings)
+        return (Self.guarded(result.text, rescored), timings)
     }
     private func document(_ result: (text: String, timings: [TokenTiming])) -> TranscriptionDocument {
         var segments: [TimedSegment] = []
@@ -382,7 +401,8 @@ final class ParakeetAudioBuffer: @unchecked Sendable {
 
 @MainActor
 final class ParakeetService {
-    private(set) var inputDeviceName = "Microphone"
+    private(set) var inputDevice: InputDevice?
+    var inputDeviceName: String { inputDevice?.name ?? "Microphone" }
     private var engine: AVAudioEngine?
     private var buffer: ParakeetAudioBuffer?
     private var routeObserver: NSObjectProtocol?
@@ -400,7 +420,7 @@ final class ParakeetService {
         if let file = Self.testInput { try feed(file, level: level, waveform: waveform); return }
         let engine = AVAudioEngine()
         let selectedInput = try AudioDevices.select(inputDeviceUID, engine: engine)
-        inputDeviceName = selectedInput.name
+        inputDevice = selectedInput
         let input = engine.inputNode
         let format = input.inputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw MouthyFailure("No working microphone was found.") }
@@ -439,7 +459,7 @@ final class ParakeetService {
         let chunk = AVAudioFrameCount(format.sampleRate / 30)
         let buffer = ParakeetAudioBuffer()
         self.buffer = buffer
-        inputDeviceName = "Test input"
+        inputDevice = InputDevice(id: "test", name: "Test input", objectID: 0)
         feeder = Task { @MainActor in
             let clock = ContinuousClock()
             var next = clock.now
@@ -463,7 +483,6 @@ final class ParakeetService {
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver); self.screenObserver = nil }
         engine?.stop(); engine?.inputNode.removeTap(onBus: 0); engine = nil
     }
-    func currentSamples() -> [Float] { buffer?.snapshot() ?? [] }
     var sampleCount: Int { buffer?.count ?? 0 }
     func samples(_ range: Range<Int>) -> [Float] { buffer?.slice(range) ?? [] }
     func takeSamples() -> [Float] { buffer?.take() ?? [] }

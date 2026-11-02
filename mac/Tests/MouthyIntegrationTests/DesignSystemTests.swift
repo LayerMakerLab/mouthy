@@ -5,19 +5,24 @@ import Testing
 @testable import MouthyNotch
 
 @Test func themeTokensAreNeverBlue() {
-    for token in MouthyTheme.tokens {
+    for token in MouthyTheme.tokens + MouthyTheme.lightTokens {
         let (h, _, _) = hsb(r: Double((token.hex >> 16) & 0xFF) / 255, g: Double((token.hex >> 8) & 0xFF) / 255, b: Double(token.hex & 0xFF) / 255)
         #expect(!(190...260).contains(h), "\(token.name) has hue \(h)")
     }
 }
 
 @Test func themeHexValuesRoundTrip() {
+    #expect(MouthyTheme.tokens.count == MouthyTheme.named.count && MouthyTheme.lightTokens.count == MouthyTheme.named.count)
     for token in MouthyTheme.tokens {
         #expect(MouthyTheme.hexValue(Color(hex: token.hex)) == token.hex, "\(token.name)")
     }
-    #expect(MouthyTheme.hexValue(MouthyTheme.orange) == 0xE08A2E)
-    #expect(MouthyTheme.hexValue(Palette.background) == 0x140C07)
-    #expect(MouthyTheme.hexValue(Palette.ink) == 0xF6E3C1)
+    let dark = Dictionary(uniqueKeysWithValues: MouthyTheme.tokens.map { ($0.name, $0.hex) })
+    let light = Dictionary(uniqueKeysWithValues: MouthyTheme.lightTokens.map { ($0.name, $0.hex) })
+    // The notch is dark cocoa with cream ink; windows are sunlit cream with cocoa ink; orange is the same in both.
+    #expect(dark["night"] == 0x140C07 && dark["cream"] == 0xF6E3C1)
+    #expect(light["night"] == 0xFFF4E3 && light["cream"] == 0x2B1A10)
+    #expect(dark["orange"] == 0xE08A2E && light["orange"] == 0xE08A2E)
+    #expect(light["onOrange"] == 0x140C07, "ink on orange stays dark")
 }
 
 @Test func motionResolvesToAShortEaseWithReduceMotion() {

@@ -88,11 +88,11 @@ struct BatteryGlyph: View {
                 RoundedRectangle(cornerRadius: 3.5, style: .continuous)
                     .strokeBorder(MouthyTheme.cream.opacity(0.55), lineWidth: 1.2)
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(low ? AnyShapeStyle(MouthyTheme.ember) : charging ? AnyShapeStyle(barGradient) : AnyShapeStyle(MouthyTheme.cream))
+                    .fill(low ? AnyShapeStyle(MouthyTheme.ember) : charging ? AnyShapeStyle(MouthyTheme.barFill) : AnyShapeStyle(MouthyTheme.cream))
                     .frame(width: max(2, 16 * CGFloat(filled ? min(max(percent, 0), 100) : 0) / 100))
                     .padding(2.5)
                 if charging {
-                    Image(systemName: "bolt.fill").font(.system(size: 7.5, weight: .black)).foregroundStyle(MouthyTheme.night)
+                    Image(systemName: "bolt.fill").font(.system(size: 7.5, weight: .black)).foregroundStyle(MouthyTheme.onOrange)
                         .frame(maxWidth: .infinity)
                 }
             }

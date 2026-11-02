@@ -178,6 +178,48 @@ struct VoicePrintTests {
         #expect(failures.isEmpty, "\(failures.joined(separator: "; "))")
     }
 
+    /// A host app's `DictationSession` with `DictationConfiguration(voiceprint:)`: the whole host path (capture from
+    /// `ParakeetService.testInput` in real time, the live recognizer, the stop, Mouthy's text rules). Another voice alone
+    /// returns nothing; the person alone is typed; the same other voice without a voiceprint is heard, as before.
+    @Test func hostDictationSessionHearsOnlyThePerson() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("mouthy-voicehost-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder); VoicePrint.active = nil; ParakeetService.testInput = nil }
+        let print = try await Self.train(in: folder)
+        try await ParakeetRecognizer.shared.prepare(download: false) { _ in }
+        func clip(_ name: String, _ sentences: [String], voice: String?) throws -> (URL, Double) {
+            var audio: [Float] = Corpus.silence(0.4)
+            for sentence in sentences { audio += Corpus.level(try Corpus.say(sentence, voice: voice, in: folder), Corpus.speech) + Corpus.silence(0.4) }
+            let url = folder.appendingPathComponent("\(name).wav")
+            try Corpus.write(Corpus.room(audio), to: url)
+            return (url, Double(audio.count) / 16_000)
+        }
+        func dictate(_ clip: (URL, Double), voiceprint: Voiceprint?) async throws -> String? {
+            ParakeetService.testInput = clip.0
+            let speech = SpeechService()
+            speech.microphonePermission = { true }
+            let session = DictationSession(configuration: DictationConfiguration(engine: .parakeet, voiceprint: voiceprint), speech: speech)
+            session.microphonePermission = { true }
+            try await session.start()
+            try #require(session.phase == .listening)
+            #expect(session.health.onlyMyVoice == (voiceprint != nil))
+            try await Task.sleep(for: .seconds(clip.1 + 0.6))
+            return await session.stop()
+        }
+        let other = try clip("other", Array(Self.tv.prefix(2)), voice: Self.others[0])
+        let person = try clip("person", Self.person, voice: nil)
+        let otherWithPrint = try await dictate(other, voiceprint: print)
+        let personWithPrint = try await dictate(person, voiceprint: print)
+        let otherWithout = try await dictate(other, voiceprint: nil)
+        Swift.print("VOICEHOST other alone, voiceprint on: \(otherWithPrint ?? "(nothing)")")
+        Swift.print("VOICEHOST person alone, voiceprint on: \(personWithPrint ?? "(nothing)")")
+        Swift.print("VOICEHOST other alone, voiceprint off: \(otherWithout ?? "(nothing)")")
+        #expect(Corpus.words(otherWithPrint ?? "").isEmpty, "another voice alone was typed")
+        let missing = Corpus.missing(Corpus.words(Self.person.joined(separator: " ")), from: Corpus.words(personWithPrint ?? ""))
+        #expect(missing.isEmpty, "the person's words were dropped: \(missing)")
+        #expect(Corpus.words(otherWithout ?? "").count >= 10, "without a voiceprint every voice is heard")
+    }
+
     /// Without a voiceprint, another voice is recognized exactly as today.
     @Test func withoutAVoicePrintEveryVoiceIsHeard() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("mouthy-voiceprint-\(UUID().uuidString)")

@@ -29,6 +29,11 @@ import MouthyNotch
     var answerHold = NotchVoiceRouter.answerSeconds
     /// The tab entry points a command lands in; the real tabs by default, recorders in tests.
     var startTimer: (Int) -> Void = { TimersTab.shared.start(seconds: $0) }
+    /// Stops the running timer; false when none was running.
+    var stopTimer: () -> Bool = {
+        guard TimersTab.shared.running != nil else { return false }
+        TimersTab.shared.stop(); return true
+    }
     var addNote: (String) -> Void = { NotesTab.shared.addNote($0) }
     var addReminder: (String, Date) async throws -> Void = { try await CalendarTab.shared.addReminder($0, due: $1) }
     var now: () -> Date = { Date() }
@@ -40,9 +45,11 @@ import MouthyNotch
     private var held: (presentation: Presentation, until: TimeInterval)?
     private var hubWatch: AnyCancellable?
 
-    /// The command in a finished transcript, or nil to deliver it as usual.
-    func command(in transcript: String, fromNotch: Bool) -> NotchCommand? {
-        NotchCommand.parse(transcript, now: now(), calendar: calendar, requiresName: !fromNotch)
+    /// The command in a finished transcript, or nil to deliver it as usual. The person's replacements apply
+    /// first, so a name they taught ("Malty" -> "Mouthy") reaches the command the way it would be typed.
+    func command(in transcript: String, fromNotch: Bool, replacements: [Replacement] = []) -> NotchCommand? {
+        let text = replacements.isEmpty ? transcript : TextPipeline.process(transcript, replacements: replacements, punctuation: false)
+        return NotchCommand.parse(text, now: now(), calendar: calendar, requiresName: !fromNotch)
     }
 
     /// Runs a command and returns the status line for the model.
@@ -53,6 +60,16 @@ import MouthyNotch
             let line = Self.timerLine(seconds)
             display(.confirmation(line: line, ear: Self.timerEar(seconds), ok: true))
             return line + " started."
+        case .stopTimer:
+            guard stopTimer() else {
+                display(.confirmation(line: "No timer is running", ear: "No timer", ok: false))
+                return "No timer is running."
+            }
+            display(.confirmation(line: "Timer stopped", ear: "Stopped", ok: true))
+            return "Timer stopped."
+        case .unrecognized(let heard):
+            display(.confirmation(line: "Didn't catch that", ear: "Try again", ok: false, detail: "Heard \u{201C}\(heard)\u{201D}"))
+            return "Mouthy didn't understand that command, so nothing was typed. Paste last has the words."
         case .note(let text):
             addNote(text)
             display(.confirmation(line: "Saved to Notes", ear: "Noted", ok: true))

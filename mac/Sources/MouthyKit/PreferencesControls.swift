@@ -93,7 +93,6 @@ struct WarmPicker<Value: Hashable>: View {
         .frame(width: 250, height: min(CGFloat(options.count) * 30 + 12, 340))
         .background(MouthyTheme.surface.opacity(0.6))
         .tint(MouthyTheme.orange)
-        .preferredColorScheme(.dark)
     }
 }
 
@@ -116,11 +115,11 @@ struct WarmSwitchStyle: ToggleStyle {
             HStack(spacing: 8) {
                 if showsLabel { configuration.label }
                 ZStack(alignment: on ? .trailing : .leading) {
-                    Capsule(style: .circular).fill(on ? AnyShapeStyle(MouthyTheme.primaryFill) : AnyShapeStyle(MouthyTheme.night.opacity(0.8)))
+                    Capsule(style: .circular).fill(on ? AnyShapeStyle(MouthyTheme.primaryFill) : AnyShapeStyle(MouthyTheme.switchTrack))
                     Capsule(style: .circular).strokeBorder(on ? MouthyTheme.glow.opacity(0.35) : MouthyTheme.hoof, lineWidth: mini ? 0.8 : 1)
                     Circle()
-                        .fill(on ? MouthyTheme.cream : MouthyTheme.cream2)
-                        .shadow(color: .black.opacity(0.35), radius: mini ? 1 : 2, y: mini ? 0.5 : 1)
+                        .fill(on ? MouthyTheme.knob : MouthyTheme.knobOff)
+                        .shadow(color: .black.opacity(0.25), radius: mini ? 1 : 2, y: mini ? 0.5 : 1)
                         .padding(mini ? 2 : 2.5)
                 }
                 .frame(width: mini ? 28 : 38, height: mini ? 16 : 22)
@@ -168,7 +167,7 @@ struct WarmSegmented<Value: Hashable>: View {
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .lineLimit(1)
                         .fixedSize()
-                        .foregroundStyle(selected ? MouthyTheme.night : MouthyTheme.cream2)
+                        .foregroundStyle(selected ? MouthyTheme.onOrange : MouthyTheme.cream2)
                         .padding(.horizontal, 10)
                         .frame(minHeight: 24)
                         .background {
@@ -208,7 +207,7 @@ struct CompactButtonStyle: ButtonStyle {
             let label = configuration.label
                 .font(.system(size: 12.5, weight: .semibold, design: .rounded))
                 .lineLimit(1)
-                .foregroundStyle(prominent && enabled ? MouthyTheme.night : MouthyTheme.cream)
+                .foregroundStyle(prominent && enabled ? MouthyTheme.onOrange : MouthyTheme.cream)
                 .padding(.horizontal, 12)
                 .frame(minHeight: 28)
                 .contentShape(Capsule(style: .circular))
@@ -246,7 +245,8 @@ struct PermissionMark: View {
             if granted {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: size, weight: .semibold))
-                    .foregroundStyle(MouthyTheme.cream)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(MouthyTheme.surface, MouthyTheme.orange)
                     .transition(.drawOnCheck(reduceMotion: reduceMotion))
             } else {
                 Circle().fill(MouthyTheme.glow)

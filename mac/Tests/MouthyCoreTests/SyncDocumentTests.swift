@@ -20,3 +20,22 @@ import Foundation
     let decoded = try JSONDecoder().decode(SyncDocument.self, from: JSONEncoder().encode(SyncDocument(mac)))
     #expect(decoded == SyncDocument(mac))
 }
+
+@Test func syncKeepsWhatWasRemovedHereRemoved() {
+    let kept = DictationMode(name: "Code"), dropped = DictationMode(name: "Mail")
+    var before = Preferences()
+    before.vocabulary = "Acme\nZephyr"
+    before.replacements = [Replacement(phrase: "sig", replacement: "Thanks"), Replacement(phrase: "addr", replacement: "1 Main St")]
+    before.modes = [kept, dropped]
+    var now = before
+    now.vocabulary = "Acme"; now.replacements.removeLast(); now.modes = [kept]
+    let removed = SyncDocument.Removed(from: before, to: now)
+    #expect(removed.words == ["zephyr"] && removed.phrases == ["addr"] && removed.modes == [dropped.id])
+    // The shared file still has them, plus something another machine added.
+    var shared = SyncDocument(before)
+    shared.vocabulary.append("Nimbus")
+    #expect(shared.apply(to: &now, removed: removed))
+    #expect(now.vocabulary == "Acme\nNimbus")
+    #expect(now.replacements.map(\.phrase) == ["sig"])
+    #expect(now.modes.map(\.name) == ["Code"])
+}

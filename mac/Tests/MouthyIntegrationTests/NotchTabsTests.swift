@@ -357,3 +357,16 @@ final class RequestCounter: URLProtocol, @unchecked Sendable {
     #expect(CalendarTab.privacyURL(reminders: false).absoluteString.hasSuffix("?Privacy_Calendars"))
     #expect(CalendarTab.privacyURL(reminders: true).absoluteString.hasSuffix("?Privacy_Reminders"))
 }
+
+/// Notes and todos are personal: their folder and files are owner-only, like settings and history.
+@MainActor @Test func notchTabFilesAreOwnerOnly() throws {
+    let originalFolder = MouthyTabs.storageFolder
+    let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("mouthy-notch-\(UUID().uuidString)")
+    defer { MouthyTabs.storageFolder = originalFolder; try? FileManager.default.removeItem(at: scratch) }
+    MouthyTabs.storageFolder = scratch.appendingPathComponent("Notch")
+    NotchFile.save(["a todo"], "todos-test.json")
+    let mode = { (url: URL) in (try FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int) ?? 0 }
+    #expect(try mode(MouthyTabs.storageFolder) == 0o700)
+    #expect(try mode(MouthyTabs.storageFolder.appendingPathComponent("todos-test.json")) == 0o600)
+    #expect(NotchFile.load([String].self, "todos-test.json") == ["a todo"])
+}
