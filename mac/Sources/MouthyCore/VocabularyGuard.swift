@@ -57,21 +57,97 @@ public enum VocabularyGuard {
         return words[best.start..<best.end].joined(separator: " ")
     }
 
-    /// A multi-word term the recognizer ran together ("XGrower", "Xgrower") is written as the term ("X Grower") when
-    /// the word's letters are exactly the term's letters, or one letter off ("Xcrower") for a word that is not in the
-    /// dictionary (`isKnownWord`, lowercase), so a real word ("explore") never changes.
-    public static func spacing(_ text: String, terms: [String], isKnownWord: (String) -> Bool = { _ in true }) -> String {
-        let joined = terms.filter { $0.contains(" ") }.map { (letters: $0.lowercased().filter { $0.isLetter || $0.isNumber }, term: $0) }
-            .filter { $0.letters.count >= 4 }
-        guard !joined.isEmpty else { return text }
-        return text.split(separator: " ", omittingEmptySubsequences: false).map { token -> String in
+    /// The person's terms written the way they spell them, from three kinds of near miss:
+    /// - the same letters cased or spaced differently ("Makerworld", "XGrower", "maker world" -> "MakerWorld",
+    ///   "X Grower"), across up to three words. Real words become a term only when the term has a capital inside it
+    ///   ("maker world" -> "MakerWorld"), so "the cursor", "a swift reply" and "the blue sky" stay;
+    /// - a multi-word term run together one letter off ("Xcrower") as a word the dictionary lacks;
+    /// - a word the dictionary lacks, alone or after one short word (or any word after a lone capital letter), that
+    ///   sounds like a term ("Alama" -> "Ollama", "a marky" -> "Omarko", "X field" -> "Pixfield"): the same
+    ///   `soundKey`, or one sound off for longer terms, and letters at most half different.
+    /// A word counts as known when `isKnownWord` accepts it as written or in lowercase, so names the dictionary has
+    /// ("Jeff", "Clyde") never change by sound.
+    public static func spelling(_ text: String, terms: [String], isKnownWord: (String) -> Bool = { _ in true }) -> String {
+        func letters(_ s: some StringProtocol) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
+        let wanted = terms.map { (term: $0, letters: letters($0), sound: soundKey($0)) }.filter { $0.letters.count >= 3 }
+        guard !wanted.isEmpty else { return text }
+        let byLetters = Dictionary(wanted.map { ($0.letters, $0) }, uniquingKeysWith: { first, _ in first })
+        func innerCapital(_ term: String) -> Bool { term.dropFirst().contains { $0.isUppercase } }
+        var tokens = text.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+        // Each token's word (leading letters and digits), what follows it, and whether the dictionary lacks the word.
+        var words: [(word: String, rest: Substring, unknown: Bool)] = tokens.map { token in
             let word = String(token.prefix { $0.isLetter || $0.isNumber })
-            let lower = word.lowercased()
-            guard word.count >= 4, let match = joined.first(where: { $0.letters == lower })
-                    ?? joined.first(where: { $0.letters.count >= 6 && VocabularyLearner.distance($0.letters, lower) == 1 && !isKnownWord(lower) })
-            else { return String(token) }
-            return match.term + token.dropFirst(word.count)
-        }.joined(separator: " ")
+            let unknown = word.count > 2 && !isKnownWord(word) && !isKnownWord(word.lowercased())
+            return (word, token.dropFirst(word.count), unknown)
+        }
+        /// A capital letter on its own other than "I" and "A": the recognizer heard a letter's name ("X field").
+        func letterName(_ word: String) -> Bool { word.count == 1 && word.first!.isUppercase && word != "I" && word != "A" }
+        var index = 0
+        while index < tokens.count {
+            for length in stride(from: min(3, tokens.count - index), through: 1, by: -1) {
+                let span = words[index..<index + length]
+                // Only the last word may carry punctuation; a span never crosses a comma or a sentence end.
+                guard span.allSatisfy({ !$0.word.isEmpty }), span.dropLast().allSatisfy({ $0.rest.isEmpty }) else { continue }
+                let written = span.map(\.word).joined(separator: " "), spoken = letters(span.map(\.word).joined())
+                let anyUnknown = span.contains(where: \.unknown)
+                var match: (term: String, letters: String, sound: String)?
+                if let same = byLetters[spoken], same.term != written, anyUnknown || innerCapital(same.term) {
+                    match = same
+                } else if length == 1, anyUnknown {
+                    match = wanted.first { $0.term.contains(" ") && $0.letters.count >= 6 && VocabularyLearner.distance($0.letters, spoken) == 1 }
+                        ?? soundsLike(spoken, wanted)
+                } else if length == 2, let first = span.first, let second = span.last, first.word.count <= 2,
+                          second.unknown || letterName(first.word),
+                          // A short word joins only when the word alone sounds like no term ("a marchie", not "to Alama").
+                          byLetters[letters(second.word)] == nil, soundsLike(letters(second.word), wanted) == nil {
+                    match = soundsLike(spoken, wanted)
+                }
+                guard let match, match.term != written else { continue }
+                let rest = span.last!.rest
+                tokens.replaceSubrange(index..<index + length, with: [match.term + rest])
+                words.replaceSubrange(index..<index + length, with: [(match.term, rest, false)])
+                break
+            }
+            index += 1
+        }
+        return tokens.joined(separator: " ")
+    }
+
+    /// The one term `spoken` (letters only) sounds like, if exactly one does.
+    static func soundsLike(_ spoken: String, _ wanted: [(term: String, letters: String, sound: String)]) -> (term: String, letters: String, sound: String)? {
+        let key = soundKey(spoken)
+        guard key.count >= 2 else { return nil }
+        let close = wanted.filter { term in
+            guard term.sound == key || term.sound.count >= 4 && key.count >= 4 && abs(term.sound.count - key.count) <= 1,
+                  spoken != term.letters, abs(spoken.count - term.letters.count) * 2 <= max(spoken.count, term.letters.count) else { return false }
+            let letterGap = VocabularyLearner.distance(spoken, term.letters)
+            guard Double(letterGap) / Double(max(spoken.count, term.letters.count)) <= 0.5 else { return false }
+            if term.sound == key { return term.sound.count >= 3 || letterGap <= 2 }
+            return term.sound.count >= 4 && key.count >= 4 && VocabularyLearner.distance(term.sound, key) == 1
+        }
+        return close.count == 1 ? close[0] : nil
+    }
+
+    /// A rough key for how a word sounds: spellings of one sound written alike (ph f, ck k, th t, sh/ch s/k, x ks),
+    /// voiced and unvoiced pairs merged (d t, b p, g k, v f, z s), vowels and h, w, y dropped after the first letter
+    /// (a word that starts with a vowel keeps one "a"), doubles collapsed. "Ollama", "Alama" -> "alm";
+    /// "Omarko", "a marky" -> "amrk"; "Pixfield" -> "pksflt", "xfield" -> "ksflt".
+    public static func soundKey(_ word: String) -> String {
+        var s = word.lowercased().filter { $0.isLetter }
+        for (from, to) in [("ph", "f"), ("ck", "k"), ("th", "t"), ("sh", "s"), ("ch", "k"), ("gh", "g"), ("qu", "k"), ("q", "k"),
+                           ("x", "ks"), ("c", "k"), ("d", "t"), ("b", "p"), ("g", "k"), ("v", "f"), ("z", "s"), ("j", "k")] {
+            s = s.replacingOccurrences(of: from, with: to)
+        }
+        let vowels = Set("aeiouyhw")
+        var key = ""
+        for (offset, character) in s.enumerated() {
+            if vowels.contains(character) {
+                if offset == 0 && character != "h" && character != "w" { key.append("a") }
+                continue
+            }
+            if key.last != character { key.append(character) }
+        }
+        return key
     }
 
     /// A word the recognizer wrote as a name in mid-sentence ("Ask Cloud to review it") that is spelled close to one

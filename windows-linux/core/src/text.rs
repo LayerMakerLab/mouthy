@@ -323,6 +323,8 @@ pub fn process(text: &str, replacements: &[Replacement], punctuation: bool) -> S
             if is_contraction_tail(&out[end..]) { continue; }
             let found = &out[start..end];
             if let Some(rule) = rules.iter().find(|r| r.phrase.to_lowercase() == found.to_lowercase()) {
+                // A lowercase rule that only repeats the word ("claude" → "claude") would just lower its capitals.
+                if rule.replacement == rule.replacement.to_lowercase() && rule.replacement.to_lowercase() == found.to_lowercase() { continue; }
                 rebuilt.push_str(&out[cursor..start]);
                 rebuilt.push_str(&rule.replacement);
                 cursor = end;

@@ -40,11 +40,54 @@ import Testing
 
 /// A multi-word term written as one word comes back as the term; only an exact letter match counts.
 @Test func runTogetherTermsAreSpacedLikeTheTerm() {
-    #expect(VocabularyGuard.spacing("Then check what XGrower found.", terms: ["X Grower", "Grak"]) == "Then check what X Grower found.")
-    #expect(VocabularyGuard.spacing("xgrower, again", terms: ["X Grower"]) == "X Grower, again")
-    #expect(VocabularyGuard.spacing("Let's explore it. Xcrower too.", terms: ["X Grower"]) == "Let's explore it. Xcrower too.")
+    #expect(VocabularyGuard.spelling("Then check what XGrower found.", terms: ["X Grower", "Grak"]) == "Then check what X Grower found.")
+    #expect(VocabularyGuard.spelling("xgrower, again", terms: ["X Grower"]) == "X Grower, again")
+    #expect(VocabularyGuard.spelling("Let's explore it. Xcrower too.", terms: ["X Grower"]) == "Let's explore it. Xcrower too.")
     // One letter off counts only for words the dictionary does not know.
     let known: Set<String> = ["explore", "grower"]
-    #expect(VocabularyGuard.spacing("Let's explore it. Xcrower too.", terms: ["X Grower"], isKnownWord: known.contains)
+    #expect(VocabularyGuard.spelling("Let's explore it. Xcrower too.", terms: ["X Grower"], isKnownWord: known.contains)
             == "Let's explore it. X Grower too.")
+}
+
+@Test func spellingWritesTermsAsThePersonSpellsThem() {
+    let terms = ["Mouthy", "Omarko", "Ollama", "Pixfield", "MakerWorld", "WireGuard", "Claude", "Codex", "X Grower"]
+    let known: (String) -> Bool = { ["the", "model", "cloud", "field", "for", "video", "over", "connect", "to", "runs", "mousey",
+                                     "messy", "mushy", "local", "upload", "and", "on", "it", "typed", "squad", "claw", "clawed",
+                                     "code", "codex", "maker", "world", "wire", "guard", "cat", "couch", "new", "pane"].contains($0) }
+    func spelled(_ text: String) -> String { VocabularyGuard.spelling(text, terms: terms, isKnownWord: known) }
+    // Same letters, other case or spacing.
+    #expect(spelled("Upload the model to Makerworld.") == "Upload the model to MakerWorld.")
+    #expect(spelled("Connect over wire guard, then") == "Connect over WireGuard, then")
+    #expect(spelled("start a new codex pane") == "start a new codex pane")
+    #expect(spelled("Connect over wireguard.") == "Connect over WireGuard.")
+    #expect(spelled("Upload it to maker world.") == "Upload it to MakerWorld.")
+    // Sounds like a term and is no word.
+    #expect(spelled("Alama runs the local model.") == "Ollama runs the local model.")
+    #expect(spelled("Connect to a marky over WireGuard") == "Connect to Omarko over WireGuard")
+    #expect(spelled("Connect to Amarky.") == "Connect to Omarko.")
+    #expect(spelled("Use X field for the video.") == "Use Pixfield for the video.")
+    #expect(spelled("Mouthie typed it.") == "Mouthy typed it.")
+    // Real words stay, whatever they sound like.
+    #expect(spelled("The model is in the cloud.") == "The model is in the cloud.")
+    #expect(spelled("The cat clawed the couch.") == "The cat clawed the couch.")
+    #expect(spelled("Mousey typed it, messy and mushy.") == "Mousey typed it, messy and mushy.")
+    #expect(spelled("Open the squad.") == "Open the squad.")
+    // Names the dictionary knows, and ordinary words that spell a term, stay.
+    let names: (String) -> Bool = { known($0) || ["Jeff", "Clyde", "Brooke"].contains($0) }
+    #expect(VocabularyGuard.spelling("Ask Jeff to call Clyde and Brooke.", terms: ["Jefe", "Claude", "Brooky"], isKnownWord: names)
+            == "Ask Jeff to call Clyde and Brooke.")
+    #expect(VocabularyGuard.spelling("The blue sky over the cursor.", terms: ["Bluesky", "Cursor"],
+                                     isKnownWord: { ["the", "blue", "sky", "over", "cursor"].contains($0) })
+            == "The blue sky over the cursor.")
+    // Never across punctuation, and nothing without terms.
+    #expect(spelled("It's the maker. World peace.") == "It's the maker. World peace.")
+    #expect(VocabularyGuard.spelling("Alama runs.", terms: [], isKnownWord: known) == "Alama runs.")
+}
+
+@Test func soundKeysWriteOneSoundAlike() {
+    #expect(VocabularyGuard.soundKey("Ollama") == VocabularyGuard.soundKey("Alama"))
+    #expect(VocabularyGuard.soundKey("Omarko") == VocabularyGuard.soundKey("amarky"))
+    #expect(VocabularyGuard.soundKey("Pixfield") == "pksflt" && VocabularyGuard.soundKey("xfield") == "ksflt")
+    #expect(VocabularyGuard.soundKey("Mouthy") == VocabularyGuard.soundKey("Mowdy"))
+    #expect(VocabularyGuard.soundKey("Claude") != VocabularyGuard.soundKey("Codex"))
 }

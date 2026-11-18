@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7
+
+- Spoken years are written as numbers: "twenty nineteen" becomes 2019, "nineteen ninety-eight" 1998, "nineteen oh five" 1905 and "two thousand nine" 2009. Counting ("eighteen, nineteen, twenty") and amounts ("eighteen hundred and fifty dollars") stay in words. On Mac, Windows and Linux.
+- Mac: custom words are written the way you spell them. When the speech model hears one of your words as something that isn't a real word ("Alama" for Ollama, "Makerworld" for MakerWorld, "X field" for Pixfield), Mouthy writes your word. Real words and common names are never swapped.
+- Mac: a replacement that only changes capitals no longer lowercases a word you said at the start of a sentence or as a name. A rule like "claude" → "claude" leaves "Claude" alone.
+- Mac: the spelling check behind custom words uses your dictation language only, not every language installed on the Mac, so made-up words are no longer taken for real ones.
+
 ## 0.1.6 (Windows and Linux)
 
 - Mouthy updates itself on Windows and Linux: a minute after it starts and then once a day it asks mouthy.dev for a newer version, downloads the same archive you would download by hand, keeps it only if it carries Mouthy's signature, and swaps it in when you quit or the next time it starts. Settings → "Check for updates automatically" turns it off; Local Only Mode never checks. Copies installed from this version on get updates; earlier ones need one last download by hand.

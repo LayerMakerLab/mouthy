@@ -194,7 +194,7 @@ public enum DictationError: Error, Sendable, Equatable {
     /// Mouthy's own cleanup (`DictationText.shape`) with its default settings.
     static func shape(_ raw: String, with configuration: DictationConfiguration) -> String {
         DictationText.shape(raw, code: configuration.textStyle == .code, replacements: configuration.replacements,
-                            punctuation: true, removeFillers: true, vocabulary: configuration.vocabulary)
+                            punctuation: true, removeFillers: true, vocabulary: configuration.vocabulary, locale: configuration.locale)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -262,20 +262,33 @@ public enum SpeechModels {
 /// casing and symbols, or for prose clock times and a capital first word (a recognizer may write it lowercase;
 /// code keeps its case: "git commit -m").
 @MainActor enum DictationText {
-    static func shape(_ raw: String, code: Bool, replacements: [Replacement], punctuation: Bool, removeFillers: Bool, vocabulary: String) -> String {
+    /// Whether a word (lowercase) is in the dictionary of the dictation's language ("en-US" -> English) alone. The
+    /// spell checker's default reads every language the Mac lists, where made-up words ("alama", "marchie") pass.
+    static func knownWord(locale: String) -> (String) -> Bool {
+        let code = String(locale.prefix { $0.isLetter }).lowercased()
+        let language = NSSpellChecker.shared.availableLanguages.contains(code) ? code : nil
+        return { word in
+            var count = 0
+            return NSSpellChecker.shared.checkSpelling(of: word, startingAt: 0, language: language, wrap: false,
+                                                       inSpellDocumentWithTag: 0, wordCount: &count).location == NSNotFound
+        }
+    }
+
+    static func shape(_ raw: String, code: Bool, replacements: [Replacement], punctuation: Bool, removeFillers: Bool, vocabulary: String,
+                      locale: String = "en-US") -> String {
         if let snippet = TextPipeline.wholeReplacement(raw, replacements: replacements) { return snippet }
         var text = TextPipeline.process(raw, replacements: replacements, punctuation: punctuation)
         if removeFillers { text = Fillers.remove(text) }
         let terms = VocabularyLearner.terms(vocabulary)
         if !terms.isEmpty {
-            let isKnownWord = { (word: String) in NSSpellChecker.shared.checkSpelling(of: word, startingAt: 0).location == NSNotFound }
-            text = VocabularyGuard.names(VocabularyGuard.spacing(text, terms: terms, isKnownWord: isKnownWord), terms: terms, isKnownWord: isKnownWord)
+            let isKnownWord = knownWord(locale: locale)
+            text = VocabularyGuard.names(VocabularyGuard.spelling(text, terms: terms, isKnownWord: isKnownWord), terms: terms, isKnownWord: isKnownWord)
         }
         return code ? CodeDictation.apply(text) : SmartInsertion.capitalizingFirstWord(ClockTimes.apply(text))
     }
 
     static func shape(_ raw: String, code: Bool, config: Preferences) -> String {
         shape(raw, code: code, replacements: config.replacements, punctuation: config.punctuationCommands,
-              removeFillers: config.removeFillers, vocabulary: config.vocabulary)
+              removeFillers: config.removeFillers, vocabulary: config.vocabulary, locale: config.locale)
     }
 }

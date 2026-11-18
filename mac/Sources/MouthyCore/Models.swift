@@ -172,7 +172,15 @@ public enum TextPipeline {
         func key(_ s: String) -> String { String(s.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(Character.init)) }
         let spoken = key(text)
         guard !spoken.isEmpty else { return nil }
-        return replacements.first { !$0.replacement.isEmpty && key($0.phrase) == spoken }?.replacement
+        guard let rule = replacements.first(where: { !$0.replacement.isEmpty && key($0.phrase) == spoken }),
+              !(rule.replacement == rule.replacement.lowercased() && key(rule.replacement) == spoken) else { return nil }
+        return rule.replacement
+    }
+    /// A rule spelled all in lowercase that only repeats the matched word ("claude" → "claude") would just
+    /// lower its capitals ("Claude" at a name or a sentence start): keep the word as heard. Case fixes that add
+    /// capitals ("iphone" → "iPhone") still apply.
+    static func lowersOnly(_ replacement: String, _ matched: String) -> Bool {
+        replacement == replacement.lowercased() && replacement.caseInsensitiveCompare(matched) == .orderedSame
     }
     public static func process(_ text: String, replacements: [Replacement], punctuation: Bool) -> String {
         var output = stripLeadingPunctuation(removeHesitationDots(text))
@@ -189,7 +197,8 @@ public enum TextPipeline {
         for match in matches.reversed() {
             guard let range = Range(match.range, in: output) else { continue }
             let phrase = String(output[range])
-            if let rule = rules.first(where: { $0.phrase.caseInsensitiveCompare(phrase) == .orderedSame }) {
+            if let rule = rules.first(where: { $0.phrase.caseInsensitiveCompare(phrase) == .orderedSame }),
+               !lowersOnly(rule.replacement, phrase) {
                 output.replaceSubrange(range, with: rule.replacement)
             }
         }

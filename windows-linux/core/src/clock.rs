@@ -73,8 +73,87 @@ fn ends_cleanly(tokens: &[&str], end: usize, check_unit: bool) -> bool {
     !(ONES.contains(&next.as_str()) || next == "hundred" || next == "thousand" || (check_unit && is_unit(tokens, end + 1)))
 }
 
-pub fn clock_times(text: &str) -> String {
+/// Years the recognizer wrote in words: "twenty nineteen" -> "2019", "nineteen ninety-eight" -> "1998", "nineteen oh
+/// five" -> "1905", "nineteen hundred" -> "1900", "two thousand nine" -> "2009". Never inside a longer run of numbers or
+/// before a unit. Same rules as `SpokenYears.swift`.
+const YEAR_TENS: &[&str] = &["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+const CENTURIES: &[(&str, u32)] = &[("eighteen", 18), ("nineteen", 19), ("twenty", 20)];
+fn number_word(word: &str) -> bool {
+    ONES.contains(&word) || TEENS.contains(&word) || YEAR_TENS.contains(&word)
+        || ["hundred", "thousand", "million", "oh", "zero"].contains(&word)
+}
+fn teen(word: &str) -> Option<u32> { TEENS.iter().position(|w| *w == word).map(|i| i as u32 + 10) }
+fn ten(word: &str) -> Option<u32> { YEAR_TENS.iter().position(|w| *w == word).map(|i| i as u32 * 10 + 20) }
+
+/// A token as (what comes before the word, the word: letters and hyphens, what follows it): "(nineteen" ->
+/// ("(", "nineteen", ""), "eight)." -> ("", "eight", ").").
+fn year_parts(token: &str) -> (&str, &str, &str) {
+    let start = token.find(|c: char| c.is_alphanumeric()).unwrap_or(token.len());
+    let word_len = token[start..].find(|c: char| !(c.is_alphabetic() || c == '-')).unwrap_or(token.len() - start);
+    (&token[..start], &token[start..start + word_len], &token[start + word_len..])
+}
+
+pub fn spoken_years(text: &str) -> String {
     let tokens: Vec<&str> = text.split(' ').collect();
+    let pieces: Vec<(&str, &str, &str)> = tokens.iter().map(|t| year_parts(t)).collect();
+    // Every word part (hyphens split), with its token and whether it ends that token.
+    let mut parts: Vec<(String, usize, bool)> = Vec::new();
+    for (t, (_, word, _)) in pieces.iter().enumerate() {
+        let split: Vec<&str> = word.split('-').collect();
+        let n = split.len();
+        for (k, piece) in split.into_iter().enumerate() { parts.push((piece.to_lowercase(), t, k + 1 == n)); }
+    }
+    let word = |k: usize| parts.get(k).map(|p| p.0.as_str()).unwrap_or("");
+    let mut out: Vec<String> = Vec::with_capacity(tokens.len());
+    let (mut t, mut k) = (0, 0);
+    while t < tokens.len() {
+        while k < parts.len() && parts[k].1 < t { k += 1; }
+        let (lead, core, _) = pieces[t];
+        let starts = !core.is_empty() && !lead.ends_with(['\'', '’', '-']) && k < parts.len() && parts[k].1 == t;
+        let after_number = t > 0 && lead.is_empty() && pieces[t - 1].2.is_empty()
+            && number_word(&pieces[t - 1].1.rsplit('-').next().unwrap_or("").to_lowercase());
+        let mut found: Option<(u32, usize)> = None; // (year, last part)
+        if starts && !after_number {
+            if let Some(&(_, century)) = CENTURIES.iter().find(|(w, _)| *w == word(k)) {
+                let rest = if let Some(tens) = ten(word(k + 1)) {
+                    match digit(word(k + 2)) { Some(one) => Some((tens + one, k + 2)), None => Some((tens, k + 1)) }
+                } else if let Some(t) = teen(word(k + 1)) { Some((t, k + 1)) }
+                else if word(k + 1) == "oh" { digit(word(k + 2)).map(|one| (one, k + 2)) }
+                // "eighteen hundred and fifty" is a number, not a year.
+                else if word(k + 1) == "hundred" && word(k + 2) != "and" { Some((0, k + 1)) } else { None };
+                found = rest.map(|(r, end)| (century * 100 + r, end));
+            } else if word(k) == "two" && word(k + 1) == "thousand" {
+                let s = if word(k + 2) == "and" { k + 3 } else { k + 2 };
+                found = if let Some(tens) = ten(word(s)) {
+                    match digit(word(s + 1)) { Some(one) => Some((2000 + tens + one, s + 1)), None => Some((2000 + tens, s)) }
+                } else if let Some(t) = teen(word(s)) { Some((2000 + t, s)) }
+                else { digit(word(s)).map(|one| (2000 + one, s)) };
+            }
+        }
+        if let Some((year, end)) = found {
+            let last = parts.get(end).map(|p| p.1);
+            // Whole tokens only, nothing between the words, and no apostrophe, number word or unit right after.
+            let ok = end < parts.len() && parts[end].2 && last.is_some_and(|last| {
+                (t..last).all(|i| pieces[i].2.is_empty()) && (t + 1..=last).all(|i| pieces[i].0.is_empty())
+                    && !pieces[last].2.starts_with(['\'', '’']) && !pieces[last].2.starts_with(|c: char| c.is_alphanumeric())
+                    && (!pieces[last].2.is_empty() || (!number_word(word(end + 1)) && !is_unit(&tokens, last + 1)))
+            });
+            if ok {
+                let last = last.unwrap();
+                out.push(format!("{lead}{year}{}", pieces[last].2));
+                t = last + 1;
+                continue;
+            }
+        }
+        out.push(tokens[t].to_string());
+        t += 1;
+    }
+    out.join(" ")
+}
+
+pub fn clock_times(text: &str) -> String {
+    let years = spoken_years(text);
+    let tokens: Vec<&str> = years.split(' ').collect();
     let mut out: Vec<String> = Vec::with_capacity(tokens.len());
     let mut i = 0;
     while i < tokens.len() {

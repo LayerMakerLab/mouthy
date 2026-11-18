@@ -31,7 +31,7 @@ public enum ClockTimes {
     static let wordsBeforeMeridiem = regex("(?<![\\p{L}\\p{N}])()\(spokenTime)(?=\(meridiem)|\\s?o['’]clock)")
 
     public static func apply(_ text: String) -> String {
-        var output = text
+        var output = SpokenYears.apply(text)
         output = wholeHour.stringByReplacingMatches(in: output, range: NSRange(output.startIndex..., in: output), withTemplate: "$1")
         for (regex, template) in [(afterWord, "$1$2:$3"), (runTogether, "$1$2:$3"), (itIs, "$1$2:$3$4"), (beforeMeridiem, "$1$2:$3")] {
             output = regex.stringByReplacingMatches(in: output, range: NSRange(output.startIndex..., in: output), withTemplate: template)

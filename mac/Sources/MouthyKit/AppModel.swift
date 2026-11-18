@@ -944,7 +944,7 @@ final class AppModel: ObservableObject {
         let words = region.split(whereSeparator: { $0.isWhitespace })
         let edited = words.prefix(wordCount).joined(separator: " ")
         let wider = words.prefix(wordCount + 4).joined(separator: " ")
-        let isKnownWord = { (word: String) in NSSpellChecker.shared.checkSpelling(of: word, startingAt: 0).location == NSNotFound }
+        let isKnownWord = DictationText.knownWord(locale: preferences.locale)
         let learned = VocabularyLearner.corrections(inserted: inserted, edited: wider, isKnownWord: isKnownWord)
         let soundAlikes = VocabularyLearner.soundAlikes(inserted: inserted, edited: edited, isKnownWord: isKnownWord)
             .filter { pair in !preferences.replacements.contains { $0.phrase.caseInsensitiveCompare(pair.heard) == .orderedSame } }

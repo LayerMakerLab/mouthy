@@ -319,6 +319,21 @@
       ],
       "punctuation": false,
       "expected": "Dana B.’s plan, dana’t"
+    },
+    {
+      "text": "Ask Claude about claude and the iphone",
+      "replacements": [
+        {
+          "phrase": "claude",
+          "replacement": "claude"
+        },
+        {
+          "phrase": "iphone",
+          "replacement": "iPhone"
+        }
+      ],
+      "punctuation": false,
+      "expected": "Ask Claude about claude and the iPhone"
     }
   ],
   "trigger": [
@@ -537,7 +552,7 @@
     },
     {
       "text": "It was nineteen ninety-nine.",
-      "expected": "It was nineteen ninety-nine."
+      "expected": "It was 1999."
     },
     {
       "text": "It was 1999.",
@@ -730,6 +745,82 @@
     {
       "text": "Model 13pm stays.",
       "expected": "Model 13pm stays."
+    },
+    {
+      "text": "I bought it in twenty nineteen.",
+      "expected": "I bought it in 2019."
+    },
+    {
+      "text": "Back in nineteen ninety eight we moved.",
+      "expected": "Back in 1998 we moved."
+    },
+    {
+      "text": "It opened in nineteen oh five.",
+      "expected": "It opened in 1905."
+    },
+    {
+      "text": "That was two thousand nine, I think.",
+      "expected": "That was 2009, I think."
+    },
+    {
+      "text": "Since two thousand and twelve.",
+      "expected": "Since 2012."
+    },
+    {
+      "text": "The law changed in twenty ten.",
+      "expected": "The law changed in 2010."
+    },
+    {
+      "text": "Twenty twenty-five was busy.",
+      "expected": "2025 was busy."
+    },
+    {
+      "text": "By nineteen hundred the town had grown.",
+      "expected": "By 1900 the town had grown."
+    },
+    {
+      "text": "Count eighteen, nineteen, twenty.",
+      "expected": "Count eighteen, nineteen, twenty."
+    },
+    {
+      "text": "We need twenty nineteen dollar parts.",
+      "expected": "We need twenty nineteen dollar parts."
+    },
+    {
+      "text": "It costs two thousand five hundred.",
+      "expected": "It costs two thousand five hundred."
+    },
+    {
+      "text": "Pick twenty five of them.",
+      "expected": "Pick twenty five of them."
+    },
+    {
+      "text": "Pages eighteen nineteen twenty.",
+      "expected": "Pages eighteen nineteen twenty."
+    },
+    {
+      "text": "It cost eighteen hundred and fifty dollars.",
+      "expected": "It cost eighteen hundred and fifty dollars."
+    },
+    {
+      "text": "She was born (nineteen ninety eight).",
+      "expected": "She was born (1998)."
+    },
+    {
+      "text": "Since “twenty nineteen” we grew.",
+      "expected": "Since “2019” we grew."
+    },
+    {
+      "text": "It was nineteen ninety eight—we moved.",
+      "expected": "It was 1998—we moved."
+    },
+    {
+      "text": "Back in two-thousand nine.",
+      "expected": "Back in 2009."
+    },
+    {
+      "text": "The nineteen nineties were loud.",
+      "expected": "The nineteen nineties were loud."
     }
   ]
 }
