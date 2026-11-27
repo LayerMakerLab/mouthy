@@ -301,7 +301,7 @@ fn split(app: &AppHandle) {
         };
         let mut text = mouthy_core::process(&raw, &settings.core.replacements, settings.core.punctuation_commands);
         if settings.core.remove_fillers { text = mouthy_core::remove_fillers(&text); }
-        if session.mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); } else { text = mouthy_core::clock_times(&text); }
+        if session.mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); } else { text = prose(&text, &settings); }
         if !text.chars().any(|c| c.is_alphanumeric()) {
             if cfg!(target_os = "linux") { pass_and_rearm(app, generation); }
             return Ok("Listening…".into());
@@ -437,7 +437,7 @@ fn finish(app: &AppHandle, samples: Vec<f32>, generation: u64) -> Result<(), Str
     let output = if output == OutputAction::InsertAndReturn && !may_submit { OutputAction::Insert } else { output };
     let mut text = mouthy_core::process(&spoken, &settings.core.replacements, settings.core.punctuation_commands);
     if settings.core.remove_fillers { text = mouthy_core::remove_fillers(&text); }
-    if mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); } else { text = mouthy_core::clock_times(&text); }
+    if mode.as_ref().is_some_and(|m| m.code_dictation) { text = mouthy_core::code_dictation(&text); } else { text = prose(&text, &settings); }
     let mut note = String::new();
     if writing != WritingMode::Verbatim && !text.is_empty() {
         if settings.ollama_model.is_empty() {
@@ -506,6 +506,13 @@ fn finish(app: &AppHandle, samples: Vec<f32>, generation: u64) -> Result<(), Str
     };
     set_status(app, status + &note);
     Ok(())
+}
+
+/// Ordinary dictation after the shared rules: clock times, then with spoken commands on the spoken joiners
+/// ("Maple dash Design" → Maple-Design, "example dot com" → example.com). Code modes keep their own symbols.
+fn prose(text: &str, settings: &AppSettings) -> String {
+    let text = mouthy_core::clock_times(text);
+    if settings.core.punctuation_commands { mouthy_core::spoken_joiners(&text, &settings.core.vocabulary) } else { text }
 }
 
 /// Spacing and capitals from the text around the cursor, where the platform can read it.

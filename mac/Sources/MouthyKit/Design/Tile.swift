@@ -10,7 +10,7 @@ struct Tile<Content: View>: View {
     var style: TileStyle
     let content: Content
 
-    init(padding: CGFloat = 20, style: TileStyle = .standard, @ViewBuilder content: () -> Content) {
+    init(padding: CGFloat = 24, style: TileStyle = .standard, @ViewBuilder content: () -> Content) {
         self.padding = padding; self.style = style; self.content = content()
     }
 
@@ -35,7 +35,7 @@ struct TileBackground: View {
                                                    startPoint: .top, endPoint: .bottom)))
                 .overlay(shape.strokeBorder(MouthyTheme.hoof, lineWidth: 1))
                 .shadow(color: MouthyTheme.shadow, radius: MouthyTheme.shadowRadius, y: MouthyTheme.shadowY)
-                .shadow(color: style == .hero ? MouthyTheme.orange.opacity(0.18) : .clear, radius: 30)
+                .shadow(color: style == .hero ? MouthyTheme.orange.opacity(0.06) : .clear, radius: 30)
         }
     }
 }

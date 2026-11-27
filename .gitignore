@@ -11,3 +11,6 @@ mac/scripts/local.env
 
 # A build at the root (the library mirror for host apps) writes this; the pins live in mac/Package.resolved.
 /Package.resolved
+
+# Mouthy voice models (~93 MB, made by the voice's conversion script, kept outside the repo); build.sh bundles them when present.
+mac/Resources/Models/MouthyVoice*.mlpackage/

@@ -43,6 +43,7 @@ struct DictationOutcome: Equatable {
         ("Answer sent to the agent", "Sent to the agent", false),
         ("Sent to the agent", "Sent to the agent", false),
         ("Inserted", "Inserted", true),
+        ("Typed", "Typed", true),
         ("Pasted", "Pasted", true),
         ("Sent", "Sent", true),
         ("Copied", "Copied", false),
@@ -260,7 +261,9 @@ final class OverlayController {
         guard hubLink == nil else { return }
         let hub = NotchHub.shared
         var started: Date?
-        hubLink = Publishers.CombineLatest4(model.$phase, model.voice.levels, model.$liveText, model.$agentQuestion)
+        // The card shows the live words only while they are not going into the field ("Type as I speak").
+        let words = model.$liveText.combineLatest(model.$typingLive).map { $1 ? "" : $0 }
+        hubLink = Publishers.CombineLatest4(model.$phase, model.voice.levels, words, model.$agentQuestion)
             .combineLatest(model.$targetName)
             .map { values, target -> NotchDictation? in
                 if values.0 == .listening, started == nil { started = Date() }

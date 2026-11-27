@@ -24,6 +24,10 @@ public enum SmartInsertion {
         if let previous, !previous.isWhitespace, !openers.contains(previous),
            let start = output.first, start.isLetter || start.isNumber || openers.contains(start) {
             output = " " + output
+        } else if let last = before.unicodeScalars.last, SpokenJoiners.isLetter(last) || SpokenJoiners.isNumber(last) || closers.contains(Character(last)),
+                  SpokenJoiners.startsDotFile(output) {
+            // A dot-file is a word of its own after a word or a closing mark ("the .env"), never after "=" or "`".
+            output = " " + output
         }
         if let next = after.first(where: { !$0.isWhitespace }), next.isLowercase, output.count > 1, output.last == "." {
             // The surrounding sentence continues after the cursor.
@@ -52,7 +56,7 @@ public enum SmartInsertion {
     /// An email address, a URL or a domain ("mouthy.dev"): letters, then a dot and at least two letters, or "@" or "://".
     static func isAddress(_ word: Substring) -> Bool {
         let word = word.trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?)]}\"'”’"))
-        return word.contains("@") || word.contains("://")
+        return word.contains("@") || word.contains("://") || word.lowercased() == "www"
             || word.range(of: #"^[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)*\.\p{L}{2,}(/\S*)?$"#, options: .regularExpression) != nil
     }
 

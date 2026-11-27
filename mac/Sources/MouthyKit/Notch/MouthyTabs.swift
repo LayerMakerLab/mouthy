@@ -240,15 +240,16 @@ struct TabHeader: View {
     var detail: String?
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(title).font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.cream)
+            Text(title).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(MouthyTheme.cream)
                 .accessibilityAddTraits(.isHeader)
-            if let detail { Text(detail).font(.system(size: 12.5)).foregroundStyle(MouthyTheme.cream2) }
+            if let detail { Text(detail).font(.system(size: 11.5)).foregroundStyle(MouthyTheme.cream2) }
             Spacer(minLength: 0)
         }
     }
 }
 
-/// The notch's capsule button. Prominent: the orange primary fill with night ink. Otherwise: warm smoked glass.
+/// The notch's button: a rounded rectangle. Prominent is the accent, solid, with dark ink (one per tab: the next
+/// thing to do); otherwise the quiet control surface (`notchControl`). The label is the system's own face.
 struct PillButton: View {
     let title: String
     var symbol: String?
@@ -257,27 +258,21 @@ struct PillButton: View {
     @State private var hovering = false
     @Environment(\.isEnabled) private var enabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    static let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
     var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                if let symbol { Image(systemName: symbol).font(.system(size: 12, weight: .semibold)) }
+                if let symbol { Image(systemName: symbol).font(.system(size: 10.5, weight: .semibold)) }
                 Text(title).lineLimit(1)
             }
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .padding(.horizontal, 11).frame(minHeight: 26)
+            .font(.system(size: 12.5, weight: prominent ? .semibold : .medium))
+            .padding(.horizontal, 10).frame(minHeight: 26)
             .foregroundStyle(prominent ? MouthyTheme.onOrange : MouthyTheme.cream)
-            .background {
-                if prominent {
-                    Capsule(style: .circular).fill(MouthyTheme.primaryFill)
-                        .overlay(Capsule(style: .circular).strokeBorder(LinearGradient(colors: [MouthyTheme.cream.opacity(0.4), .clear], startPoint: .top, endPoint: .center), lineWidth: 0.8))
-                        .compositingGroup()
-                        .shadow(color: MouthyTheme.orange.opacity(hovering ? 0.45 : 0.28), radius: hovering ? 10 : 6, y: 2)
-                }
-            }
-            .modifier(OptionalSmokedGlass(enabled: !prominent, lit: hovering))
-            .contentShape(Capsule(style: .circular))
-            .brightness(hovering && prominent ? 0.04 : 0)
-            .opacity(enabled ? 1 : 0.45)
+            .background { if prominent { Self.shape.fill(MouthyTheme.orange) } }
+            .notchControl(Self.shape, lit: hovering, enabled: !prominent)
+            .contentShape(Self.shape)
+            .brightness(hovering && prominent ? 0.05 : 0)
+            .opacity(enabled ? 1 : 0.4)
         }
         .buttonStyle(NotchPressStyle())
         .focusEffectDisabled()
@@ -295,15 +290,7 @@ struct NotchPressStyle: ButtonStyle {
     }
 }
 
-struct OptionalSmokedGlass: ViewModifier {
-    let enabled: Bool
-    let lit: Bool
-    func body(content: Content) -> some View {
-        if enabled { content.smokedGlass(Capsule(style: .circular), lit: lit) } else { content }
-    }
-}
-
-/// A plain text field on smoked glass with a mic-glow ring while focused (system focus rings draw blue).
+/// A plain text field on a flat quiet fill, with an accent line around it while focused (system focus rings draw blue).
 struct NotchField: View {
     let prompt: String
     @Binding var text: String
@@ -311,18 +298,18 @@ struct NotchField: View {
     @FocusState private var focused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
         TextField(prompt, text: $text, prompt: Text(prompt).foregroundStyle(MouthyTheme.cream3))
             .textFieldStyle(.plain)
-            .font(.system(size: 14))
+            .font(.system(size: 13))
             .foregroundStyle(MouthyTheme.cream)
             .focusEffectDisabled()
             .focused($focused)
             .onSubmit(onSubmit)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 9)
             .frame(minHeight: 26)
-            .smokedGlass(shape, lit: focused)
-            .overlay(shape.strokeBorder(MouthyTheme.glow.opacity(focused ? 0.9 : 0), lineWidth: 1.5).allowsHitTesting(false))
+            .notchControl(shape, lit: focused, quiet: true)
+            .overlay(shape.strokeBorder(MouthyTheme.glow.opacity(focused ? 0.8 : 0), lineWidth: 1).allowsHitTesting(false))
             .animation(MouthyMotion.resolve(MouthyMotion.hover, reduceMotion: reduceMotion), value: focused)
             .accessibilityLabel(prompt)
     }
@@ -355,7 +342,7 @@ struct GlowRing: View {
     }
 }
 
-/// Hue of the mic-glow amber (#FFB547), 0…1.
+/// Hue of the giraffe's lamp amber (`MouthyTheme.lamp`), 0…1: the warm stand-in for anything cool.
 let glowHue = 35.8 / 360
 
 /// The glow for an image's average colour: a little brighter and richer so it glows rather than muddies.
@@ -527,4 +514,32 @@ extension View {
 enum NotchLoad {
     /// A load still running after this long shows Retry.
     static let timeout: Duration = .seconds(10)
+}
+
+extension View {
+    /// A section of a tab on its own soft tile, as tall as its row: the notch's one way to group things (locked on
+    /// the design board, 2026-11-26). Two sections side by side are two tiles 10 pt apart, never a line between.
+    func notchTile() -> some View {
+        padding(10)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(MouthyTheme.cream.opacity(0.06)))
+    }
+}
+
+extension View {
+    /// The surface of a notch control (a button, a field, a shortcut): flat in shape, with a hint of glass, a soft
+    /// top-to-bottom shade and a thin lit edge, that lifts when `lit` (hovered or focused). `quiet` is the dimmer
+    /// surface of a field. Chosen on the design board 2026-11-26 over glossy capsules with a tinted rim and a glow
+    /// (they read as decoration, not as controls) and over a plain flat fill (too little).
+    @ViewBuilder func notchControl<S: InsettableShape>(_ shape: S, lit: Bool = false, enabled: Bool = true, quiet: Bool = false) -> some View {
+        let base = quiet ? 0.07 : 0.10
+        if enabled {
+            background(shape.fill(LinearGradient(colors: [MouthyTheme.cream.opacity(base + (lit ? 0.08 : 0.02)), MouthyTheme.cream.opacity(base - 0.03 + (lit ? 0.05 : 0))],
+                                                 startPoint: .top, endPoint: .bottom)))
+                .overlay(shape.strokeBorder(LinearGradient(colors: [MouthyTheme.cream.opacity(0.18), MouthyTheme.cream.opacity(0.03)], startPoint: .top, endPoint: .bottom),
+                                            lineWidth: 0.6).allowsHitTesting(false))
+        } else {
+            self
+        }
+    }
 }

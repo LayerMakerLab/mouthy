@@ -222,8 +222,8 @@ struct CalendarView: View {
     }
 
     private var columns: some View {
-        HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
                 TabHeader(title: Date().formatted(.dateTime.weekday(.wide).month().day()))
                 if model.calendarAccess != .fullAccess {
                     AccessPrompt(text: "Show your next few days here.", allowTitle: "Allow Calendar",
@@ -241,8 +241,8 @@ struct CalendarView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Rectangle().fill(MouthyTheme.cream.opacity(0.08)).frame(width: 1).padding(.vertical, 4)
-            VStack(alignment: .leading, spacing: 8) {
+            .notchTile()
+            VStack(alignment: .leading, spacing: 6) {
                 TabHeader(title: "Reminders", detail: model.reminders.isEmpty ? nil : "\(model.reminders.count)")
                 if model.reminderAccess != .fullAccess {
                     AccessPrompt(text: "Check off reminders here.", allowTitle: "Allow Reminders",
@@ -259,7 +259,8 @@ struct CalendarView: View {
                     .notchScrollFade()
                 }
             }
-            .frame(width: 214, alignment: .leading)
+            .frame(width: 186, alignment: .leading)
+            .notchTile()
         }
     }
 }

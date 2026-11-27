@@ -53,23 +53,26 @@ struct VoiceTabView: View {
             if dictating {
                 LiveDictation(model: model)
             } else {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(spacing: 20) {
-                        VoiceStat(value: model.stats.words, label: VoiceStat.noun("word", model.stats.words))
-                        VoiceStat(value: model.stats.sessions, label: VoiceStat.noun("dictation", model.stats.sessions))
-                        VoiceStat(value: model.stats.minutesSaved, label: "min saved")
-                    }
-                    let outcome = DictationOutcome.from(status: model.status, failed: model.phase == .failed, target: model.targetName)
-                    if outcome.kind == .attention {
-                        // What the band's ember dot meant, in words.
-                        HStack(spacing: 7) {
-                            Circle().fill(MouthyTheme.ember).frame(width: 6, height: 6)
-                            Text(outcome.text).font(.system(size: 13, weight: .medium)).foregroundStyle(MouthyTheme.cream)
+                // The three counts as even tiles, then the row for teaching a word, then the last result on one line
+                // (one click copies it; the full list lives in Mouthy's History).
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        ForEach([(model.stats.words, VoiceStat.noun("word", model.stats.words)), (model.stats.sessions, VoiceStat.noun("dictation", model.stats.sessions)),
+                                 (model.stats.minutesSaved, "min saved")], id: \.1) { value, label in
+                            VoiceStat(value: value, label: label)
                         }
                     }
                     TeachRow(model: model)
-                    // The last result, one click to copy; the full list lives in Mouthy's History.
-                    if let last = Self.recentTexts(session: recent.items, history: model.history, limit: 1).first {
+                    let outcome = DictationOutcome.from(status: model.status, failed: model.phase == .failed, target: model.targetName)
+                    if outcome.kind == .attention {
+                        // What the band's ember dot meant, in words, where the last result otherwise is (Paste still
+                        // pastes it; the teach row stays, because on a Mac without Accessibility this line is always here).
+                        HStack(spacing: 7) {
+                            Circle().fill(MouthyTheme.ember).frame(width: 6, height: 6)
+                            Text(outcome.text).font(.system(size: 13, weight: .medium)).foregroundStyle(MouthyTheme.cream)
+                                .lineLimit(1).minimumScaleFactor(0.85)
+                        }
+                    } else if let last = Self.recentTexts(session: recent.items, history: model.history, limit: 1).first {
                         RecentRow(text: last)
                     } else {
                         Text("Press your shortcut or the mic and start talking.").font(.system(size: 13)).foregroundStyle(MouthyTheme.cream2)
@@ -112,15 +115,18 @@ struct LiveDictation: View {
                 .accessibilityLabel("Cancel dictation")
             }
             if let question, !question.isEmpty {
+                // The question is what must be read: it gets its lines first, the live words what is left.
                 Text(question)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 14.5, weight: .semibold))
                     .foregroundStyle(MouthyTheme.cream)
-                    .lineLimit(3)
+                    .lineLimit(2).minimumScaleFactor(0.9)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
             }
             Text(words.isEmpty ? " " : words)
-                .font(.system(size: 15))
+                .font(.system(size: 14.5))
                 .foregroundStyle(MouthyTheme.cream)
-                .lineLimit(3).truncationMode(.head)
+                .lineLimit(question?.isEmpty == false ? 2 : 4).truncationMode(.head)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
@@ -148,12 +154,12 @@ struct RecentRow: View {
             NotchHub.shared.presentResult("Copied", ok: true)
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(text).font(.system(size: 14)).foregroundStyle(MouthyTheme.cream).lineLimit(2)
+                Text(text).font(.system(size: 13.5)).foregroundStyle(MouthyTheme.cream).lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "doc.on.doc").font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(MouthyTheme.glow).opacity(hovering ? 1 : 0)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 1)
             .contentShape(Rectangle())
             .hoverRow()
         }
@@ -204,13 +210,28 @@ struct VoiceStat: View {
     let value: Int
     let label: String
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(value.formatted()).font(.system(size: 18, weight: .regular, design: .rounded)).monospacedDigit()
-                .foregroundStyle(MouthyTheme.cream)
-                .contentTransition(.numericText())
-            Text(label).font(.system(size: 12, weight: .medium, design: .rounded)).foregroundStyle(MouthyTheme.cream2)
+        // Side by side while both fit whole; a long count ("4,812 dictations") puts the label under the number
+        // instead of cutting it short.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) { number(17); name(11.5) }
+            VStack(alignment: .leading, spacing: -1) { number(14); name(10) }
         }
+        .padding(.horizontal, 10).frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(MouthyTheme.cream.opacity(0.06)))
         .accessibilityElement(children: .combine)
+    }
+
+    /// From ten thousand on the count is written short ("148K").
+    private func number(_ size: CGFloat) -> some View {
+        Text(value >= 10_000 ? value.formatted(.number.notation(.compactName)) : value.formatted())
+            .font(.system(size: size, weight: .semibold, design: .rounded)).monospacedDigit()
+            .foregroundStyle(MouthyTheme.cream)
+            .lineLimit(1).fixedSize()
+            .contentTransition(.numericText())
+    }
+    private func name(_ size: CGFloat) -> some View {
+        Text(label).font(.system(size: size, weight: .medium, design: .rounded)).foregroundStyle(MouthyTheme.cream2)
+            .lineLimit(1).fixedSize()
     }
 
     /// The label under a count, inflected for it: "1 dictation", "2 dictations", through the system's grammar.

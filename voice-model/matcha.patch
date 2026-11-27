@@ -1,0 +1,166 @@
+diff --git a/configs/data/mouthy.yaml b/configs/data/mouthy.yaml
+new file mode 100644
+index 0000000..659e5a0
+--- /dev/null
++++ b/configs/data/mouthy.yaml
+@@ -0,0 +1,22 @@
++_target_: matcha.data.text_mel_datamodule.TextMelDataModule
++name: mouthy
++train_filelist_path: data/mouthy/train.txt
++valid_filelist_path: data/mouthy/val.txt
++batch_size: 32
++num_workers: 6
++pin_memory: True
++cleaners: [mouthy_phonemes]
++add_blank: True
++n_spks: 1
++n_fft: 1024
++n_feats: 100
++sample_rate: 24000
++hop_length: 256
++win_length: 1024
++f_min: 0
++f_max: 12000
++data_statistics:
++  mel_mean: -6.875689
++  mel_std: 2.916227
++seed: ${seed}
++load_durations: false
+diff --git a/configs/experiment/mouthy.yaml b/configs/experiment/mouthy.yaml
+new file mode 100644
+index 0000000..e2fa5b1
+--- /dev/null
++++ b/configs/experiment/mouthy.yaml
+@@ -0,0 +1,13 @@
++# @package _global_
++# Mouthy's own voice, trained from zero on the designed voice's recordings.
++defaults:
++  - override /data: mouthy.yaml
++tags: ["mouthy"]
++run_name: mouthy
++model:
++  n_vocab: 179
++  n_feats: 100
++callbacks:
++  model_checkpoint:
++    every_n_epochs: 10
++    save_top_k: -1
+diff --git a/matcha/cli.py b/matcha/cli.py
+index aa15eb1..1812b16 100644
+--- a/matcha/cli.py
++++ b/matcha/cli.py
+@@ -107,7 +107,7 @@ def load_vocoder(vocoder_name, checkpoint_path, device):
+ 
+ def load_matcha(model_name, checkpoint_path, device):
+     print(f"[!] Loading {model_name}!")
+-    model = MatchaTTS.load_from_checkpoint(checkpoint_path, map_location=device)
++    model = MatchaTTS.load_from_checkpoint(checkpoint_path, map_location=device, weights_only=False)  # our own checkpoints
+     _ = model.eval()
+ 
+     print(f"[+] {model_name} loaded!")
+diff --git a/matcha/data/text_mel_datamodule.py b/matcha/data/text_mel_datamodule.py
+index 48f8266..c16fda4 100644
+--- a/matcha/data/text_mel_datamodule.py
++++ b/matcha/data/text_mel_datamodule.py
+@@ -197,7 +197,9 @@ class TextMelDataset(torch.utils.data.Dataset):
+         return durs
+ 
+     def get_mel(self, filepath):
+-        audio, sr = ta.load(filepath)
++        import soundfile as sf  # Mouthy: torchaudio.load needs torchcodec now
++        a, sr = sf.read(filepath, dtype="float32")
++        audio = torch.from_numpy(a).unsqueeze(0)
+         assert sr == self.sample_rate
+         mel = mel_spectrogram(
+             audio,
+diff --git a/matcha/onnx/export.py b/matcha/onnx/export.py
+index 9b79508..b44df2b 100644
+--- a/matcha/onnx/export.py
++++ b/matcha/onnx/export.py
+@@ -171,6 +171,7 @@ def main():
+         output_names=output_names,
+         dynamic_axes=dynamic_axes,
+         opset_version=args.opset,
++        dynamo=False,  # torch 2.9+ defaults to the dynamo exporter; this export is written for tracing
+         export_params=True,
+         do_constant_folding=True,
+     )
+diff --git a/matcha/text/cleaners.py b/matcha/text/cleaners.py
+index a9d5587..75779f6 100644
+--- a/matcha/text/cleaners.py
++++ b/matcha/text/cleaners.py
+@@ -24,13 +24,7 @@ critical_logger.setLevel(logging.CRITICAL)
+ # Intializing the phonemizer globally significantly reduces the speed
+ # now the phonemizer is not initialising at every call
+ # Might be less flexible, but it is much-much faster
+-global_phonemizer = phonemizer.backend.EspeakBackend(
+-    language="en-us",
+-    preserve_punctuation=True,
+-    with_stress=True,
+-    language_switch="remove-flags",
+-    logger=critical_logger,
+-)
++global_phonemizer = None  # Mouthy: built on first use; Mouthy's data arrives as phonemes already
+ 
+ 
+ # Regular expression matching whitespace:
+@@ -107,6 +101,9 @@ def english_cleaners2(text):
+     text = convert_to_ascii(text)
+     text = lowercase(text)
+     text = expand_abbreviations(text)
++    global global_phonemizer
++    if global_phonemizer is None:
++        global_phonemizer = phonemizer.backend.EspeakBackend(language="en-us", preserve_punctuation=True, with_stress=True, language_switch="remove-flags", logger=critical_logger)
+     phonemes = global_phonemizer.phonemize([text], strip=True, njobs=1)[0]
+     # Added in some cases espeak is not removing brackets
+     phonemes = remove_brackets(phonemes)
+@@ -142,3 +139,8 @@ def ipa_simplifier(text):
+ #     phonemes = "".join(piper_phonemize.phonemize_espeak(text=text, voice="en-US")[0])
+ #     phonemes = collapse_whitespace(phonemes)
+ #     return phonemes
++
++
++def mouthy_phonemes(text):
++    """Mouthy: the text is already phonemes (Kokoro's US English inventory); only tidy spaces."""
++    return collapse_whitespace(text).strip()
+diff --git a/matcha/text/symbols.py b/matcha/text/symbols.py
+index 7018df5..2894e08 100644
+--- a/matcha/text/symbols.py
++++ b/matcha/text/symbols.py
+@@ -11,7 +11,7 @@ _letters_ipa = (
+ 
+ 
+ # Export all symbols:
+-symbols = [_pad] + list(_punctuation) + list(_letters) + list(_letters_ipa)
++symbols = [_pad] + list(_punctuation) + list(_letters) + list(_letters_ipa) + ["ᵊ"]  # Mouthy: Kokoro's reduced schwa
+ 
+ # Special symbol ids
+ SPACE_ID = symbols.index(" ")
+diff --git a/matcha/train.py b/matcha/train.py
+index d1d64c6..899e722 100644
+--- a/matcha/train.py
++++ b/matcha/train.py
+@@ -76,7 +76,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+ 
+     if cfg.get("train"):
+         log.info("Starting training!")
+-        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
++        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"), weights_only=False)  # our own checkpoints
+ 
+     train_metrics = trainer.callback_metrics
+ 
+diff --git a/matcha/utils/utils.py b/matcha/utils/utils.py
+index fc3a48e..ca3f1a7 100644
+--- a/matcha/utils/utils.py
++++ b/matcha/utils/utils.py
+@@ -136,8 +136,8 @@ def intersperse(lst, item):
+ 
+ 
+ def save_figure_to_numpy(fig):
+-    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep="")
+-    data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
++    fig.canvas.draw()  # Mouthy: matplotlib 3.10 dropped tostring_rgb
++    data = np.asarray(fig.canvas.buffer_rgba())[..., :3].copy()
+     return data
+ 
+ 

@@ -15,7 +15,7 @@ struct SettingRow<Control: View>: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(MouthyType.body).foregroundStyle(MouthyTheme.cream)
                 if let detail {
                     Text(detail).font(MouthyType.caption).foregroundStyle(MouthyTheme.cream2)
@@ -26,7 +26,7 @@ struct SettingRow<Control: View>: View {
             Spacer(minLength: 8)
             sizedControl
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 15)
         .accessibilityElement(children: .contain)
     }
 

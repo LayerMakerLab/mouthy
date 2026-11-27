@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Mouthy recording</title>
 <style>
-  :root { --ink:#f5eddb; --amber:#e6a85c; --attention:#f28c40; }
+  :root { --ink:#f2f2ee; --accent:#c2f04e; --attention:#ff6b57; }
   html, body { margin:0; background:transparent; overflow:hidden; user-select:none; cursor:default; height:100%; }
   /* A black island hanging from the top edge, with outward shoulders like a hardware notch. */
   .island { position:absolute; top:0; left:50%; height:30px; width:104px; transform:translate(-50%, -110%);
@@ -16,14 +16,14 @@
   .island::after { right:-7px; background:radial-gradient(circle at 100% 100%, transparent 7px, #000 7.5px); }
   .island.shown { transform:translate(-50%, 0); }
   .island.hover { width:140px; }
-  .dot { width:6px; height:6px; border-radius:50%; background:var(--amber); box-shadow:0 0 6px var(--amber); animation:pulse 1.9s ease-in-out infinite; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent); animation:pulse 1.9s ease-in-out infinite; }
   .dot.quiet { animation:none; opacity:.35; }
   .dot.attention { background:var(--attention); box-shadow:0 0 6px var(--attention); }
   @keyframes pulse { 50% { opacity:.45; } }
-  .time { display:none; font:500 11px ui-rounded, system-ui, sans-serif; color:rgba(245,237,219,.8); font-variant-numeric:tabular-nums; }
+  .time { display:none; font:500 11px ui-rounded, system-ui, sans-serif; color:rgba(242,242,238,.8); font-variant-numeric:tabular-nums; }
   .hover .time { display:block; }
   .wave { width:47px; height:30px; display:flex; align-items:center; justify-content:space-between; }
-  .bar { width:3px; height:18.6px; border-radius:2px; background:linear-gradient(#f5eddb, #e6a85c);
+  .bar { width:3px; height:18.6px; border-radius:2px; background:linear-gradient(#e4faa4, #c2f04e);
          transform:scaleY(.162); transition:transform .14s ease-out; }
   .wave.finishing .bar { animation:finish .95s ease-in-out infinite; animation-delay:calc(var(--i) * -.12s); }
   @keyframes finish { 0%,100% { transform:scaleY(.162); opacity:.45; } 50% { transform:scaleY(.42); opacity:1; } }
@@ -78,7 +78,7 @@ function setOutcome(kind) {
   outcome = kind;
   mark.className = 'mark' + (kind === 'none' ? '' : ' on');
   mark.textContent = kind === 'success' ? '✓' : kind === 'attention' ? '!' : '';
-  mark.style.color = kind === 'attention' ? 'var(--attention)' : 'var(--amber)';
+  mark.style.color = kind === 'attention' ? 'var(--attention)' : 'var(--accent)';
   wave.style.display = kind === 'none' ? 'flex' : 'none';
   dot.style.display = kind === 'none' ? '' : 'none';
   if (kind === 'attention') { island.classList.remove('shake'); void island.offsetWidth; island.classList.add('shake'); }

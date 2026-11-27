@@ -14,15 +14,23 @@ final class ReturnKeyTap {
     var onReturn: (() -> Bool)?
     /// Escape while dictating cancels it and never reaches the app (Esc interrupts agents in terminals).
     var onEscape: (() -> Void)?
+    /// The person pressed a key (its code and modifiers) or a mouse button (nil) that went on to the app: "Type as I
+    /// speak" then leaves its typed words alone. Never called for Mouthy's own key presses.
+    var onActivity: ((_ key: Int64?, _ flags: CGEventFlags) -> Void)?
     private var consumedEscape = false
     private var consumedDown = false
 
     var isActive: Bool { port != nil }
 
+    /// `watchingMouse` also reports mouse clicks to `onActivity` ("Type as I speak"); without it the tap sees keys
+    /// only, as it always has.
     @discardableResult
-    func start() -> Bool {
+    func start(watchingMouse: Bool = false) -> Bool {
         guard port == nil else { return true }
-        let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
+        var mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
+        if watchingMouse {
+            mask |= (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.rightMouseDown.rawValue) | (1 << CGEventType.otherMouseDown.rawValue)
+        }
         let context = Unmanaged.passUnretained(self).toOpaque()
         guard let port = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
                                            eventsOfInterest: CGEventMask(mask), callback: { _, type, event, context in
@@ -48,14 +56,21 @@ final class ReturnKeyTap {
             if let port { CGEvent.tapEnable(tap: port, enable: true) }
             return Unmanaged.passUnretained(event)
         }
+        if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown {
+            onActivity?(nil, event.flags)
+            return Unmanaged.passUnretained(event)
+        }
         let key = event.getIntegerValueField(.keyboardEventKeycode)
+        let own = event.getIntegerValueField(.eventSourceUserData) == Self.syntheticMarker
+        if own { return Unmanaged.passUnretained(event) }
         if key == 53 {
             if type == .keyUp { if consumedEscape { consumedEscape = false; return nil }; return Unmanaged.passUnretained(event) }
             consumedEscape = true
             onEscape?()
             return nil
         }
-        guard key == 36 || key == 76, event.getIntegerValueField(.eventSourceUserData) != Self.syntheticMarker else {
+        guard key == 36 || key == 76 else {
+            if type == .keyDown { onActivity?(key, event.flags) }
             return Unmanaged.passUnretained(event)
         }
         if type == .keyUp {
@@ -65,9 +80,11 @@ final class ReturnKeyTap {
         }
         let modifiers: CGEventFlags = [.maskShift, .maskAlternate, .maskCommand, .maskControl]
         guard event.flags.intersection(modifiers).isEmpty, event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else {
+            onActivity?(key, event.flags)
             return Unmanaged.passUnretained(event)
         }
         if onReturn?() == true { consumedDown = true; return nil }
+        onActivity?(key, event.flags)
         return Unmanaged.passUnretained(event)
     }
 }

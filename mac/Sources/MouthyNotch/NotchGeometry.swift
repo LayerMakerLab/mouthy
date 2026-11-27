@@ -13,6 +13,8 @@ public struct NotchGeometry: Equatable, Sendable {
     public let notchHeight: CGFloat
 
     public static let openSize = CGSize(width: 520, height: 184)
+    /// The margin between the open panel's edge and a tab's content: below the camera row, at the sides, at the bottom.
+    public static let contentTop: CGFloat = 16, contentSide: CGFloat = 30, contentBottom: CGFloat = 20
     /// Transparent room around the open panel for its shadow and glow.
     public static let shadowMargin: CGFloat = 30
     /// Width of each wing beside the notch while closed: room for a 20 pt cover, the 18 pt giraffe, five level

@@ -17,6 +17,32 @@ import MouthyCore
     var code = DictationConfiguration(textStyle: .code)
     code.replacements = []
     #expect(DictationSession.shape("git commit dash m", with: code) == "git commit -m")
+    // Ordinary dictation: a spoken dash joins the words around it and "dot com" ends an address; a code style keeps
+    // its own symbols (above), and with spoken commands off the words stay words.
+    let plain = DictationConfiguration()
+    #expect(DictationSession.shape("name it maple dash design period", with: plain) == "Name it maple-design.")
+    #expect(DictationSession.shape("example dot com is down at 3.30 period", with: plain) == "example.com is down at 3:30.")
+    #expect(DictationText.shape("name it maple dash design", code: false, replacements: [], punctuation: false, removeFillers: true,
+                                vocabulary: "") == "Name it maple dash design")
+    #expect(DictationSession.shape("open readme dot md and run git commit dash m period", with: plain) == "Open readme.md and run git commit -m.")
+    #expect(DictationSession.shape("type slash help and name it user underscore name", with: plain) == "Type /help and name it user_name")
+    // A mark that is one of the person's own words stays a word, and a live guess holds back a mark that ends it.
+    #expect(DictationText.shape("I use Dash for docs", code: false, replacements: [], punctuation: true, removeFillers: true,
+                                vocabulary: "Mouthy\nDash") == "I use Dash for docs")
+    var settings = Preferences()
+    settings.vocabulary = "Dash"
+    #expect(DictationText.shape("I use Dash for docs", code: false, config: settings) == "I use Dash for docs")
+    #expect(DictationText.shape("name it maple dash", code: false, config: Preferences(), live: true) == "Name it maple")
+    #expect(DictationText.shape("name it maple dash", code: false, config: Preferences()) == "Name it maple dash")
+    // A dictation that begins with "slash" and a word is a command, as the recognizer writes it and through every
+    // text rule: no capital, no closing period. While the person is still speaking nothing of it shows.
+    #expect(DictationText.shape("Slash clear.", code: false, config: Preferences()) == "/clear")
+    #expect(DictationText.shape("Slash code dash review.", code: false, config: Preferences()) == "/code-review")
+    #expect(DictationText.shape("Slash clear.", code: false, config: Preferences(), live: true) == "")
+    #expect(DictationText.shape("Slash the budget in half.", code: false, config: Preferences()) == "Slash the budget in half.")
+    // In a field after other text it is fitted like any word, and stays a command.
+    #expect(SmartInsertion.adjust("/clear", before: "", after: "") == "/clear")
+    #expect(SmartInsertion.adjust("/clear", before: "Then run", after: "") == " /clear")
 }
 
 @MainActor @Test func dictationSessionStartsIdleAndCancelIsSafe() {

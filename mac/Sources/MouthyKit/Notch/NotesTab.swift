@@ -71,8 +71,8 @@ struct NotesView: View {
     init(model: NotesTab) { self.model = model; dictation = model.dictation }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     NotchField(prompt: "Add a todo", text: $model.draft) { model.add(model.draft); model.draft = "" }
                     Button { model.dictateTodo() } label: {
@@ -111,7 +111,9 @@ struct NotesView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            VStack(alignment: .leading, spacing: 6) {
+            .notchTile()
+            // The note is its tile: the title, then the text straight on it.
+            VStack(alignment: .leading, spacing: 4) {
                 TabHeader(title: "Note")
                 NoteEditor(text: $model.note, placeholder: "Jot something down…")
                     .overlay(alignment: .topLeading) {
@@ -120,10 +122,9 @@ struct NotesView: View {
                                 .padding(.leading, 2).padding(.top, 2).allowsHitTesting(false)
                         }
                     }
-                    .padding(.horizontal, 8).padding(.vertical, 6)
-                    .smokedGlass(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-            .frame(width: 200)
+            .frame(width: 176)
+            .notchTile()
         }
     }
 }
@@ -131,7 +132,7 @@ struct NotesView: View {
 struct OptionalCircleGlass: ViewModifier {
     let enabled: Bool
     func body(content: Content) -> some View {
-        if enabled { content.smokedGlass(Circle()) } else { content }
+        if enabled { content.notchControl(Circle()) } else { content }
     }
 }
 
@@ -164,9 +165,9 @@ struct NoteEditor: NSViewRepresentable {
     @Binding var text: String
     var placeholder: String
 
-    static let selection = NSColor(srgbRed: 0xE0 / 255, green: 0x8A / 255, blue: 0x2E / 255, alpha: 0.35)
-    static let caret = NSColor(srgbRed: 1, green: 0xB5 / 255, blue: 0x47 / 255, alpha: 1)
-    static let ink = NSColor(srgbRed: 0xF6 / 255, green: 0xE3 / 255, blue: 0xC1 / 255, alpha: 1)
+    static let selection = NSColor(srgbRed: 0xC2 / 255, green: 0xF0 / 255, blue: 0x4E / 255, alpha: 0.30)
+    static let caret = NSColor(srgbRed: 0xCF / 255, green: 0xF5 / 255, blue: 0x6A / 255, alpha: 1)
+    static let ink = NSColor(srgbRed: 0xF2 / 255, green: 0xF2 / 255, blue: 0xEE / 255, alpha: 1)
 
     func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
 

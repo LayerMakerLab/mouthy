@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.8
+
+- A new look on Mac, Windows and Linux: calm charcoal with one leaf-lime accent in place of the brown and copper. On the Mac, windows are paper white in Light mode, and the giraffe is the only orange thing left on screen.
+- Mac: the notch hub is redrawn. Every tab has more room around its content, counts and sections sit on soft tiles, buttons are plain rounded rectangles instead of glass capsules, the selected tab is marked by a small dot, Shortcuts shows three columns, and the Timers tab is laid out again with one control for Focus, Break and Timer. The notch's size and position are unchanged.
+- Mac: the close, minimize and full-screen buttons of the main window sit inside the sidebar, in line with the wordmark.
+- Mac: Type as I speak (Settings → Writing, off by default). The words go into the text field while you talk instead of all at once when you stop. With Parakeet and Whisper a phrase is typed each time you pause, a second or two after it ends, and stays as it is while you talk; when you stop, the rest is added. With Apple's speech or Show words instantly, words are typed one at a time a moment after you say them, and the text is corrected once when you stop. Typing or clicking yourself stops it; the rest is pasted when you finish.
+- Mac with Apple silicon: Show words instantly (Settings → Writing, off by default, English only, a 214 MB download). A second, small speech model shows each word about a tenth of a second after you say it; capitals, punctuation and corrections follow at every pause.
+- Mac: while you dictate, the words you have said so far show on a card under the notch, newest at the bottom, so you can see what you already said. The card goes away when you stop.
+- Mac: an AI usage tab for the notch (off by default). Pick the AI services you pay for and each shows how much of its 5-hour and weekly or monthly limit is used, as two rings, read only from files those tools already keep on your Mac.
+- Mac: "Read agent questions aloud" speaks in Mouthy's own voice, trained for Mouthy and run on your Mac. The system voice remains the fallback.
+- Spoken marks, on Mac, Windows and Linux: say "dash", "dot", "slash" or "underscore" where you want the mark and it is written when the words around it make that clear: well-known, example.com, readme.md, --help, example.com/docs, user_name. "A mad dash" and "slash prices" stay words. A dictation that is only "slash clear" is written /clear. Speech still never presses Return.
+- Mac: a pause to think in the middle of a sentence no longer ends it with a period.
+- Mac: a breath or a key press right after your last word is no longer written as a word ("Yeah.").
+- Windows and Linux: spoken years are written as numbers, as on the Mac since 0.1.7: "twenty nineteen" becomes 2019.
+- New installs can download the Parakeet speech model again. Its publisher replaced the file on November 7, and Mouthy, which checks every download against a known fingerprint, refused the new one. This affected new installs on Windows, Linux and Intel Macs; copies that already had the model kept working.
+- The Chat example mode only inserts. Sending stays your choice.
+
 ## 0.1.7
 
 - Spoken years are written as numbers: "twenty nineteen" becomes 2019, "nineteen ninety-eight" 1998, "nineteen oh five" 1905 and "two thousand nine" 2009. Counting ("eighteen, nineteen, twenty") and amounts ("eighteen hundred and fifty dollars") stay in words. On Mac, Windows and Linux.

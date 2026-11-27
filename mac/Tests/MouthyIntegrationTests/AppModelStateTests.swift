@@ -20,6 +20,9 @@ final class FakeSpeech: DictationSpeech {
     var inputDevice: InputDevice? = InputDevice(id: "test-mic", name: "Test microphone", objectID: 0)
     var inputDeviceName = "Test microphone"
     var isActive = false
+    /// "Show words instantly": previews whose newest words are the streaming recognizer's, and what `start` was told.
+    var previewIsFirm = false
+    var instantWords = false
     /// Results handed out by successive splits (empty when exhausted).
     var splits: [String] = []
     /// A split that keeps decoding this long even when cancelled, like a recognizer call in flight.
@@ -104,7 +107,8 @@ func waitFor(_ condition: @MainActor () -> Bool, seconds: Double = 5) async thro
 
 @MainActor @Test func scriptedDictationIsDeliveredAndSettles() async throws {
     let speech = FakeSpeech(); speech.finalText = "Hello from the fake"
-    let (model, log) = stateModel(speech)
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let (model, log) = stateModel(speech, directory: folder)
     model.begin(captureTarget: true)
     try await waitFor { model.phase == .listening }
     model.stop()
@@ -112,6 +116,10 @@ func waitFor(_ condition: @MainActor () -> Bool, seconds: Double = 5) async thro
     #expect(log.texts == ["Hello from the fake"])
     #expect(model.status == "Pasted into Target.")
     #expect(model.output == "Hello from the fake")
+    // The scorecard is a testing tool: without its file nothing is kept or written, also not by Reset.
+    model.resetStats()
+    #expect(model.scores.isEmpty && model.stats.sessions == 0)
+    #expect(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("scores.json").path))
 }
 
 /// Dictation results and Enter-sent parts reach the in-memory recent list for the menu bar panel.

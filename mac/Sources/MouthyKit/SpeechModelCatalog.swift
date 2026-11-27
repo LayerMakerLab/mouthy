@@ -35,7 +35,7 @@ struct SpeechModelRow: Identifiable, Sendable {
 /// No metadata requests run in Settings. See docs/models.md for the file selection and sources.
 enum ModelDownloadSize {
     static let parakeetCoreML: Int64 = 483_257_242 + 102_803_869
-    static let parakeetIntel: Int64 = 487_170_055
+    static let parakeetIntel: Int64 = 487_211_443
     static func whisper(_ model: WhisperModel) -> Int64 {
         switch model {
         case .baseEnglish: 149_114_215

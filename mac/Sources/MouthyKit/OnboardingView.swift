@@ -3,16 +3,18 @@ import AppKit
 import MouthyCore
 import MouthyNotch
 
-/// First run in three screens: hello and the microphone, Accessibility, then a first dictation that finishes setup.
+/// First run in four screens: hello and the microphone, Accessibility, the AI services the person pays for (the notch
+/// shows their usage), then a first dictation that finishes setup.
 /// The speech model gets ready in the background meanwhile, and the shortcut is picked where it is first used.
 enum OnboardingStep: Int, CaseIterable, Identifiable {
-    case hello, accessibility, tryIt
+    case hello, accessibility, ai, tryIt
     var id: Int { rawValue }
 
     var pose: MascotPose {
         switch self {
         case .hello: .cheer
         case .accessibility: .type
+        case .ai: .wave
         case .tryIt: .listen
         }
     }
@@ -21,6 +23,7 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
         switch self {
         case .hello: "Hello. I'm Mouthy."
         case .accessibility: "Let me type for you"
+        case .ai: "Which AI do you pay for?"
         case .tryIt: "Say something"
         }
     }
@@ -61,7 +64,7 @@ struct OnboardingView: View {
             HStack(spacing: 0) {
                 stage
                     .frame(width: 300)
-                    .padding(.vertical, 12).padding(.leading, 12)
+                    .padding(.vertical, MouthyTheme.Layout.windowInset).padding(.leading, MouthyTheme.Layout.windowInset)
                 VStack(alignment: .leading, spacing: 0) {
                     ZStack(alignment: .topLeading) {
                         page(step)
@@ -172,6 +175,7 @@ struct OnboardingView: View {
         switch step {
         case .hello: "Talk, and I type it where your cursor is. I listen only while you dictate."
         case .accessibility: "Allow Accessibility so I can paste into any app."
+        case .ai: "Pick yours and the notch shows how much of each you've used. I read it on this Mac only. None is fine."
         case .tryIt:
             heard ? shortcutAction.prefix(1).uppercased() + shortcutAction.dropFirst() + " in any app and talk."
                 : recording ? "Say “Hello, this is a test.” Then stop."
@@ -202,6 +206,12 @@ struct OnboardingView: View {
                      pending: model.standInActive
                         ? "Turn Mouthy on in System Settings, then come back. \(model.chosenShortcutLabel) needs it; until then, \(HotkeyService.labels[0]) starts dictation."
                         : "Turn Mouthy on in System Settings, then come back.")
+        case .ai:
+            AIServiceChips(selected: Set(model.preferences.aiPicks)) { service, on in
+                var picks = model.preferences.aiPicks
+                if on { picks.append(service) } else { picks.removeAll { $0 == service } }
+                model.preferences.aiPicks = picks
+            }
         case .tryIt:
             VStack(alignment: .leading, spacing: 12) {
                 practiceBox
@@ -342,6 +352,8 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.mouthyPrimary)
             }
+        case .ai:
+            nextButton
         case .tryIt:
             if heard {
                 Button("Done") { finish() }

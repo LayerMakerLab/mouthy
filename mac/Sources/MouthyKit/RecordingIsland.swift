@@ -92,7 +92,7 @@ struct RecordingIsland: View {
 
     private var hasNotch: Bool { geometry.notchWidth > 0 }
     private var face: IslandFace {
-        IslandFace.make(phase: model.phase, liveText: model.liveText, agentQuestion: model.agentQuestion, outcome: presenter.outcome, message: presenter.message)
+        IslandFace.make(phase: model.phase, liveText: model.shownLiveText, agentQuestion: model.agentQuestion, outcome: presenter.outcome, message: presenter.message)
     }
     private var expandedQuestion: Bool { presenter.presented && face.question != nil }
     /// The band is the whole island on a notched display: no second line (the notch tab shows the words, bigger).

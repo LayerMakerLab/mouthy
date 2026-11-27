@@ -89,3 +89,37 @@ import Testing
     #expect(SpeakerMask.voiceprint(mine: kept, others: []) == center)
     #expect(SpeakerMask.dominantVoice([]).isEmpty && SpeakerMask.dominantVoice([person]) == [person])
 }
+
+@Test func aSoundWrittenAsAWordAfterTheLastWordIsNotSpeech() {
+    // What a stop adds for a breath or a key right after the last word: the voice detector heard no voice in the new
+    // audio and it holds no voiced sound.
+    #expect(NoiseWords.isNoise("Yeah.", voice: [0.2, 0.1], voiced: false, keep: 0.65))
+    #expect(NoiseWords.isNoise("Uh, yeah.", voice: [0.44], voiced: false, keep: 0.65))
+    // Said out loud, it scores as a voice, or at least is a voiced sound (a short word across two pieces), and stays.
+    #expect(!NoiseWords.isNoise("Yeah.", voice: [0.99, 0.4], voiced: true, keep: 0.65))
+    #expect(!NoiseWords.isNoise("Yeah.", voice: [0.99, 0.4], voiced: false, keep: 0.65))
+    #expect(!NoiseWords.isNoise("Oh.", voice: [0.5, 0.2], voiced: true, keep: 0.65))
+    // Real words and numbers stay whatever both say: soft speech is never thrown away on a verdict alone.
+    #expect(!NoiseWords.isNoise("Send it.", voice: [0.2, 0.1], voiced: false, keep: 0.65))
+    #expect(!NoiseWords.isNoise("Yeah, send it.", voice: [0.2, 0.1], voiced: false, keep: 0.65))
+    #expect(!NoiseWords.isNoise("Um, 5.", voice: [0.2, 0.1], voiced: false, keep: 0.65))
+    #expect(!NoiseWords.isNoise("Yes.", voice: [0.2, 0.1], voiced: false, keep: 0.65))
+    // No detector on this Mac, or no new audio: nothing is dropped.
+    #expect(!NoiseWords.isNoise("Yeah.", voice: nil, voiced: false, keep: 0.65))
+    #expect(!NoiseWords.isNoise("Yeah.", voice: [], voiced: false, keep: 0.65))
+    #expect(!NoiseWords.isNoise("", voice: [0.2, 0.1], voiced: false, keep: 0.65))
+}
+
+@Test func aVoicedSoundAfterTheLastWordIsTold() {
+    // One second of a voiced tone (the last word), a pause, then either a hiss (a breath) or another short tone ("oh").
+    func tone(_ seconds: Double, _ level: Float) -> [Float] { (0..<Int(seconds * 16_000)).map { level * sin(Float($0) * 0.2) } }
+    var state: UInt32 = 7
+    func hiss(_ seconds: Double, _ level: Float) -> [Float] {
+        (0..<Int(seconds * 16_000)).map { _ in state = state &* 1_664_525 &+ 1_013_904_223; return level * (Float(state >> 8) / Float(1 << 24) * 2 - 1) }
+    }
+    let silence = [Float](repeating: 0, count: 4_800)
+    let spoken = silence + tone(1, 0.1) + silence
+    #expect(!NoiseWords.voicedSound(in: spoken + hiss(0.3, 0.02) + silence, from: spoken.count))
+    #expect(NoiseWords.voicedSound(in: spoken + tone(0.2, 0.03) + silence, from: spoken.count))
+    #expect(!NoiseWords.voicedSound(in: spoken + silence, from: spoken.count))
+}

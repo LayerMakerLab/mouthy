@@ -1,10 +1,15 @@
 import CoreServices
 import Foundation
+import MouthyCore
 import MouthyNotch
+import SQLite3
 import SwiftUI
 
-/// How much of each AI service's limits is used, as percentages counting up to 100%: Claude Code's from
-/// its status line (see ClaudeLimitsBridge), Codex's from its own session logs. No token counts.
+/// The AI services the person pays for (`Preferences.aiServices`), each as its mark inside a ring that fills with the
+/// share of its limit used: Claude Code's from its status line (`ClaudeLimitsBridge`), Codex's from its session logs,
+/// OpenCode Go's from the costs in OpenCode's database against Go's published limits. Gemini, Cursor and Grok keep no
+/// limits on this Mac, so their rings only show whether they are in use. A service is awake while its tool keeps
+/// writing and falls asleep 10 minutes after the last write. File-system events only: no timer, no network.
 @MainActor final class UsageTab: ObservableObject, NotchTab {
     static let shared = UsageTab()
     let id = "mouthy.usage"
@@ -12,30 +17,125 @@ import SwiftUI
     let symbolName = "gauge.with.dots.needle.50percent"
     @Published private(set) var claude: ServiceLimits?
     @Published private(set) var codex: ServiceLimits?
-    @Published private(set) var scanning = false
-    @Published private(set) var scannedAt: Date?
+    @Published private(set) var opencode: ServiceLimits?
+    /// Which services are awake; changes only when one wakes or falls asleep (never per file write).
+    @Published private(set) var awake: Set<AIService> = []
+    /// The person's picks; nil until they choose. Set by Mouthy from its settings.
+    @Published private(set) var picks: [AIService]?
+    /// The page of rings shown when there are more than fit (`ringsPerPage`); a sideways swipe turns it.
+    @Published private(set) var page = 0
+    private(set) var scannedAt: Date?
+    var scanning: Bool { scanningCodex || scanningOpenCode }
+    /// Turns a service on or off from the tab's own picker (Mouthy writes it to its settings).
+    var onPick: ((AIService, Bool) -> Void)?
     private var stream: FSEventStreamRef?
+    /// Watching was asked for (the hub is attached), even when no picked service has a folder yet.
+    private var watching = false
+    private var watchedRoots: [String] = []
+    private var scanningCodex = false, scanningOpenCode = false, pendingCodex = false, pendingOpenCode = false
+    /// OpenCode's costs from the last read, so its rolling windows count down without reading the database again.
+    private var openCodeCosts: [(date: Date, dollars: Double)] = []
+    private var openCodeDecay: DispatchWorkItem?
+    private var lastActivity: [AIService: Date] = [:]
+    private var sleepers: [AIService: DispatchWorkItem] = [:]
+    private var openCodeScannedAt: Date?
 
+    static let ringsPerPage = 3
     private init() {}
 
-    var hasData: Bool { claude?.week != nil || codex?.week != nil }
+    var shown: [AIService] { picks ?? [] }
+    /// Rings with made-up limits, for renders: nothing is read or watched.
+    func showForPreview(picks: [AIService], claude: ServiceLimits? = nil, codex: ServiceLimits? = nil, opencode: ServiceLimits? = nil, awake: Set<AIService> = []) {
+        self.picks = picks; self.claude = claude; self.codex = codex; self.opencode = opencode; self.awake = awake; page = 0
+        previewing = !picks.isEmpty
+    }
+    /// A render is showing made-up limits: `refresh` reads nothing (it would put this Mac's real numbers in the picture).
+    private var previewing = false
+    var isWatching: Bool { watching }
+    func hasSleeper(for service: AIService) -> Bool { sleepers[service].map { !$0.isCancelled } ?? false }
+    var pageCount: Int { max(1, (shown.count + Self.ringsPerPage - 1) / Self.ringsPerPage) }
+    var hasData: Bool { shown.contains { limits(for: $0)?.binding != nil } }
 
-    /// Reloads when Claude Code saves new limits or Codex writes to its logs: macOS file-system events,
-    /// not a timer. Installs the tiny status-line script Claude Code calls (it prints nothing).
+    func limits(for service: AIService) -> ServiceLimits? {
+        switch service {
+        case .claude: claude
+        case .chatgpt: codex
+        case .opencode: opencode
+        case .gemini, .cursor, .grok: nil
+        }
+    }
+
+    func setPicks(_ new: [AIService]?) {
+        guard new != picks else { return }
+        picks = new
+        page = min(page, pageCount - 1)
+        if watching { stopWatching(); startWatching() }
+        publish()
+    }
+
+    /// A sideways swipe inside the tab: turns the page of rings, or returns false at either end so the hub moves to
+    /// the next tab.
+    func page(_ step: Int) -> Bool {
+        let next = page + step
+        guard next >= 0, next < pageCount else { return false }
+        withAnimation(MouthyMotion.resolve(MouthyMotion.tab, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { page = next }
+        return true
+    }
+
+    // MARK: Watching
+
+    nonisolated static let codexRoot = UsageScanner.home.appendingPathComponent(".codex/sessions").path
+    nonisolated static let openCodeRoot = UsageScanner.home.appendingPathComponent(".local/share/opencode").path
+
+    /// Folders whose writes mean the service is in use. Claude's limits file lives in Mouthy's own folder, which
+    /// Mouthy also writes, so only that file counts there.
+    nonisolated static func activityRoots(_ service: AIService) -> [String] {
+        let home = UsageScanner.home
+        switch service {
+        case .claude: return [ClaudeLimitsBridge.folder.path, home.appendingPathComponent(".claude/projects").path]
+        case .chatgpt: return [codexRoot]
+        case .opencode: return [openCodeRoot]
+        case .gemini: return [home.appendingPathComponent(".gemini").path]
+        case .cursor: return [home.appendingPathComponent("Library/Application Support/Cursor/User/workspaceStorage").path]
+        case .grok: return [home.appendingPathComponent(".grok").path]
+        }
+    }
+
+    /// Which service a changed file belongs to (nil for Mouthy's own files). Mouthy's own reads must never count:
+    /// reading OpenCode's database touches its `-shm` index, so only the database and its write-ahead log do.
+    nonisolated static func service(for path: String) -> AIService? {
+        if path == ClaudeLimitsBridge.folder.path || path.hasPrefix(ClaudeLimitsBridge.folder.path + "/") {
+            return path.hasSuffix("/claude-limits.json") || path.contains("/.claude-limits.") ? .claude : nil
+        }
+        if path == openCodeRoot || path.hasPrefix(openCodeRoot + "/") {
+            let name = (path as NSString).lastPathComponent
+            return name == "opencode.db" || name == "opencode.db-wal" || path.hasPrefix(openCodeRoot + "/log/") ? .opencode : nil
+        }
+        return AIService.allCases.first { service in activityRoots(service).contains { path.hasPrefix($0 + "/") || path == $0 } }
+    }
+
+    /// Reloads when a picked service's tool writes: macOS file-system events, not a timer. Installs the tiny status-line
+    /// script Claude Code calls (it prints nothing).
     func startWatching() {
-        guard stream == nil else { return }
-        ClaudeLimitsBridge.install()
-        let paths = [ClaudeLimitsBridge.folder.path, Self.codexRoot].filter { FileManager.default.fileExists(atPath: $0) }
-        // Claude Code rewrites its limits every few seconds while it works, and Mouthy saves its own files in the same
-        // folder: an event there only re-reads that one small file. Codex's logs are scanned only when they change.
+        guard !watching else { return }
+        watching = true
+        if shown.contains(.claude) { ClaudeLimitsBridge.install() }
+        let roots = shown.flatMap(Self.activityRoots).filter { FileManager.default.fileExists(atPath: $0) }
+        watchedRoots = roots
+        for service in shown { seedActivity(service) }
+        // Services awake before a restart (picks changed) get their sleep back; ones no longer picked go quiet.
+        for service in awake {
+            if shown.contains(service) { noteActivity(service, at: lastActivity[service] ?? .distantPast) }
+            else { awake.remove(service) }
+        }
         let callback: FSEventStreamCallback = { _, _, _, eventPaths, _, _ in
             let changed = Unmanaged<CFArray>.fromOpaque(eventPaths).takeUnretainedValue() as? [String] ?? []
-            let codex = changed.contains { $0.hasPrefix(UsageTab.codexRoot) }
-            DispatchQueue.main.async { MainActor.assumeIsolated { UsageTab.shared.refresh(scanCodex: codex) } }
+            let services = Set(changed.compactMap(UsageTab.service(for:)))
+            DispatchQueue.main.async { MainActor.assumeIsolated { UsageTab.shared.filesChanged(services) } }
         }
-        if !paths.isEmpty, let created = FSEventStreamCreate(nil, callback, nil, paths as CFArray,
+        if !roots.isEmpty, let created = FSEventStreamCreate(nil, callback, nil, roots as CFArray,
                                                              FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 5,
-                                                             FSEventStreamCreateFlags(kFSEventStreamCreateFlagUseCFTypes)) {
+                                                             FSEventStreamCreateFlags(kFSEventStreamCreateFlagUseCFTypes | kFSEventStreamCreateFlagFileEvents)) {
             FSEventStreamSetDispatchQueue(created, .main)
             FSEventStreamStart(created)
             stream = created
@@ -44,39 +144,121 @@ import SwiftUI
     }
 
     func stopWatching() {
+        watching = false
+        sleepers.values.forEach { $0.cancel() }; sleepers.removeAll()
+        openCodeDecay?.cancel(); openCodeDecay = nil
         guard let stream else { return }
         FSEventStreamStop(stream); FSEventStreamInvalidate(stream); FSEventStreamRelease(stream)
         self.stream = nil
     }
 
-    nonisolated static let codexRoot = UsageScanner.home.appendingPathComponent(".codex/sessions").path
-
-    /// Re-reads Claude's limits and, when asked (or the last scan is 20 s old), scans Codex's logs. The hub and every
-    /// view showing usage hear about it only when a number changed, so file activity that changes nothing costs nothing
-    /// (each needless publish redrew the notch: 7-13% CPU spikes every few seconds while Claude Code was working).
-    func refresh(force: Bool = false, scanCodex: Bool? = nil) {
-        let latest = ClaudeLimitsBridge.read()
-        let claudeChanged = latest != claude
-        if claudeChanged { claude = latest }
-        let stale = scannedAt.map { Date().timeIntervalSince($0) >= 20 } ?? true
-        guard scanCodex ?? (force || stale), !scanning else {
-            if claudeChanged { publish() }
-            return
+    /// At start, a service that wrote in the last 10 minutes is already awake (its newest known file's date).
+    private func seedActivity(_ service: AIService) {
+        let paths: [String]
+        switch service {
+        case .claude: paths = [ClaudeLimitsBridge.file.path]
+        case .opencode: paths = [Self.openCodeRoot + "/opencode.db-wal", Self.openCodeRoot + "/opencode.db"]
+        default: paths = Self.activityRoots(service)
         }
-        scanning = true
+        let newest = paths.compactMap { try? FileManager.default.attributesOfItem(atPath: $0)[.modificationDate] as? Date }.max()
+        if let newest { noteActivity(service, at: newest) }
+    }
+
+    func filesChanged(_ services: Set<AIService>) {
+        let now = Date()
+        for service in services where shown.contains(service) { noteActivity(service, at: now) }
+        refresh(scanCodex: services.contains(.chatgpt), scanOpenCode: services.contains(.opencode))
+    }
+
+    /// Records a write; publishes only when the service wakes, and schedules the moment it falls asleep.
+    func noteActivity(_ service: AIService, at date: Date, now: Date = Date()) {
+        lastActivity[service] = max(lastActivity[service] ?? date, date)
+        let isAwake = AIActivity.isAwake(lastActivity: lastActivity[service], now: now)
+        if isAwake != awake.contains(service) {
+            if isAwake { awake.insert(service) } else { awake.remove(service) }
+            publish()
+        }
+        sleepers[service]?.cancel()
+        guard isAwake, let last = lastActivity[service] else { return }
+        let sleeper = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.noteActivity(service, at: .distantPast) }
+        }
+        sleepers[service] = sleeper
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(1, last.addingTimeInterval(AIActivity.awakeFor).timeIntervalSince(now)), execute: sleeper)
+    }
+
+    // MARK: Reading
+
+    /// Re-reads Claude's limits and, when asked (or the last scan is 20 s old), scans Codex's logs and OpenCode's
+    /// costs. The hub and every view showing usage hear about it only when a number changed, so file activity that
+    /// changes nothing costs nothing (each needless publish redrew the notch: 7-13% CPU spikes every few seconds while
+    /// Claude Code was working).
+    func refresh(force: Bool = false, scanCodex: Bool? = nil, scanOpenCode: Bool? = nil) {
+        guard !previewing else { return }
+        var changed = false
+        if shown.contains(.claude) {
+            let latest = ClaudeLimitsBridge.read()
+            if latest != claude { claude = latest; changed = true }
+        }
+        let stale = scannedAt.map { Date().timeIntervalSince($0) >= 20 } ?? true
+        let openStale = openCodeScannedAt.map { Date().timeIntervalSince($0) >= 20 } ?? true
+        // A scan asked for while the same one runs is remembered and runs right after, so the last write is read.
+        if shown.contains(.chatgpt), scanCodex ?? (force || stale) {
+            if scanningCodex { pendingCodex = true } else { scanCodexLogs() }
+        }
+        if shown.contains(.opencode), scanOpenCode ?? (force || openStale) {
+            if scanningOpenCode { pendingOpenCode = true } else { scanOpenCodeCosts() }
+        }
+        if changed { publish() }
+    }
+
+    private func scanCodexLogs() {
+        scanningCodex = true
         Task.detached(priority: .utility) {
             let now = Date()
             let summary = UsageScanner.lock.withLock { UsageScanner.codex(now: now) }
             await MainActor.run {
                 let tab = UsageTab.shared
                 let codex = summary.map { ServiceLimits(codexLimits: $0.limits) }
-                let codexChanged = codex != tab.codex
-                if codexChanged { tab.codex = codex }
-                tab.scanning = false
                 tab.scannedAt = now
-                if claudeChanged || codexChanged { tab.publish() }
+                tab.scanningCodex = false
+                if codex != tab.codex { tab.codex = codex; tab.publish() }
+                if tab.pendingCodex { tab.pendingCodex = false; tab.scanCodexLogs() }
             }
         }
+    }
+
+    private func scanOpenCodeCosts() {
+        scanningOpenCode = true
+        Task.detached(priority: .utility) {
+            let now = Date()
+            let costs = OpenCodeCosts.read(since: now.addingTimeInterval(-30 * 86400))
+            await MainActor.run {
+                let tab = UsageTab.shared
+                tab.openCodeScannedAt = now
+                tab.scanningOpenCode = false
+                tab.openCodeCosts = costs ?? []
+                tab.updateOpenCode(present: costs != nil, now: now)
+                if tab.pendingOpenCode { tab.pendingOpenCode = false; tab.scanOpenCodeCosts() }
+            }
+        }
+    }
+
+    /// Recomputes OpenCode's windows from the costs already read and wakes again when the oldest cost in a window
+    /// leaves it, so the ring counts down while OpenCode is idle (one timer at that moment, no polling).
+    private func updateOpenCode(present: Bool = true, now: Date = Date()) {
+        let open = present ? ServiceLimits(openCodeCosts: openCodeCosts, now: now) : nil
+        // Publish only what the ring and chip can show (whole percents): a tiny cost leaving a window redraws nothing.
+        func shown(_ l: ServiceLimits?) -> [Int?]? { l.map { [$0.fiveHour, $0.week, $0.month].map { $0.map { Int($0.percent.rounded()) } } } }
+        if shown(open) != shown(opencode) { opencode = open; publish() } else { opencode = open }
+        openCodeDecay?.cancel(); openCodeDecay = nil
+        let next = [5 * 3600.0, 7 * 86400.0, 30 * 86400.0]
+            .compactMap { OpenCodeGo.nextDrop(costs: openCodeCosts, window: $0, now: now) }.min()
+        guard present, watching, let next else { return }
+        let decay = DispatchWorkItem { MainActor.assumeIsolated { UsageTab.shared.updateOpenCode() } }
+        openCodeDecay = decay
+        // A minute late on purpose: costs made seconds apart leave together, in one wake instead of a burst.
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(1, next.timeIntervalSince(now) + 60), execute: decay)
     }
 
     private func publish() {
@@ -91,6 +273,12 @@ import SwiftUI
 struct UsageLimit: Equatable, Sendable {
     let percent: Double
     let resets: Date?
+    /// The number comes from another tool's file, so it is never taken as a sane percent: anything that is not a
+    /// number counts as 0 and the rest is held to 0...999 (a huge one crashed every whole-number conversion below).
+    init(percent: Double, resets: Date?) {
+        self.percent = percent.isFinite ? min(max(percent, 0), 999) : 0
+        self.resets = resets
+    }
     /// A window that has already reset counts as 0% until the service reports again.
     func current(at now: Date = Date()) -> Double { (resets.map { $0 > now } ?? true) ? percent : 0 }
 }
@@ -98,8 +286,32 @@ struct UsageLimit: Equatable, Sendable {
 struct ServiceLimits: Equatable, Sendable {
     var week: UsageLimit?
     var fiveHour: UsageLimit?
+    var month: UsageLimit?
 
-    init(week: UsageLimit?, fiveHour: UsageLimit?) { self.week = week; self.fiveHour = fiveHour }
+    init(week: UsageLimit?, fiveHour: UsageLimit?, month: UsageLimit? = nil) { self.week = week; self.fiveHour = fiveHour; self.month = month }
+
+    /// The outer ring's limit: the week or the month, whichever is closer to its cap (OpenCode Go has both, and with
+    /// steady use the month is the fuller one), so the number in the middle of the rings is always one a ring shows.
+    var long: (percent: Double, name: String)? {
+        [(week, "week"), (month, "month")].compactMap { limit, name in limit.map { ($0.current(), name) } }
+            .max { $0.0 < $1.0 }.map { (percent: $0.0, name: $0.1) }
+    }
+
+    /// The window closest to its limit: the one that maxes the service out first, and so the ring's fill.
+    var binding: (percent: Double, window: String, resets: Date?)? {
+        [(fiveHour, "5-hour"), (week, "week"), (month, "month")]
+            .compactMap { limit, name in limit.map { ($0.current(), name, $0.resets) } }
+            .max { $0.0 < $1.0 }
+    }
+
+    /// OpenCode Go: this Mac's metered costs against the plan's rolling 5-hour, weekly and monthly dollar limits.
+    init(openCodeCosts costs: [(date: Date, dollars: Double)], now: Date = Date()) {
+        let p = OpenCodeGo.percents(costs: costs, now: now)
+        // Rolling windows have no reset moment (each cost leaves on its own), so no reset date that would zero them.
+        fiveHour = UsageLimit(percent: p.fiveHour, resets: nil)
+        week = UsageLimit(percent: p.week, resets: nil)
+        month = UsageLimit(percent: p.month, resets: nil)
+    }
 
     /// Codex logs a primary (5-hour) and a secondary (weekly) window with their lengths in minutes.
     init(codexLimits: [(percent: Double, minutes: Int, resets: Date?)]) {
@@ -159,6 +371,34 @@ enum ClaudeLimitsBridge {
     static func parseReset(_ value: Any?) -> Date? {
         if let number = (value as? NSNumber)?.doubleValue { return Date(timeIntervalSince1970: number > 1e12 ? number / 1000 : number) }
         return UsageScanner.parseDate(value)
+    }
+}
+
+/// OpenCode's own record of what each answer cost (its SQLite database, opened read-only; message rows only, never
+/// its credential or account tables).
+enum OpenCodeCosts {
+    static var database: String { UsageTab.openCodeRoot + "/opencode.db" }
+
+    static func read(since: Date, path: String = database) -> [(date: Date, dollars: Double)]? {
+        guard FileManager.default.fileExists(atPath: path) else { return nil }
+        var db: OpaquePointer?
+        guard sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK else { sqlite3_close(db); return nil }
+        defer { sqlite3_close(db) }
+        sqlite3_busy_timeout(db, 200)
+        // Only answers billed to the Go subscription: OpenCode also records costs for other providers (a person's own
+        // API keys, local models), which don't count against Go's limits.
+        let sql = "SELECT time_created, json_extract(data, '$.cost') FROM message WHERE time_created >= ? AND json_extract(data, '$.role') = 'assistant' AND json_extract(data, '$.providerID') = 'opencode-go'"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_int64(statement, 1, Int64(since.timeIntervalSince1970 * 1000))
+        var rows: [(date: Date, dollars: Double)] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            let ms = sqlite3_column_int64(statement, 0)
+            let cost = sqlite3_column_type(statement, 1) == SQLITE_NULL ? 0 : sqlite3_column_double(statement, 1)
+            rows.append((Date(timeIntervalSince1970: Double(ms) / 1000), cost))
+        }
+        return rows
     }
 }
 
@@ -346,103 +586,249 @@ enum UsageScanner {
 struct UsageView: View {
     @ObservedObject var model: UsageTab
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // The band already names the tab; this line only says how to read the rings.
-            Text("Weekly limits, counting up to 100%").font(.system(size: 12.5)).foregroundStyle(MouthyTheme.cream2)
-            HStack(alignment: .top, spacing: 14) {
-                LimitCard(name: "Claude Code", symbol: "sparkle", limits: model.claude,
-                          missing: "Shows after your next Claude Code message.")
-                // Codex shows only when its logs report a limit; on a Mac without Codex, Claude takes the row.
-                if let codex = model.codex {
-                    LimitCard(name: "Codex", symbol: "chevron.left.forwardslash.chevron.right", limits: codex, missing: "")
-                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        if model.shown.isEmpty {
+            UsagePicker(model: model)
+        } else {
+            VStack(spacing: 6) {
+                GeometryReader { geo in
+                    let pages = stride(from: 0, to: model.shown.count, by: UsageTab.ringsPerPage).map {
+                        Array(model.shown[$0..<min($0 + UsageTab.ringsPerPage, model.shown.count)])
+                    }
+                    HStack(spacing: 0) {
+                        ForEach(pages.indices, id: \.self) { index in
+                            // Even columns across the tab, centred in its height: one, two or three rings sit the same.
+                            HStack(alignment: .top, spacing: 0) {
+                                ForEach(pages[index]) { service in
+                                    ServiceRing(service: service, limits: model.limits(for: service), awake: model.awake.contains(service),
+                                                compact: model.pageCount > 1)
+                                        .frame(maxWidth: .infinity)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
+                        }
+                    }
+                    .offset(x: -CGFloat(model.page) * geo.size.width)
+                    .frame(width: geo.size.width, alignment: .leading)
+                }
+                .clipped()
+                if model.pageCount > 1 { PageDots(count: model.pageCount, current: model.page) }
+            }
+        }
+    }
+}
+
+/// One service. Its limits are rings that fill with the share used (a quarter at 25%, full when maxed out): the long
+/// one (week or month) outside and the 5-hour one inside when it has both, one ring otherwise. The number in the
+/// middle is the limit it is closest to; its mark and name are beneath, then each limit's number on one line (or,
+/// with one limit, which it is and when it resets). A service that shows no limits has its mark in a dashed ring.
+/// Awake (its tool wrote in the last 10 minutes) the rings are lit and breathe softly; asleep they dim, hold still
+/// and a small "zzz" follows the name.
+struct ServiceRing: View {
+    let service: AIService
+    let limits: ServiceLimits?
+    let awake: Bool
+    /// More services than fit one page: the page dots take a line, so the rings are a size smaller.
+    var compact = false
+    var body: some View {
+        let binding = limits?.binding
+        let percent = binding?.percent
+        let maxed = (percent ?? 0) >= 100, hot = (percent ?? 0) >= 80
+        let long = limits?.long?.percent, short = limits?.fiveHour?.current()
+        let side: CGFloat = compact ? 48 : 58
+        VStack(spacing: 0) {
+            ZStack {
+                AwakeGlow(awake: awake).frame(width: side + 8, height: side + 8)
+                if let long, let short {
+                    GlowRing(progress: ringFill(percent: long), lineWidth: 5, tint: long >= 80 ? MouthyTheme.ember : MouthyTheme.orange)
+                    GlowRing(progress: ringFill(percent: short), lineWidth: 5, tint: short >= 80 ? MouthyTheme.ember : MouthyTheme.glowHi)
+                        .padding(compact ? 7 : 8)
+                } else {
+                    GlowRing(progress: ringFill(percent: percent ?? 0), lineWidth: 5.5,
+                             tint: hot ? MouthyTheme.ember : MouthyTheme.orange, dashed: percent == nil)
+                }
+                if let percent {
+                    Text(maxed ? "Max" : "\(Int(percent.rounded()))%")
+                        .font(.system(size: (long != nil && short != nil ? 12 : (maxed ? 14 : 16)) - (compact ? 1.5 : 0), weight: .bold, design: .rounded)).monospacedDigit()
+                        .foregroundStyle(hot ? MouthyTheme.ember : (awake ? MouthyTheme.cream : MouthyTheme.cream2))
+                        .contentTransition(.numericText())
+                } else {
+                    Image(systemName: service.symbol)
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(awake ? MouthyTheme.glow : MouthyTheme.cream3)
                 }
             }
-            .animation(.smooth(duration: 0.3), value: model.codex == nil)
+            .frame(width: side, height: side)
+            .opacity(awake ? 1 : 0.6)
+            .animation(.smooth(duration: 0.6), value: awake)
+            HStack(spacing: 5) {
+                if percent != nil {
+                    Image(systemName: service.symbol).font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(awake ? MouthyTheme.glow : MouthyTheme.cream2)
+                }
+                Text(service.name).font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.cream)
+                    .lineLimit(1)
+                if !awake {
+                    Image(systemName: "zzz").font(.system(size: 8.5, weight: .bold)).foregroundStyle(MouthyTheme.cream3)
+                        .transition(.opacity)
+                }
+            }
+            .padding(.top, compact ? 6 : 9)
+            Text(caption(binding)).font(.system(size: 11, design: .rounded)).monospacedDigit()
+                .foregroundStyle(hot ? MouthyTheme.ember : MouthyTheme.cream2)
+                .lineLimit(1).minimumScaleFactor(0.85)
+                .padding(.top, 3)
+        }
+        .padding(.horizontal, 6)
+        .help(spoken(binding))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(service.name + ", " + spoken(binding) + (awake ? ", in use" : ", asleep"))
+    }
+
+    /// Under the name: each limit's number when there are two rings ("5h 12% · week 23%"); with one, which limit the
+    /// ring shows and when it resets (its number is in the ring).
+    private func caption(_ binding: (percent: Double, window: String, resets: Date?)?) -> String {
+        guard let binding else {
+            if !service.showsLimits { return awake ? "In use" : "Asleep" }
+            return awake ? "In use, no limits yet" : "No data yet"
+        }
+        if let short = limits?.fiveHour, let long = limits?.long {
+            return "5h \(Int(short.current().rounded()))% · \(long.name) \(Int(long.percent.rounded()))%"
+        }
+        var text = "\(binding.window) limit"
+        if let resets = binding.resets, resets > Date() {
+            text += " · resets " + resets.formatted(.dateTime.weekday(.abbreviated).hour())
+        }
+        return text
+    }
+
+    /// The whole reading in words, for VoiceOver and the tooltip: every limit shown, and when the closest one resets.
+    private func spoken(_ binding: (percent: Double, window: String, resets: Date?)?) -> String {
+        guard let binding else {
+            if !service.showsLimits { return awake ? "In use" : "Asleep" }
+            return awake ? "In use, no limits yet" : "No data yet"
+        }
+        if let short = limits?.fiveHour, let long = limits?.long {
+            var text = "\(Int(short.current().rounded()))% of 5-hour, \(Int(long.percent.rounded()))% of \(long.name)"
+            if binding.percent >= 100 { text += ", maxed out" }
+            if let resets = binding.resets, resets > Date() {
+                text += " · \(binding.window) resets " + resets.formatted(.dateTime.weekday(.abbreviated).hour())
+            }
+            return text
+        }
+        let percent = Int(binding.percent.rounded())
+        if percent >= 100 { return "Maxed out · \(binding.window)" }
+        var text = "\(percent)% of \(binding.window)"
+        if let resets = binding.resets, resets > Date() {
+            text += " · resets " + resets.formatted(.dateTime.weekday(.abbreviated).hour())
+        }
+        return text
+    }
+}
+
+/// Where you are among the pages of rings.
+struct PageDots: View {
+    let count: Int, current: Int
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<count, id: \.self) { index in
+                Capsule().fill(index == current ? MouthyTheme.glow : MouthyTheme.cream.opacity(0.18))
+                    .frame(width: index == current ? 14 : 5, height: 5)
+            }
+        }
+        .animation(.smooth(duration: 0.3), value: current)
+        .accessibilityLabel("Page \(current + 1) of \(count)")
+    }
+}
+
+/// Nothing picked yet: the services as chips to turn on, right in the tab (also in Settings and setup).
+struct UsagePicker: View {
+    @ObservedObject var model: UsageTab
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Which AI do you pay for?").font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.cream)
+            Text("Pick yours and their limits show here. Read on this Mac only, never online.")
+                .font(.system(size: 12)).foregroundStyle(MouthyTheme.cream2)
+            AIServiceChips(selected: Set(model.shown)) { service, on in model.onPick?(service, on) }
             Spacer(minLength: 0)
         }
     }
 }
 
-/// A weekly ring with the percentage in the middle, the 5-hour window and the reset time beneath.
-/// Without data the ring is dashed and says "No data", never 0%.
-struct LimitCard: View {
-    let name: String
-    let symbol: String
-    let limits: ServiceLimits?
-    let missing: String
+/// Toggle chips for the AI services (the usage tab, Settings and setup).
+struct AIServiceChips: View {
+    let selected: Set<AIService>
+    let toggle: (AIService, Bool) -> Void
     var body: some View {
-        HStack(spacing: 16) {
-            let week = limits?.week?.current()
-            let hot = (week ?? 0) > 80
-            ZStack {
-                GlowRing(progress: (week ?? 0) / 100, lineWidth: 5, tint: hot ? MouthyTheme.ember : MouthyTheme.orange, dashed: week == nil)
-                VStack(spacing: 0) {
-                    if let week {
-                        Text("\(Int(week.rounded()))%")
-                            .font(MouthyType.notchUsage)
-                            .foregroundStyle(hot ? AnyShapeStyle(MouthyTheme.ember) : AnyShapeStyle(MouthyTheme.cream))
-                            .contentTransition(.numericText())
-                        Text("week").font(.system(size: 10.5, weight: .medium, design: .rounded)).foregroundStyle(MouthyTheme.cream2)
-                    } else {
-                        Text("No data").font(.system(size: 12, weight: .medium, design: .rounded)).foregroundStyle(MouthyTheme.cream2)
-                    }
+        FlowLayout(spacing: 8) {
+            ForEach(AIService.allCases) { service in
+                let on = selected.contains(service)
+                Button { toggle(service, !on) } label: {
+                    Label(service.name, systemImage: service.symbol)
+                        .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 11).padding(.vertical, 6)
+                        .foregroundStyle(on ? MouthyTheme.onOrange : MouthyTheme.cream)
+                        .background(Capsule().fill(on ? AnyShapeStyle(MouthyTheme.orange) : AnyShapeStyle(MouthyTheme.cream.opacity(0.08))))
                 }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
-            .frame(width: 56, height: 56)
-            VStack(alignment: .leading, spacing: 6) {
-                Label {
-                    Text(name).foregroundStyle(MouthyTheme.cream)
-                } icon: {
-                    Image(systemName: symbol).foregroundStyle(MouthyTheme.glow)
-                }
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                if limits == nil {
-                    Text(missing).font(.system(size: 13)).foregroundStyle(MouthyTheme.cream2).fixedSize(horizontal: false, vertical: true)
-                } else {
-                    if let short = limits?.fiveHour {
-                        let value = short.current()
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("5-hour")
-                                Spacer()
-                                Text("\(Int(value.rounded()))%").monospacedDigit().contentTransition(.numericText())
-                            }
-                            .font(.system(size: 12, weight: .medium, design: .rounded)).foregroundStyle(MouthyTheme.cream2)
-                            GeometryReader { bar in
-                                ZStack(alignment: .leading) {
-                                    Capsule(style: .circular).fill(MouthyTheme.cream.opacity(0.08))
-                                    Capsule(style: .circular).fill(value > 80 ? AnyShapeStyle(MouthyTheme.ember) : AnyShapeStyle(LinearGradient(colors: [MouthyTheme.orange, MouthyTheme.glowHi], startPoint: .leading, endPoint: .trailing)))
-                                        .frame(width: max(4, bar.size.width * min(1, value / 100)))
-                                }
-                            }
-                            .frame(height: 4)
-                        }
-                    } else {
-                        Text("No 5-hour window reported.").font(.system(size: 12)).foregroundStyle(MouthyTheme.cream3)
-                    }
-                    if let resets = limits?.week?.resets, resets > Date() {
-                        Text("Week resets " + resets.formatted(.dateTime.weekday(.abbreviated).hour().minute()))
-                            .font(.system(size: 12)).foregroundStyle(MouthyTheme.cream2)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .smokedGlass(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 }
 
-/// The tightest readout: each service's weekly limit used, as a percentage.
+/// The soft light behind an awake ring: one slow Core Animation breath in the render server, nothing per frame in
+/// Mouthy. Asleep, the light is off and nothing animates. Reduce Motion keeps a steady light.
+final class AwakeGlowView: RenderServerView {
+    private let glow = CAGradientLayer()
+    private var state: Bool?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        glow.type = .radial
+        glow.colors = [NSColor(MouthyTheme.glow).withAlphaComponent(0.42).cgColor, NSColor(MouthyTheme.glow).withAlphaComponent(0).cgColor]
+        glow.startPoint = CGPoint(x: 0.5, y: 0.5); glow.endPoint = CGPoint(x: 1, y: 1)
+        glow.opacity = 0
+        layer?.addSublayer(glow)
+    }
+    @available(*, unavailable) required init?(coder: NSCoder) { fatalError("not used") }
+    var animationKeys: [String] { glow.animationKeys() ?? [] }
+
+    func apply(awake: Bool) {
+        guard awake != state else { return }
+        state = awake
+        glow.removeAllAnimations()
+        Self.withoutActions { glow.opacity = awake ? 0.75 : 0 }
+        guard awake, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
+        let breathe = CABasicAnimation(keyPath: "opacity")
+        breathe.fromValue = 0.45; breathe.toValue = 1
+        breathe.duration = 2.6; breathe.autoreverses = true; breathe.repeatCount = .infinity
+        breathe.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        glow.add(Self.decorative(breathe), forKey: "breathe")
+    }
+
+    override func layout() {
+        super.layout()
+        Self.withoutActions { glow.frame = bounds }
+    }
+}
+
+struct AwakeGlow: NSViewRepresentable {
+    let awake: Bool
+    func makeNSView(context: Context) -> AwakeGlowView { AwakeGlowView(frame: .zero) }
+    func updateNSView(_ view: AwakeGlowView, context: Context) { view.apply(awake: awake) }
+}
+
+/// The tightest readout beside the recording pill: each picked service's fullest limit, as a percentage.
 struct UsageChip: View {
     @ObservedObject var usage: UsageTab
     var body: some View {
         HStack(spacing: 9) {
-            if let week = usage.claude?.week { entry("sparkle", week.current(), help: "Claude Code: weekly limit used") }
-            if let week = usage.codex?.week { entry("chevron.left.forwardslash.chevron.right", week.current(), help: "Codex: weekly limit used") }
+            ForEach(usage.shown) { service in
+                if let binding = usage.limits(for: service)?.binding {
+                    entry(service.symbol, binding.percent, help: "\(service.name): \(binding.window) limit used")
+                }
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture { NotchHub.shared.show(tabID: usage.id) }

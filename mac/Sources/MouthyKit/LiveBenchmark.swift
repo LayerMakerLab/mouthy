@@ -35,6 +35,17 @@ enum LiveBenchmark {
         }
         _ = try await decode(Array(audio.prefix(32_000)), true)   // warm, as Mouthy is after launch
         await VoiceActivity.shared.prepare()
+        // MOUTHY_BENCH_INSTANT=1: with "Show words instantly" (its model must be on this Mac), and every pass showing
+        // its plain text first as with custom words. The stop's text and time must not change with it.
+        var stream: LiveTranscriber.Stream?
+        let instant = ProcessInfo.processInfo.environment["MOUTHY_BENCH_INSTANT"]
+        if instant != nil {
+            // Asked for and not there: saying so, where running without it would pass and prove nothing.
+            guard engine == .parakeet, await LiveWords.shared.prepare() else {
+                throw MouthyFailure("MOUTHY_BENCH_INSTANT needs Parakeet and the model for \"Show words instantly\" on this Mac.")
+            }
+            stream = { samples, restart in await LiveWords.shared.hear(samples, restart: restart) }
+        }
         var started = ContinuousClock.now
         let whole = try await decode(audio, true)
         let wholeMilliseconds = milliseconds(since: started)
@@ -54,8 +65,12 @@ enum LiveBenchmark {
             let delivered = release ? max(0, first - inFlight * 16) : mic.count
             var recorded = 0
             let cpu = cpuSeconds()
-            let live = LiveTranscriber(decode: decode, decodeAfter: decodeAfter, hearsSpeech: VoiceActivity.hearsSpeech, count: { recorded },
+            let live = LiveTranscriber(decode: decode, decodeAfter: decodeAfter, decodeAround: ParakeetRecognizer.decodeAround, hearsSpeech: VoiceActivity.hearsSpeech, stream: stream, count: { recorded },
                                        read: { Array(mic[$0.clamped(to: 0..<recorded)]) })
+            live.quickFirst = stream != nil && instant != "stream"
+            guard (stream != nil) == live.streams else {
+                throw MouthyFailure("MOUTHY_BENCH_INSTANT cannot run with \"Only listen to my voice\": the streaming recognizer is off there.")
+            }
             while recorded < delivered {
                 let step = min(delivered - recorded, 1_600)
                 recorded += step

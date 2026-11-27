@@ -134,67 +134,69 @@ struct TimersView: View {
         let stopwatchLive = model.stopwatchStart != nil
         let focusQuiet = stopwatchLive && !focusLive
         let stopwatchQuiet = focusLive && !stopwatchLive
-        HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
                 TabHeader(title: "Focus", detail: model.streak > 0 ? "\(model.streak) today" : nil)
-                HStack(alignment: .center, spacing: 18) {
+                HStack(alignment: .center, spacing: 12) {
                     TimerRing(model: model, quiet: focusQuiet)
-                        .frame(width: 84, height: 84)
+                        .frame(width: 68, height: 68)
                     VStack(alignment: .leading, spacing: 8) {
                         if let running = model.running {
                             Text("Ends " + running.ends.formatted(date: .omitted, time: .shortened))
-                                .font(.system(size: 13.5)).foregroundStyle(MouthyTheme.cream2)
+                                .font(.system(size: 12.5)).foregroundStyle(MouthyTheme.cream2)
                             PillButton(title: "Stop", symbol: "stop.fill") { model.stop() }
                         } else {
-                            HStack(spacing: 6) {
+                            // What to time, as one segmented control; then Start, with the minutes beside it for a
+                            // plain timer.
+                            HStack(spacing: 2) {
                                 ForEach(TimersTab.Kind.allCases, id: \.self) { kind in
-                                    KindChip(title: kind == .countdown ? "Timer" : "\(TimersTab.name(kind)) \(model.minutes(for: kind))",
-                                             selected: model.selected == kind) {
+                                    // (The ring beside it shows the length of the one that is chosen.)
+                                    KindChip(title: kind == .countdown ? "Timer" : TimersTab.name(kind), selected: model.selected == kind) {
                                         withAnimation(MouthyMotion.select) { model.selected = kind }
                                     }
                                 }
                             }
-                            if model.selected == .countdown {
-                                Stepper(value: $model.countdownMinutes, in: 1...180) {
-                                    Text("\(model.countdownMinutes) min").font(.system(size: 13.5, design: .rounded)).monospacedDigit()
-                                        .foregroundStyle(MouthyTheme.cream)
-                                        .contentTransition(.numericText())
+                            .padding(2)
+                            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(MouthyTheme.cream.opacity(0.06)))
+                            .fixedSize()
+                            HStack(spacing: 8) {
+                                PillButton(title: "Start", symbol: "play.fill", prominent: !focusQuiet) { model.start(model.selected) }
+                                    .accessibilityLabel("Start \(TimersTab.name(model.selected).lowercased())")
+                                if model.selected == .countdown {
+                                    MinuteStepper(minutes: $model.countdownMinutes)
+                                        .transition(.opacity)
                                 }
-                                .fixedSize()
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                            }
-                            PillButton(title: "Start \(TimersTab.name(model.selected).lowercased())", symbol: "play.fill", prominent: !focusQuiet) {
-                                model.start(model.selected)
                             }
                         }
                     }
                     .animation(MouthyMotion.select, value: model.selected)
                 }
+                .frame(maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            // As tall as the content, not the panel.
-            Rectangle().fill(MouthyTheme.cream.opacity(0.08)).frame(width: 1).padding(.vertical, 4)
-            VStack(alignment: .leading, spacing: 10) {
+            .notchTile()
+            VStack(alignment: .leading, spacing: 0) {
                 TabHeader(title: "Stopwatch")
                 // Whole seconds, running or paused: one tick a second, and the readout keeps one format.
                 TimelineView(.periodic(from: (model.stopwatchStart ?? .now).addingTimeInterval(-model.stopwatchBanked.truncatingRemainder(dividingBy: 1)),
                                        by: model.stopwatchStart == nil ? 3600 : 1)) { _ in
                     let elapsed = model.stopwatchBanked + (model.stopwatchStart.map { Date().timeIntervalSince($0) } ?? 0)
                     Text(formatClock(floor(elapsed)))
-                        .font(MouthyType.notchStopwatch)
+                        .font(.system(size: 26, weight: .regular, design: .rounded).monospacedDigit())
                         .foregroundStyle(stopwatchLive ? AnyShapeStyle(MouthyTheme.barFill)
                                          : AnyShapeStyle(stopwatchQuiet ? MouthyTheme.cream2.opacity(0.5) : MouthyTheme.cream))
-                        .padding(.vertical, 6)
+                        .frame(maxHeight: .infinity)
                 }
-                HStack {
+                HStack(spacing: 6) {
                     PillButton(title: model.stopwatchStart == nil ? "Start" : "Pause",
                                symbol: model.stopwatchStart == nil ? "play.fill" : "pause.fill",
-                               prominent: !stopwatchLive && !stopwatchQuiet && model.stopwatchBanked == 0) { model.toggleStopwatch() }
+                               prominent: false) { model.toggleStopwatch() }
                     PillButton(title: "Reset") { model.resetStopwatch() }
                         .disabled(model.stopwatchStart == nil && model.stopwatchBanked == 0)
                 }
             }
             .frame(width: 150, alignment: .leading)
+            .notchTile()
         }
         .fixedSize(horizontal: false, vertical: true)
         .animation(MouthyMotion.select, value: focusQuiet)
@@ -211,13 +213,13 @@ struct TimerRing: View {
         ZStack {
             if let running = model.running {
                 // The ring fills on Core Animation; only the clock text ticks, once a second.
-                TimerRingLayers(ends: running.ends, length: running.length, tint: running.kind == .rest ? MouthyTheme.cream2 : MouthyTheme.orange)
+                TimerRingLayers(ends: running.ends, length: running.length, lineWidth: 4.5, tint: running.kind == .rest ? MouthyTheme.cream2 : MouthyTheme.orange)
                 TimelineView(.periodic(from: running.started, by: 1)) { _ in
                     label(formatClock(running.ends.timeIntervalSinceNow),
                           caption: running.kind == .focus ? "Focusing" : running.kind == .rest ? "On a break" : "Countdown")
                 }
             } else {
-                GlowRing(progress: model.finished == nil ? 0 : 1)
+                GlowRing(progress: model.finished == nil ? 0 : 1, lineWidth: 4.5)
                 label("\(model.minutes(for: model.selected)):00",
                       caption: model.finished == .focus ? "Nice work" : model.finished == nil ? TimersTab.name(model.selected) : "Done",
                       highlight: model.finished != nil, quiet: quiet)
@@ -229,34 +231,70 @@ struct TimerRing: View {
 
     private func label(_ time: String, caption: String, highlight: Bool = false, quiet: Bool = false) -> some View {
         VStack(spacing: 1) {
-            Text(time).font(MouthyType.notchTimer).foregroundStyle(quiet ? MouthyTheme.cream2.opacity(0.5) : MouthyTheme.cream)
+            // (A spoken timer can run for hours: "12:34:55" is scaled to stay inside the ring.)
+            Text(time).font(.system(size: 14, weight: .medium, design: .rounded).monospacedDigit())
+                .lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth: 46)
+                .foregroundStyle(quiet ? MouthyTheme.cream2.opacity(0.5) : MouthyTheme.cream)
                 .contentTransition(.numericText(countsDown: true))
-            Text(caption).font(.system(size: 12, weight: .medium, design: .rounded))
+            Text(caption).font(.system(size: 8.5, weight: .medium)).lineLimit(1).fixedSize()
                 .foregroundStyle(highlight ? MouthyTheme.glow : MouthyTheme.cream2)
         }
     }
 }
 
-/// A small choice capsule: selected is raised cream ink, the rest quiet.
+/// One choice in a segmented control: the selected one is a raised fill, the rest are plain labels.
 struct KindChip: View {
     let title: String
     let selected: Bool
     let action: () -> Void
     @State private var hovering = false
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
         Button(action: action) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: 12, weight: selected ? .semibold : .medium))
                 .lineLimit(1)
-                .foregroundStyle(selected ? MouthyTheme.cream : hovering ? MouthyTheme.cream : MouthyTheme.cream2)
-                .padding(.horizontal, 9).frame(minHeight: 24)
-                .background(Capsule(style: .circular).fill(MouthyTheme.cream.opacity(selected ? 0.16 : hovering ? 0.05 : 0)))
-                .overlay(Capsule(style: .circular).strokeBorder(selected ? MouthyTheme.glow.opacity(0.35) : MouthyTheme.cream.opacity(0.08), lineWidth: 0.8))
-                .contentShape(Capsule(style: .circular))
+                .foregroundStyle(selected || hovering ? MouthyTheme.cream : MouthyTheme.cream2)
+                .padding(.horizontal, 8).frame(minHeight: 22)
+                .background(shape.fill(MouthyTheme.cream.opacity(selected ? 0.16 : hovering ? 0.06 : 0)))
+                .contentShape(shape)
         }
         .buttonStyle(NotchPressStyle())
         .onHover { hovering = $0 }
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// The minutes of a plain timer: minus, the number, plus, as one control (the system stepper is another app's look).
+struct MinuteStepper: View {
+    @Binding var minutes: Int
+    var range = 1...180
+    var body: some View {
+        HStack(spacing: 0) {
+            step("minus", by: -1)
+            Text("\(minutes) min").font(.system(size: 12.5, weight: .medium)).monospacedDigit()
+                .foregroundStyle(MouthyTheme.cream).contentTransition(.numericText())
+                .lineLimit(1).fixedSize()
+                .frame(minWidth: 46)
+            step("plus", by: 1)
+        }
+        .frame(height: 26)
+        .fixedSize()
+        .background(PillButton.shape.fill(MouthyTheme.cream.opacity(0.07)))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Minutes").accessibilityValue("\(minutes)")
+        .accessibilityAdjustableAction { direction in
+            minutes = min(range.upperBound, max(range.lowerBound, minutes + (direction == .increment ? 1 : -1)))
+        }
+    }
+    private func step(_ symbol: String, by change: Int) -> some View {
+        Button {
+            withAnimation(MouthyMotion.select) { minutes = min(range.upperBound, max(range.lowerBound, minutes + change)) }
+        } label: {
+            Image(systemName: symbol).font(.system(size: 10, weight: .bold)).foregroundStyle(MouthyTheme.cream2)
+                .frame(width: 26, height: 26).contentShape(Rectangle())
+        }
+        .buttonStyle(NotchPressStyle())
     }
 }
 

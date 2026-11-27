@@ -33,6 +33,7 @@ Each ✓ was checked on real hardware on 2026-10-04 by transcribing the same rec
 | Whisper small | about 100 | 216 MB |
 | Whisper medium | about 100 | about 1.5 GB |
 | Whisper large-v3 turbo | about 100 | 626 MB |
+| Parakeet Realtime EOU 120M, only for "Show words instantly" | English | 214 MB |
 
 Intel Macs download the Parakeet v3 (int8) model listed for Windows and Linux instead.
 
@@ -56,6 +57,7 @@ Windows and Linux model archives are checked against a SHA-256 checksum pinned i
 ## Licenses
 
 - NVIDIA Parakeet TDT 0.6B v3: [CC BY 4.0](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)
+- NVIDIA Parakeet Realtime EOU 120M ("Show words instantly", Mac): [NVIDIA Open Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/)
 - OpenAI Whisper: [MIT](https://github.com/openai/whisper)
 
 The models are downloaded from their publishers and are not part of this repository.

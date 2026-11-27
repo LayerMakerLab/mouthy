@@ -397,7 +397,7 @@ final class LevelGlowView: RenderServerView {
         if anchors != self.anchors || halo != self.halo || size != self.size || spread != self.spread || glows.isEmpty {
             self.anchors = anchors; self.halo = halo; self.size = size; self.spread = spread
             glows.forEach { $0.removeFromSuperlayer() }
-            let glow = NSColor(MouthyTheme.glow).cgColor
+            let glow = NSColor(MouthyTheme.lamp).cgColor
             glows = (halo ? [UnitPoint.center] : anchors).map { _ in
                 let layer = CAGradientLayer()
                 layer.type = .radial
@@ -405,7 +405,7 @@ final class LevelGlowView: RenderServerView {
                 layer.endPoint = CGPoint(x: 1, y: 1)
                 layer.colors = halo
                     ? [glow.copy(alpha: 0.55) ?? glow, glow.copy(alpha: 0) ?? glow]
-                    : [NSColor(MouthyTheme.glowHi).cgColor, glow.copy(alpha: 0.6) ?? glow, glow.copy(alpha: 0) ?? glow]
+                    : [NSColor(MouthyTheme.lampHi).cgColor, glow.copy(alpha: 0.6) ?? glow, glow.copy(alpha: 0) ?? glow]
                 layer.contentsScale = window?.backingScaleFactor ?? 2
                 self.layer?.addSublayer(layer)
                 return layer

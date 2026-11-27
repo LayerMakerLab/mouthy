@@ -2,7 +2,7 @@
 
 Thanks for helping. These rules keep Mouthy fast, private and predictable:
 
-- **Local only.** No cloud calls, telemetry or accounts. The network may be used only to download a model the user asked for.
+- **Local only.** No cloud calls, telemetry or accounts. The network may be used only for what [Privacy and security](docs/privacy.md) lists: models the user asked for, the update check, and the notch hub's lyrics, artwork and weather. Local Only Mode must block all of it.
 - **Speech only types.** Nothing a person says may send, click or run anything. Keys such as Enter and Escape act; words do not.
 - **Near-zero idle cost.** No timers, polling or animation while nothing is being dictated.
 - **Same rules on every platform.** Text rules live in `mac/Sources/MouthyCore` (Swift) and `windows-linux/core` (Rust). Add a case to `shared/text-rules.json` for every change, so both test suites check it.

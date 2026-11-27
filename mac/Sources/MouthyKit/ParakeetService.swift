@@ -142,6 +142,25 @@ actor ParakeetRecognizer {
     }
     /// Live dictation's context decode (LiveTranscriber.finish).
     static let decodeAfter: LiveTranscriber.DecodeAfter = { samples, from in try await shared.transcribe(samples: samples, contextUntil: from) }
+    /// A seam's pass (`LiveTranscriber.seam`): one plain recognition, its words on each side of sample `cut` by their
+    /// token times. Nil without token times to split by (Intel) or without a voice.
+    static let decodeAround: LiveTranscriber.DecodeAround = { samples, cut in try await shared.transcribe(samples: samples, around: cut) }
+    func transcribe(samples: [Float], around cut: Int) async throws -> ContextWords? {
+        guard !occupied else { throw MouthyFailure("Parakeet is already working. Please wait.") }
+        occupied = true; defer { occupied = false; scheduleRelease() }
+        try await load(download: false, progress: { _ in })
+        guard sherpa == nil, let manager = liveManager ?? manager else { return nil }
+        let samples = await VoiceActivity.shared.voiceOnly(samples) ?? samples
+        guard samples.contains(where: { abs($0) > 0.0001 }) else { return nil }
+        let timings = try await recognize(samples, with: manager, boost: false).timings
+        try Task.checkCancellation()
+        let from = Double(cut) / 16_000
+        func words(_ tokens: ArraySlice<TokenTiming>) -> String {
+            tokens.map(\.token).joined().replacingOccurrences(of: "▁", with: " ").trimmingCharacters(in: .whitespaces)
+        }
+        guard let first = timings.firstIndex(where: { $0.startTime >= from && ($0.token.hasPrefix("▁") || $0.token.hasPrefix(" ")) }) else { return nil }
+        return ContextWords(before: words(timings[..<first]), after: words(timings[first...]))
+    }
     /// Recognizes `samples` with the vocabulary pass but returns only the words that begin at or after sample
     /// `start`; the audio before it is context for them (see LiveTranscriber.finish).
     func transcribe(samples: [Float], wordsFrom start: Int) async throws -> String {
@@ -156,6 +175,22 @@ actor ParakeetRecognizer {
         occupied = true; defer { occupied = false; scheduleRelease() }
         try await load(download: false, progress: { _ in })
         lastDocument = TranscriptionDocument(text: "")
+        // What the voice detector makes of the new audio by itself: a sound right after the last word is inside the
+        // voice mask's padding, reaches the recognizer and comes back as a word ("Yeah.").
+        // Judged from the end of the last recognized sound, which is one model frame (80 ms) after `start`
+        // (`LiveTranscriber.newWords(after:)`): before it is the last real word.
+        let soundEnd = min(samples.count, start + 1_280)
+        let voice = sherpa == nil ? await VoiceActivity.shared.probabilities(Array(samples[soundEnd...])) : nil
+        let voiced = NoiseWords.voicedSound(in: samples, from: soundEnd)
+        let newAudio = samples.count - soundEnd
+        /// The new words, unless they are only such a sound. Logs numbers, never words.
+        func spoken(_ after: String) -> String {
+            guard !after.isEmpty else { return after }
+            let noise = NoiseWords.isNoise(after, voice: voice, voiced: voiced, keep: VoiceActivity.keep)
+            let peak = voice.flatMap { $0.max() }.map { String(format: "%.2f", $0) } ?? "unknown"
+            Diagnostics.dictation.notice("context decode: \(newAudio / 16, privacy: .public) ms of new audio, voice \(peak, privacy: .public), \(voiced ? "voiced" : "unvoiced", privacy: .public), \(after.split(separator: " ").count, privacy: .public) new words\(NoiseWords.only(after) ? ", a sound-word" : "", privacy: .public)\(noise ? ": dropped" : "", privacy: .public)")
+            return noise ? "" : after
+        }
         // Parakeet hears only the voice (see transcribe(samples:boost:)); Intel's sherpa path has no voice detector.
         let samples = sherpa == nil ? await VoiceActivity.shared.voiceOnly(samples) ?? samples : samples
         guard samples.count > start else { return ContextWords(after: "") }   // no voice at all
@@ -172,7 +207,7 @@ actor ParakeetRecognizer {
         let from = Double(start) / 16_000
         guard let timings = result.tokenTimings, !timings.isEmpty else {
             var fresh = TdtDecoderState.make(decoderLayers: AsrModelVersion.v3.decoderLayers)
-            return ContextWords(after: try await manager.transcribe(tail, decoderState: &fresh).text)
+            return ContextWords(after: spoken(try await manager.transcribe(tail, decoderState: &fresh).text))
         }
         func words(_ tokens: ArraySlice<TokenTiming>) -> String {
             tokens.map(\.token).joined().replacingOccurrences(of: "▁", with: " ").trimmingCharacters(in: .whitespaces)
@@ -185,9 +220,9 @@ actor ParakeetRecognizer {
         let before = words(timings[..<first])
         let text = words(kept[...])
         if let boosting, let rescored = await boosting.rescore(text: text, tokenTimings: kept, audioSamples: samples), rescored.wasModified {
-            return ContextWords(before: before, after: Self.guarded(text, rescored))
+            return ContextWords(before: before, after: spoken(Self.guarded(text, rescored)))
         }
-        return ContextWords(before: before, after: text)
+        return ContextWords(before: before, after: spoken(text))
     }
     func transcribe(file: URL) async throws -> String {
         guard !occupied else { throw MouthyFailure("Parakeet is already working. Please wait.") }
@@ -225,6 +260,20 @@ actor ParakeetRecognizer {
         guard boost, let boosting, let rescored = await boosting.rescore(text: result.text, tokenTimings: timings, audioSamples: samples),
               rescored.wasModified else { return (result.text, timings) }
         return (Self.guarded(result.text, rescored), timings)
+    }
+    /// Each word of `samples` with the time (seconds) its last token ends, for measuring how far live text trails
+    /// the voice. Empty on the Intel path, which gives no token times here.
+    func timedWords(samples: [Float]) async throws -> [(word: String, end: Double)] {
+        try await load(download: false, progress: { _ in })
+        guard sherpa == nil, let manager = liveManager ?? manager else { return [] }
+        let timings = try await recognize(samples, with: manager, boost: false).timings
+        var words: [(word: String, end: Double)] = []
+        for timing in timings {
+            let piece = timing.token.replacingOccurrences(of: "▁", with: " ")
+            if piece.hasPrefix(" ") || words.isEmpty { words.append((piece.trimmingCharacters(in: .whitespaces), timing.endTime)) }
+            else { words[words.count - 1].word += piece; words[words.count - 1].end = timing.endTime }
+        }
+        return words.filter { !$0.word.isEmpty }
     }
     private func document(_ result: (text: String, timings: [TokenTiming])) -> TranscriptionDocument {
         var segments: [TimedSegment] = []
@@ -288,6 +337,7 @@ enum ModelMemory {
                     await ParakeetRecognizer.shared.releaseIfIdle()
                     await WhisperRecognizer.shared.releaseIfIdle()
                     await VoiceActivity.shared.releaseIfIdle()
+                    await LiveWords.shared.releaseIfIdle()
                 }
             }
             created.resume()

@@ -31,6 +31,11 @@ struct ModesView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // The inspector gives the page the window's title bar as a top inset again; the other pages start under it,
+        // so without this the title sat 48 points lower here than on every other page. Ignoring it also undoes the
+        // workspace's own 14 points above every page, which are put back.
+        .padding(.top, 14)
+        .ignoresSafeArea(.container, edges: .top)
         .animation(MouthyMotion.resolve(MouthyMotion.page, reduceMotion: reduceMotion), value: modes.isEmpty)
         .inspector(isPresented: inspectorShown) {
             if let id = editing, let mode = binding(for: id) {
@@ -94,9 +99,9 @@ struct ModesView: View {
                 .padding(.top, MouthyTheme.Layout.pageTop)
             VStack(spacing: 14) {
                 MascotView(pose: .cheer, size: 140)
-                Text("One mode so far: Settings")
+                Text("No modes yet")
                     .font(.system(size: 20, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.cream)
-                Text("A mode is a style, an engine and a result for one app, website, shortcut or trigger word.")
+                Text("Everything uses your settings. A mode is a style, an engine and a result for one app, website, shortcut or trigger word.")
                     .font(.system(size: 14)).foregroundStyle(MouthyTheme.cream2)
                     .multilineTextAlignment(.center).frame(maxWidth: 360)
                     .fixedSize(horizontal: false, vertical: true)

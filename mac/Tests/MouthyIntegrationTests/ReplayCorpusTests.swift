@@ -21,11 +21,16 @@ enum Corpus {
     static func say(_ text: String, voice: String? = nil, in folder: URL) throws -> [Float] {
         let url = folder.appendingPathComponent(UUID().uuidString + ".wav")
         try speak(text, to: url, voice: voice, pcm16k: true)
+        return try read(url)
+    }
+
+    /// A 16 kHz mono recording as samples.
+    static func read(_ url: URL) throws -> [Float] {
         let file = try AVAudioFile(forReading: url)
         let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)))
         try file.read(into: buffer)
         let samples = Array(UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(buffer.frameLength)))
-        // Trim say's own leading and trailing silence so the mix sets every gap.
+        // Trim the leading and trailing silence so the mix sets every gap.
         let first = samples.firstIndex { abs($0) > 0.002 } ?? 0
         let last = samples.lastIndex { abs($0) > 0.002 } ?? samples.count - 1
         return Array(samples[first...max(first, last)])

@@ -1,0 +1,1826 @@
+[
+{
+"text": "Should I push the branch to the hub now, or wait until the tests pass?",
+"phonemes": "ʃˌʊd ˌI pˈʊʃ ðə bɹˈænʧ tə ðə hˈʌb nˈW, ɔɹ wˈAt ˌʌntˈɪl ðə tˈɛsts pˈæs?"
+},
+{
+"text": "Which file should I edit: AGENTS.md or the README?",
+"phonemes": "wˌɪʧ fˈIl ʃˌʊd ˌI ˈɛdət: ˈAʤᵊnts❓ ɔɹ ði ˌɑɹˌiˌAdˌiˌɛmˈi?"
+},
+{
+"text": "The build finished in 4.2 seconds with 3 warnings. Do you want me to fix them?",
+"phonemes": "ðə bˈɪld fˈɪnəʃt ɪn fˈɔɹ pYnt tˈu sˈɛkəndz wɪð θɹˈi wˈɔɹnɪŋz. dˈu ju wˈɑnt mˌi tə fˈɪks ðˌɛm?"
+},
+{
+"text": "Can I delete the 12 old backups from November 3rd, 2026?",
+"phonemes": "kˌæn ˌI dəlˈit ðə twˈɛlv ˈOld bˈækˌʌps fɹʌm nOvˈɛmbəɹ θˈɜɹd, twˈɛnti twˈɛnti sˈɪks?"
+},
+{
+"text": "It costs $19.99 a month. Is that okay?",
+"phonemes": "ˌɪt kˈɔsts nˌIntˈin dˈɑləɹz ænd nˈIndi nˈIn sˈɛnts ɐ mˈʌnθ. ˌɪz ðˈæt ˌOkˈA?"
+},
+{
+"text": "Do you want version 0.1.7 or 0.1.8 on the website?",
+"phonemes": "dˈu ju wˈɑnt vˈɜɹʒən zˈɪɹO wˈʌn sˈɛvən ɔɹ zˈɪɹO wˈʌn ˈAt ˌɔn ðə wˈɛbsˌIt?"
+},
+{
+"text": "I found 2,724 matching answers out of 3,000. Keep going?",
+"phonemes": "ˌI fˈWnd tˈu θˈWzᵊnd sˈɛvən hˈʌndɹəd twˈɛnti fˈɔɹ mˈæʧɪŋ ˈænsəɹz ˈWt ʌv θɹˈi θˈWzᵊnd. kˈip ɡˈOɪŋ?"
+},
+{
+"text": "Is it okay to restart the PC at 9:30 tonight?",
+"phonemes": "ˌɪz ɪt ˌOkˈA tə ɹistˈɑɹt ðə pˌisˈi æt nˈIn❓ θˈɜɹTi tənˈIt?"
+},
+{
+"text": "The GPU is at 97% and 31°C. Should I keep training?",
+"phonemes": "ðə ʤˌipˌijˈu ɪz æt nˈIndi sˈɛvən pəɹsˈɛnt ænd θˈɜɹTi wˈʌn❓ sˈi. ʃˌʊd ˌI kˈip tɹˈAnɪŋ?"
+},
+{
+"text": "Do you want the iPhone app, the Mac app, or both?",
+"phonemes": "dˈu ju wˈɑnt ði ˈIfˌOn ˈæp, ðə mˈæk ˈæp, ɔɹ bˈOθ?"
+},
+{
+"text": "I'm not sure. What's the URL for the new site?",
+"phonemes": "ˌIm nˌɑt ʃˈʊɹ. wˌʌts ðə jˌuˌɑɹˈɛl fɔɹ ðə nˈu sˈIt?"
+},
+{
+"text": "Run npm install, then npm run build?",
+"phonemes": "ɹˈʌn ❓ ɪnstˈɔl, ðˈɛn ❓ ɹˈʌn bˈɪld?"
+},
+{
+"text": "Can you check the PR on GitHub before I merge it?",
+"phonemes": "kˌæn ju ʧˈɛk ðə pˌiˈɑɹ ˌɔn ɡˌɪthˈʌb bəfˈɔɹ ˌI mˈɜɹʤ ɪt?"
+},
+{
+"text": "There are 1,572,956 tokens in the training set. Is that enough?",
+"phonemes": "ðˌɛɹ ɑɹ wˈʌn mˈɪljᵊn fˈIv hˈʌndɹəd sˈɛvənti tˈu θˈWzᵊnd nˈIn hˈʌndɹəd fˈɪfti sˈɪks tˈOkᵊnz ɪn ðə tɹˈAnɪŋ sˈɛt. ˌɪz ðˈæt ɪnˈʌf?"
+},
+{
+"text": "Okay! Should I start now?",
+"phonemes": "ˌOkˈA! ʃˌʊd ˌI stˈɑɹt nˈW?"
+},
+{
+"text": "Wait, did you mean the 2019 MacBook Pro or the M5?",
+"phonemes": "wˈAt, dˈɪd ju mˈin ðə twˈɛnti nˌIntˈin mˌækbˈʊk pɹˈO ɔɹ ði ˈɛm fˈIv?"
+},
+{
+"text": "We're at step 120 of 341. Ten more minutes?",
+"phonemes": "wˌɪɹ æt stˈɛp wˈʌn hˈʌndɹəd twˈɛnti ʌv θɹˈi hˈʌndɹəd fˈɔɹTi wˈʌn. tˈɛn mˈɔɹ mˈɪnəts?"
+},
+{
+"text": "Wait, really?",
+"phonemes": "wˈAt, ɹˈiᵊli?"
+},
+{
+"text": "Wait, really? That's amazing!",
+"phonemes": "wˈAt, ɹˈiᵊli? ðˈæts əmˈAzɪŋ!"
+},
+{
+"text": "Oh no. Are you okay?",
+"phonemes": "ˈO nˈO. ˌɑɹ ju ˌOkˈA?"
+},
+{
+"text": "Hmm, I'm not sure that's right.",
+"phonemes": "hmm, ˌIm nˌɑt ʃˈʊɹ ðˈæts ɹˈIt."
+},
+{
+"text": "Got it. I'll take care of it.",
+"phonemes": "ɡˌɑt ɪt. ˌIl tˈAk kˈɛɹ ʌv ɪt."
+},
+{
+"text": "Okay, done. Anything else?",
+"phonemes": "ˌOkˈA, dˈʌn. ˈɛniθˌɪŋ ˈɛls?"
+},
+{
+"text": "Nice! That came out great.",
+"phonemes": "nˈIs! ðˈæt kˈAm ˈWt ɡɹˈAt."
+},
+{
+"text": "Oh, that's a good point.",
+"phonemes": "ˈO, ðˈæts ɐ ɡˈʊd pˈYnt."
+},
+{
+"text": "Sorry, I didn't catch that. Could you say it again?",
+"phonemes": "sˈɔɹi, ˌI dˈɪdᵊnt kˈɛʧ ðˈæt. kˌʊd ju sˈA ɪt əɡˈɛn?"
+},
+{
+"text": "Hold on, let me check.",
+"phonemes": "hˈOld ˌɔn, lˈɛt mˌi ʧˈɛk."
+},
+{
+"text": "Yes! It worked!",
+"phonemes": "jˈɛs! ˌɪt wˈɜɹkt!"
+},
+{
+"text": "No way. Are you serious?",
+"phonemes": "nˈO wˈA. ˌɑɹ ju sˈɪɹiəs?"
+},
+{
+"text": "Huh. That's strange.",
+"phonemes": "hˈʌ. ðˈæts stɹˈAnʤ."
+},
+{
+"text": "Hey, welcome back!",
+"phonemes": "hˈA, wˈɛlkəm bˈæk!"
+},
+{
+"text": "Good morning! Did you sleep well?",
+"phonemes": "ɡˈʊd mˈɔɹnɪŋ! dˈɪd ju slˈip wˈɛl?"
+},
+{
+"text": "Good night. Talk tomorrow.",
+"phonemes": "ɡˈʊd nˈIt. tˈɔk təmˈɑɹO."
+},
+{
+"text": "You've got this.",
+"phonemes": "jˌuv ɡɑt ðˈɪs."
+},
+{
+"text": "That's okay. It happens to everyone.",
+"phonemes": "ðˈæts ˌOkˈA. ˌɪt hˈæpənz tʊ ˈɛvɹiwən."
+},
+{
+"text": "Wait, which one did you mean?",
+"phonemes": "wˈAt, wˌɪʧ wˈʌn dˈɪd ju mˈin?"
+},
+{
+"text": "Do you want me to send it now, or later?",
+"phonemes": "dˈu ju wˈɑnt mˌi tə sˈɛnd ɪt nˈW, ɔɹ lˈATəɹ?"
+},
+{
+"text": "I found three matches. Want me to read them?",
+"phonemes": "ˌI fˈWnd θɹˈi mˈæʧᵻz. wˈɑnt mˌi tə ɹˈid ðˌɛm?"
+},
+{
+"text": "Are you sure? This can't be undone.",
+"phonemes": "ˌɑɹ ju ʃˈʊɹ? ðˌɪs kˈænt bi ˌʌndˈʌn."
+},
+{
+"text": "Heads up, your battery is almost empty.",
+"phonemes": "hˈɛdz ˌʌp, jʊɹ bˈæTəɹi ɪz ˈɔlmOst ˈɛmpti."
+},
+{
+"text": "Your build finished. Everything passed.",
+"phonemes": "jˌʊɹ bˈɪld fˈɪnəʃt. ˈɛvəɹiθˌɪŋ pˈæst."
+},
+{
+"text": "The build failed. Two tests broke.",
+"phonemes": "ðə bˈɪld fˈAld. tˈu tˈɛsts bɹˈOk."
+},
+{
+"text": "I saved it to your desktop.",
+"phonemes": "ˌI sˈAvd ɪt tə jʊɹ dˈɛsktˌɑp."
+},
+{
+"text": "I couldn't find that file anywhere.",
+"phonemes": "ˌI kˌʊdᵊnt fˈInd ðˈæt fˈIl ˈɛniwˌɛɹ."
+},
+{
+"text": "It's raining outside, so maybe grab a jacket.",
+"phonemes": "ˌɪts ɹˈAnɪŋ ˌWtsˈId, sˌO mˈAbi ɡɹˈæb ɐ ʤˈækət."
+},
+{
+"text": "Ha, that's actually really funny.",
+"phonemes": "hˈɑ, ðˈæts ˈækʧəwəli ɹˈiᵊli fˈʌni."
+},
+{
+"text": "Oh, I love that idea!",
+"phonemes": "ˈO, ˌI lˈʌv ðˈæt Idˈiə!"
+},
+{
+"text": "Hmm, let me think about that for a second.",
+"phonemes": "hmm, lˈɛt mˌi θˈɪŋk əbˈWt ðˈæt fɔɹ ɐ sˈɛkənd."
+},
+{
+"text": "Honestly? I'd go with the first one.",
+"phonemes": "ˈɑnəstli? ˌId ɡˌO wɪð ðə fˈɜɹst wˈʌn."
+},
+{
+"text": "That's a lot. Want to take a break?",
+"phonemes": "ðˈæts ɐ lˈɑt. wˈɑnt tə tˈAk ɐ bɹˈAk?"
+},
+{
+"text": "Whoa, slow down! What happened?",
+"phonemes": "wˈO, slˈO dˌWn! wˌʌt hˈæpənd?"
+},
+{
+"text": "Oh wow, look at that!",
+"phonemes": "ˈO wˈW, lˈʊk æt ðˈæt!"
+},
+{
+"text": "Ugh, not again.",
+"phonemes": "ˈʌh, nˌɑt əɡˈɛn."
+},
+{
+"text": "Seriously? It crashed again?",
+"phonemes": "sˈɪɹiəsli? ˌɪt kɹˈæʃt əɡˈɛn?"
+},
+{
+"text": "Okay, okay. Let's figure it out together.",
+"phonemes": "ˌOkˈA, ˌOkˈA. lˈɛts fˈɪɡjəɹ ɪt ˈWt təɡˈɛðəɹ."
+},
+{
+"text": "Don't worry, nothing was lost.",
+"phonemes": "dˈOnt wˈɜɹi, nˈʌθɪŋ wʌz lˈɔst."
+},
+{
+"text": "I'm so sorry. That's my mistake.",
+"phonemes": "ˌIm sˌO sˈɔɹi. ðˈæts mI məstˈAk."
+},
+{
+"text": "Thanks! That really helps.",
+"phonemes": "θˈæŋks! ðˈæt ɹˈiᵊli hˈɛlps."
+},
+{
+"text": "You're welcome.",
+"phonemes": "jˌʊɹ wˈɛlkəm."
+},
+{
+"text": "Of course!",
+"phonemes": "ˌʌv kˈɔɹs!"
+},
+{
+"text": "Absolutely.",
+"phonemes": "ˈæbsəlˌutli."
+},
+{
+"text": "Not yet, but I'm close.",
+"phonemes": "nˌɑt jˈɛt, bˌʌt ˌIm klˈOs."
+},
+{
+"text": "Almost there. Just a few more seconds.",
+"phonemes": "ˈɔlmOst ðˈɛɹ. ʤˈʌst ɐ fjˈu mˈɔɹ sˈɛkəndz."
+},
+{
+"text": "Ready when you are.",
+"phonemes": "ɹˈɛdi wˌɛn ju ɑɹ."
+},
+{
+"text": "Can you hear me okay?",
+"phonemes": "kˌæn ju hˈɪɹ mˌi ˌOkˈA?"
+},
+{
+"text": "What do you want to work on next?",
+"phonemes": "wˌʌt dˈu ju wˈɑnt tə wˈɜɹk ˌɔn nˈɛkst?"
+},
+{
+"text": "How did the print turn out?",
+"phonemes": "hˌW dˈɪd ðə pɹˈɪnt tˈɜɹn ˈWt?"
+},
+{
+"text": "Did that answer your question?",
+"phonemes": "dˈɪd ðˈæt ˈænsəɹ jʊɹ kwˈɛsʧᵊn?"
+},
+{
+"text": "Should I keep going?",
+"phonemes": "ʃˌʊd ˌI kˈip ɡˈOɪŋ?"
+},
+{
+"text": "Why did it stop?",
+"phonemes": "wˌI dˈɪd ɪt stˈɑp?"
+},
+{
+"text": "Where did you save it?",
+"phonemes": "wˌɛɹ dˈɪd ju sˈAv ɪt?"
+},
+{
+"text": "Who should I send this to?",
+"phonemes": "hˌu ʃˌʊd ˌI sˈɛnd ðɪs tu?"
+},
+{
+"text": "When do you need it by?",
+"phonemes": "wˌɛn dˈu ju nˈid ɪt bˈI?"
+},
+{
+"text": "Is that everything?",
+"phonemes": "ˌɪz ðˈæt ˈɛvəɹiθˌɪŋ?"
+},
+{
+"text": "That's it? That was easy!",
+"phonemes": "ðˈæts ɪt? ðˈæt wʌz ˈizi!"
+},
+{
+"text": "Perfect. Exactly what I wanted.",
+"phonemes": "pˈɜɹfəkt. ɪɡzˈæktli wˌʌt ˌI wˈɑntᵻd."
+},
+{
+"text": "Hmm. Close, but not quite.",
+"phonemes": "hmm. klˈOs, bˌʌt nˌɑt kwˈIt."
+},
+{
+"text": "Oh! I almost forgot. You have a call at three.",
+"phonemes": "ˈO! ˌI ˈɔlmOst fəɹɡˈɑt. jˌu hæv ɐ kˈɔl æt θɹˈi."
+},
+{
+"text": "Reminder: the meeting starts in five minutes.",
+"phonemes": "ɹəmˈIndəɹ: ðə mˈiTɪŋ stˈɑɹts ɪn fˈIv mˈɪnəts."
+},
+{
+"text": "Quick question. Do you want the light or the dark version?",
+"phonemes": "kwˈɪk kwˈɛsʧᵊn. dˈu ju wˈɑnt ðə lˈIt ɔɹ ðə dˈɑɹk vˈɜɹʒən?"
+},
+{
+"text": "I'm on it.",
+"phonemes": "ˌIm ˌɔn ɪt."
+},
+{
+"text": "Done and done.",
+"phonemes": "dˈʌn ænd dˈʌn."
+},
+{
+"text": "All set!",
+"phonemes": "ˈɔl sˈɛt!"
+},
+{
+"text": "Let me read that back to you.",
+"phonemes": "lˈɛt mˌi ɹˈid ðˈæt bˈæk tə ju."
+},
+{
+"text": "Here's what I heard.",
+"phonemes": "hˈɪɹz wˌʌt ˌI hˈɜɹd."
+},
+{
+"text": "Wait, wait, wait. Say that again?",
+"phonemes": "wˈAt, wˈAt, wˈAt. sˈA ðˈæt əɡˈɛn?"
+},
+{
+"text": "Oh, you mean the other folder!",
+"phonemes": "ˈO, ju mˈin ði ˈʌðəɹ fˈOldəɹ!"
+},
+{
+"text": "Right, that makes sense.",
+"phonemes": "ɹˈIt, ðˈæt mˌAks sˈɛns."
+},
+{
+"text": "Exactly!",
+"phonemes": "ɪɡzˈæktli!"
+},
+{
+"text": "I see what you mean.",
+"phonemes": "ˌI sˈi wˌʌt ju mˈin."
+},
+{
+"text": "Fair enough.",
+"phonemes": "fˈɛɹ ɪnˈʌf."
+},
+{
+"text": "That's wild.",
+"phonemes": "ðˈæts wˈIld."
+},
+{
+"text": "Oh, that's so sweet.",
+"phonemes": "ˈO, ðˈæts sˌO swˈit."
+},
+{
+"text": "Aw, I'm sorry to hear that.",
+"phonemes": "ˈɔ, ˌIm sˈɔɹi tə hˈɪɹ ðˈæt."
+},
+{
+"text": "That sounds really stressful.",
+"phonemes": "ðˈæt sˈWndz ɹˈiᵊli stɹˈɛsfᵊl."
+},
+{
+"text": "Take your time. I'm not going anywhere.",
+"phonemes": "tˈAk jʊɹ tˈIm. ˌIm nˌɑt ɡˈOɪŋ ˈɛniwˌɛɹ."
+},
+{
+"text": "Okay, deep breath. We'll fix it.",
+"phonemes": "ˌOkˈA, dˈip bɹˈɛθ. wˌil fˈɪks ɪt."
+},
+{
+"text": "Uh oh. I think something went wrong.",
+"phonemes": "ˈʌ ˈO. ˌI θˈɪŋk sˈʌmθˌɪŋ wˈɛnt ɹˈɔŋ."
+},
+{
+"text": "Hmm, the internet looks down.",
+"phonemes": "hmm, ði ˈɪntəɹnˌɛt lˈʊks dˌWn."
+},
+{
+"text": "Good news! It's back up.",
+"phonemes": "ɡˈʊd nˈuz! ˌɪts bˈæk ˌʌp."
+},
+{
+"text": "Bad news. The drive is full.",
+"phonemes": "bˈæd nˈuz. ðə dɹˈIv ɪz fˈʊl."
+},
+{
+"text": "Great news, the order shipped!",
+"phonemes": "ɡɹˈAt nˈuz, ði ˈɔɹdəɹ ʃˈɪpt!"
+},
+{
+"text": "It's three forty five on Monday afternoon.",
+"phonemes": "ˌɪts θɹˈi fˈɔɹTi fˈIv ˌɔn mˈʌndˌA ˌæftəɹnˈun."
+},
+{
+"text": "It's seven in the morning and fifty two degrees.",
+"phonemes": "ˌɪts sˈɛvən ɪn ðə mˈɔɹnɪŋ ænd fˈɪfti tˈu dəɡɹˈiz."
+},
+{
+"text": "You have two new messages and one missed call.",
+"phonemes": "jˌu hæv tˈu nˈu mˈɛsɪʤᵻz ænd wˈʌn mˈɪst kˈɔl."
+},
+{
+"text": "Turn left in two hundred feet.",
+"phonemes": "tˈɜɹn lˈɛft ɪn tˈu hˈʌndɹəd fˈit."
+},
+{
+"text": "Timer done!",
+"phonemes": "tˈIməɹ dˈʌn!"
+},
+{
+"text": "Your timer has ten minutes left.",
+"phonemes": "jˌʊɹ tˈIməɹ hæz tˈɛn mˈɪnəts lˈɛft."
+},
+{
+"text": "I'm listening.",
+"phonemes": "ˌIm lˈɪsənɪŋ."
+},
+{
+"text": "Go ahead.",
+"phonemes": "ɡˌO əhˈɛd."
+},
+{
+"text": "Mm-hmm.",
+"phonemes": "mhmm."
+},
+{
+"text": "Yeah, totally.",
+"phonemes": "jˈɛə, tˈOTəli."
+},
+{
+"text": "No, that's not it.",
+"phonemes": "nˈO, ðˈæts nˌɑt ɪt."
+},
+{
+"text": "Nope, still nothing.",
+"phonemes": "nˈOp, stˈɪl nˈʌθɪŋ."
+},
+{
+"text": "Yep, that's the one.",
+"phonemes": "jˈɛp, ðˈæts ðə wˈʌn."
+},
+{
+"text": "Really? I thought it was Tuesday.",
+"phonemes": "ɹˈiᵊli? ˌI θˈɔt ɪt wʌz tˈuzdˌA."
+},
+{
+"text": "Wait, it's already midnight?",
+"phonemes": "wˈAt, ɪts ˌɔlɹˈɛdi mˈɪdnˌIt?"
+},
+{
+"text": "Oh, hi! I didn't see you there.",
+"phonemes": "ˈO, hˈI! ˌI dˈɪdᵊnt sˈi ju ðˈɛɹ."
+},
+{
+"text": "Ready? Three, two, one, go!",
+"phonemes": "ɹˈɛdi? θɹˈi, tˈu, wˈʌn, ɡˌO!"
+},
+{
+"text": "Congratulations! You did it!",
+"phonemes": "kənɡɹˌæʧəlˈAʃənz! jˌu dˈɪd ɪt!"
+},
+{
+"text": "Happy birthday!",
+"phonemes": "hˈæpi bˈɜɹθdˌA!"
+},
+{
+"text": "That's not good. Let's stop it right now.",
+"phonemes": "ðˈæts nˌɑt ɡˈʊd. lˈɛts stˈɑp ɪt ɹˈIt nˈW."
+},
+{
+"text": "Careful, that file is still open.",
+"phonemes": "kˈɛɹfᵊl, ðˈæt fˈIl ɪz stˈɪl ˈOpᵊn."
+},
+{
+"text": "Shh, it's late. I'll keep it quiet.",
+"phonemes": "❓, ɪts lˈAt. ˌIl kˈip ɪt kwˈIət."
+},
+{
+"text": "Okay, I'll be quick.",
+"phonemes": "ˌOkˈA, ˌIl bi kwˈɪk."
+},
+{
+"text": "Long story short, it works now.",
+"phonemes": "lˈɔŋ stˈɔɹi ʃˈɔɹt, ɪt wˈɜɹks nˈW."
+},
+{
+"text": "So here's the plan.",
+"phonemes": "sˌO hˈɪɹz ðə plˈæn."
+},
+{
+"text": "First, open the folder. Then drag the file in.",
+"phonemes": "fˈɜɹst, ˈOpᵊn ðə fˈOldəɹ. ðˈɛn dɹˈæɡ ðə fˈIl ˈɪn."
+},
+{
+"text": "That's the last step. You're finished!",
+"phonemes": "ðˈæts ðə lˈæst stˈɛp. jˌʊɹ fˈɪnəʃt!"
+},
+{
+"text": "Want to hear a fun fact?",
+"phonemes": "wˈɑnt tə hˈɪɹ ɐ fˈʌn fˈækt?"
+},
+{
+"text": "I'm not totally sure, but I think so.",
+"phonemes": "ˌIm nˌɑt tˈOTəli ʃˈʊɹ, bˌʌt ˌI θˈɪŋk sˌO."
+},
+{
+"text": "I don't know yet. Let me look it up.",
+"phonemes": "ˌI dˈOnt nˈO jˈɛt. lˈɛt mˌi lˈʊk ɪt ˌʌp."
+},
+{
+"text": "That's above my pay grade, honestly.",
+"phonemes": "ðˈæts əbˈʌv mI pˈA ɡɹˈAd, ˈɑnəstli."
+},
+{
+"text": "Oh, interesting. Tell me more.",
+"phonemes": "ˈO, ˈɪntɹəstɪŋ. tˈɛl mˌi mˈɔɹ."
+},
+{
+"text": "Hmm, what if we tried it the other way?",
+"phonemes": "hmm, wˌʌt ɪf wi tɹˈId ɪt ði ˈʌðəɹ wˈA?"
+},
+{
+"text": "Wait, that might actually work!",
+"phonemes": "wˈAt, ðˈæt mˌIt ˈækʧəwəli wˈɜɹk!"
+},
+{
+"text": "I knew it!",
+"phonemes": "ˌI nˈu ɪt!"
+},
+{
+"text": "I told you!",
+"phonemes": "ˌI tˈOld ju!"
+},
+{
+"text": "See? Not so bad.",
+"phonemes": "sˈi? nˌɑt sˌO bˈæd."
+},
+{
+"text": "Okay, you win.",
+"phonemes": "ˌOkˈA, ju wˈɪn."
+},
+{
+"text": "Fine, fine. One more time.",
+"phonemes": "fˈIn, fˈIn. wˈʌn mˈɔɹ tˈIm."
+},
+{
+"text": "Oops! My bad.",
+"phonemes": "ˈups! mˌI bˈæd."
+},
+{
+"text": "Hey! That's mine.",
+"phonemes": "hˈA! ðˈæts mˈIn."
+},
+{
+"text": "Oh, come on!",
+"phonemes": "ˈO, kˈʌm ˌɔn!"
+},
+{
+"text": "You're kidding!",
+"phonemes": "jˌʊɹ kˈɪdɪŋ!"
+},
+{
+"text": "No! Really?",
+"phonemes": "nˈO! ɹˈiᵊli?"
+},
+{
+"text": "Ooh, that's close.",
+"phonemes": "ˈu, ðˈæts klˈOs."
+},
+{
+"text": "Yikes. That's expensive.",
+"phonemes": "jˈIks. ðˈæts ɪkspˈɛnsɪv."
+},
+{
+"text": "Phew. That was close.",
+"phonemes": "fjˈu. ðˈæt wʌz klˈOs."
+},
+{
+"text": "Alright, let's do this!",
+"phonemes": "ɔlɹˈIt, lˈɛts dˈu ðˈɪs!"
+},
+{
+"text": "Morning! Coffee first?",
+"phonemes": "mˈɔɹnɪŋ! kˈɔfi fˈɜɹst?"
+},
+{
+"text": "Is it just me, or is it cold in here?",
+"phonemes": "ˌɪz ɪt ʤˈʌst mˌi, ɔɹ ɪz ɪt kˈOld ˈɪn hˈɪɹ?"
+},
+{
+"text": "Did you mean Mouthy, or mouth?",
+"phonemes": "dˈɪd ju mˈin mˈWði, ɔɹ mˈWθ?"
+},
+{
+"text": "Hi, I'm Mouthy. What should I type?",
+"phonemes": "hˈI, ˌIm mˈWði. wˌʌt ʃˌʊd ˌI tˈIp?"
+},
+{
+"text": "Mouthy is listening.",
+"phonemes": "mˈWði ɪz lˈɪsənɪŋ."
+},
+{
+"text": "Say the word, and Mouthy types it.",
+"phonemes": "sˈA ðə wˈɜɹd, ænd mˈWði tˈIps ɪt."
+},
+{
+"text": "That comes to six hundred thirty-four dollars and seventy-five cents.",
+"phonemes": "ðˈæt kˈʌmz tə sˈɪks hˈʌndɹəd θˈɜɹTifˌɔɹ dˈɑləɹz ænd sˈɛvəntifˌIv sˈɛnts."
+},
+{
+"text": "The cruelty of Mrs.",
+"phonemes": "ðə kɹˈuᵊlti ʌv mˈɪsɪz"
+},
+{
+"text": "Attorney-General turned the whole suit of clothes Mr.",
+"phonemes": "ətˌɜɹniʤˈɛnəɹəl tˈɜɹnd ðə hˈOl sˈut ʌv klˈOðz mˈɪstəɹ"
+},
+{
+"text": "Indeed, in some measure it was a disappointment to her.",
+"phonemes": "ɪndˈid, ɪn sˌʌm mˈɛʒəɹ ɪt wʌz ɐ dˌɪsəpˈYntmᵊnt tə hˌɜɹ."
+},
+{
+"text": "This is no time for chasing.",
+"phonemes": "ðˌɪs ɪz nˈO tˈIm fɔɹ ʧˈAsɪŋ."
+},
+{
+"text": "On the contrary, as a family there was a duty to swallow any revulsion for him and to be patient, just to be patient.",
+"phonemes": "ˌɔn ðə kˈɑntɹɛɹi, æz ɐ fˈæmᵊli ðɛɹ wʌz ɐ dˈuTi tə swˈɑlO ˈɛni ɹəvˈʌlʃən fɔɹ hˌɪm ænd tə bi pˈAʃənt, ʤˈʌst tə bi pˈAʃənt."
+},
+{
+"text": "There are six thousand five hundred thirty-four tries left.",
+"phonemes": "ðˌɛɹ ɑɹ sˈɪks θˈWzᵊnd fˈIv hˈʌndɹəd θˈɜɹTifˌɔɹ tɹˈIz lˈɛft."
+},
+{
+"text": "I do not believe, but go away or they will kill thee.",
+"phonemes": "ˌI dˈu nˌɑt bəlˈiv, bˌʌt ɡˌO əwˈA ɔɹ ðA wɪl kˈɪl ðˈi."
+},
+{
+"text": "This feeling was very strong upon me that night.",
+"phonemes": "ðˌɪs fˈilɪŋ wʌz vˈɛɹi stɹˈɔŋ əpˈɑn mˌi ðˈæt nˈIt."
+},
+{
+"text": "When they saw the Witch of the East was dead the Munchkins sent a swift messenger to me, and I came at once.",
+"phonemes": "wˌɛn ðA sˈɔ ðə wˈɪʧ ʌv ði ˈist wʌz dˈɛd ðə mˈʌnʧkɪnz sˈɛnt ɐ swˈɪft mˈɛsᵊnʤəɹ tə mˌi, ænd ˌI kˈAm æt wˈʌns."
+},
+{
+"text": "Couldn't say, I am sure, sir.",
+"phonemes": "kˌʊdᵊnt sˈA, ˌI ɐm ʃˈʊɹ, sˌɜɹ."
+},
+{
+"text": "I have, sir.",
+"phonemes": "ˌI hˈæv, sˌɜɹ."
+},
+{
+"text": "Heathcliff, you're a cruel man, but you're not a fiend; and you won't, from mere malice, destroy irrevocably all my happiness.",
+"phonemes": "❓, jʊɹ ɐ kɹˈuᵊl mˈæn, bˌʌt jʊɹ nˌɑt ɐ fˈind; ænd ju wˈOnt, fɹʌm mˈɪɹ mˈæləs, dəstɹˈY ˌɪɹɹˈɛvəkəbli ˈɔl mI hˈæpinəs."
+},
+{
+"text": "The dear fellow has been ill; that is why he did not write.",
+"phonemes": "ðə dˈɪɹ fˈɛlO hæz bɪn ˈɪl; ðˈæt ɪz wˌI hi dˈɪd nˌɑt ɹˈIt."
+},
+{
+"text": "The steps drew swiftly nearer, and swelled out suddenly louder as they turned the end of the street.",
+"phonemes": "ðə stˈɛps dɹˈu swˈɪftli nˈɪɹəɹ, ænd swˈɛld ˈWt sˈʌdᵊnli lˈWdəɹ æz ðA tˈɜɹnd ði ˈɛnd ʌv ðə stɹˈit."
+},
+{
+"text": "The Scarecrow decided to think, and he thought so hard that the pins and needles began to stick out of his brains.",
+"phonemes": "ðə skˈɛɹkɹˌO dəsˈIdᵻd tə θˈɪŋk, ænd hi θˈɔt sˌO hˈɑɹd ðæt ðə pˈɪnz ænd nˈidᵊlz bəɡˈæn tə stˈɪk ˈWt ʌv hɪz bɹˈAnz."
+},
+{
+"text": "Is it twelve o'clock, or closer to eight fifty-eight?",
+"phonemes": "ˌɪz ɪt twˈɛlv əklˈɑk, ɔɹ klˈOsəɹ tʊ ˈAt fˈɪftiˌAt?"
+},
+{
+"text": "But who the real Oz is, when he is in his own form, no living person can tell.",
+"phonemes": "bˌʌt hˌu ðə ɹˈiᵊl ˈɑz ɪz, wˌɛn hi ɪz ɪn hɪz ˈOn fˈɔɹm, nˈO lˈɪvɪŋ pˈɜɹsᵊn kæn tˈɛl."
+},
+{
+"text": "Why didn't we think of that before?",
+"phonemes": "wˌI dˈɪdᵊnt wi θˈɪŋk ʌv ðˈæt bəfˈɔɹ?"
+},
+{
+"text": "Do you want to see it?",
+"phonemes": "dˈu ju wˈɑnt tə sˈi ɪt?"
+},
+{
+"text": "He was in an amazing plight.",
+"phonemes": "hˌi wʌz ɪn ɐn əmˈAzɪŋ plˈIt."
+},
+{
+"text": "It's nine ten right now.",
+"phonemes": "ˌɪts nˈIn tˈɛn ɹˈIt nˈW."
+},
+{
+"text": "I relied on your innocence, and although I was then very wretched, I was not so miserable as I am now.",
+"phonemes": "ˌI ɹᵻlˈId ˌɔn jʊɹ ˈɪnəsᵊns, ænd ɔlðˈO ˌI wʌz ðˈɛn vˈɛɹi ɹˈɛʧəd, ˌI wʌz nˌɑt sˌO mˈɪzəɹəbᵊl æz ˌI ɐm nˈW."
+},
+{
+"text": "Detection could not be in your power, and suspicion certainly not in your inclination.",
+"phonemes": "dətˈɛkʃən kʊd nˌɑt bi ɪn jʊɹ pˈWəɹ, ænd səspˈɪʃən sˈɜɹtnli nˌɑt ɪn jʊɹ ˌɪnklənˈAʃən."
+},
+{
+"text": "Come, there is dinner.",
+"phonemes": "kˈʌm, ðɛɹ ɪz dˈɪnəɹ."
+},
+{
+"text": "Darcy afterwards discharged.",
+"phonemes": "❓ ˈæftəɹwəɹdz dɪsʧˈɑɹʤd."
+},
+{
+"text": "He stamped his foot upon the ground in his boyish insolent manner.",
+"phonemes": "hˌi stˈæmpt hɪz fˈʊt əpˈɑn ðə ɡɹˈWnd ɪn hɪz bˈYɪʃ ˈɪnsələnt mˈænəɹ."
+},
+{
+"text": "He did feel the same, Elinor, for weeks and weeks he felt it.",
+"phonemes": "hˌi dˈɪd fˈil ðə sˈAm, ❓, fɔɹ wˈiks ænd wˈiks hi fˈɛlt ɪt."
+},
+{
+"text": "Is it five ten, or closer to three fifteen?",
+"phonemes": "ˌɪz ɪt fˈIv tˈɛn, ɔɹ klˈOsəɹ tə θɹˈi fˌɪftˈin?"
+},
+{
+"text": "When Dorian had finished the letter, he felt that he had been forgiven.",
+"phonemes": "wˌɛn dˈɔɹiən hæd fˈɪnəʃt ðə lˈɛTəɹ, hi fˈɛlt ðæt hi hæd bɪn fəɹɡˈɪvən."
+},
+{
+"text": "Livesey, even then what danger lay before us!",
+"phonemes": "❓, ˈivən ðˈɛn wˌʌt dˈAnʤəɹ lˈA bəfˈɔɹ ˌʌs!"
+},
+{
+"text": "Where in the tropics could an English army doctor have seen much hardship and got his arm wounded?",
+"phonemes": "wˌɛɹ ɪn ðə tɹˈɑpɪks kʊd ɐn ˈɪŋɡlɪʃ ˈɑɹmi dˈɑktəɹ hæv sˈin mˈʌʧ hˈɑɹdʃˌɪp ænd ɡɑt hɪz ˈɑɹm wˈundᵻd?"
+},
+{
+"text": "But what is all this?",
+"phonemes": "bˌʌt wˌʌt ɪz ˈɔl ðˈɪs?"
+},
+{
+"text": "But I held to it, and the harder it was, the stronger I held, for I was determined, and my mind firm made up.",
+"phonemes": "bˌʌt ˌI hˈɛld tʊ ɪt, ænd ðə hˈɑɹdəɹ ɪt wʌz, ðə stɹˈɔŋɡəɹ ˌI hˈɛld, fɔɹ ˌI wʌz dətˈɜɹmənd, ænd mI mˈInd fˈɜɹm mˌAd ˌʌp."
+},
+{
+"text": "Thursday, January twenty-first.",
+"phonemes": "θˈɜɹzdˌA, ʤˈænjəwˌɛɹi twˈɛntifˌɜɹst."
+},
+{
+"text": "I went into my garden before breakfast and stood listening, but towards the common there was nothing stirring but a lark.",
+"phonemes": "ˌI wˈɛnt ˈɪntu mI ɡˈɑɹdən bəfˈɔɹ bɹˈɛkfəst ænd stˈʊd lˈɪsənɪŋ, bˌʌt tˈɔɹdz ðə kˈɑmən ðɛɹ wʌz nˈʌθɪŋ stˈɜɹɪŋ bˌʌt ɐ lˈɑɹk."
+},
+{
+"text": "And accordingly she did turn, and they walked towards the Parsonage together.",
+"phonemes": "ˌænd əkˈɔɹdɪŋli ʃi dˈɪd tˈɜɹn, ænd ðA wˈɔkt tˈɔɹdz ðə pˈɑɹsᵊnɪʤ təɡˈɛðəɹ."
+},
+{
+"text": "I would, if my articles hadn't been signed.",
+"phonemes": "ˌI wˈʊd, ɪf mI ˈɑɹTəkᵊlz hˈædᵊnt bɪn sˈInd."
+},
+{
+"text": "Aunt Em, badly frightened, threw open the trap door in the floor and climbed down the ladder into the small, dark hole.",
+"phonemes": "ˈænt ˈɛm, bˈædli fɹˈItnd, θɹˈu ˈOpᵊn ðə tɹˈæp dˈɔɹ ɪn ðə flˈɔɹ ænd klˈImd dˌWn ðə lˈædəɹ ˈɪntu ðə smˈɔl, dˈɑɹk hˈOl."
+},
+{
+"text": "You have done this, I hope so, at least.",
+"phonemes": "jˌu hæv dˈʌn ðˈɪs, ˌI hˈOp sˌO, æt lˈist."
+},
+{
+"text": "What would you advise me to do?",
+"phonemes": "wˌʌt wʊd ju ədvˈIz mˌi tə dˈu?"
+},
+{
+"text": "I found supper already laid out.",
+"phonemes": "ˌI fˈWnd sˈʌpəɹ ˌɔlɹˈɛdi lˈAd ˈWt."
+},
+{
+"text": "And now comes the strangest part of the affair.",
+"phonemes": "ˌænd nˈW kˈʌmz ðə stɹˈAnʤɪst pˈɑɹt ʌv ði əfˈɛɹ."
+},
+{
+"text": "You will have to go with him, and then he may be induced to go.",
+"phonemes": "jˌu wɪl hæv tə ɡˌO wɪð hˌɪm, ænd ðˈɛn hi mˈA bi ɪndˈust tə ɡˌO."
+},
+{
+"text": "Do you know what is become of Orlick?",
+"phonemes": "dˈu ju nˈO wˌʌt ɪz bəkˈʌm ʌv ❓?"
+},
+{
+"text": "He noticed that a ladder, which usually lay there, was raised against one of the windows of the second floor, which was wide open.",
+"phonemes": "hˌi nˈOTəst ðæt ɐ lˈædəɹ, wˌɪʧ jˈuʒəwəli lˈA ðˈɛɹ, wʌz ɹˈAzd əɡˈɛnst wˈʌn ʌv ðə wˈɪndOz ʌv ðə sˈɛkənd flˈɔɹ, wˌɪʧ wʌz wˈId ˈOpᵊn."
+},
+{
+"text": "How of the window?",
+"phonemes": "hˌW ʌv ðə wˈɪndO?"
+},
+{
+"text": "Thomas Sawyer, where were you on the seventeenth of June, about the hour of midnight?",
+"phonemes": "tˈɑməs sˈɔjəɹ, wˌɛɹ wɜɹ ju ˌɔn ðə sˌɛvəntˈinθ ʌv ʤˈun, əbˈWt ði ˈWəɹ ʌv mˈɪdnˌIt?"
+},
+{
+"text": "She had no doubt of what Mr.",
+"phonemes": "ʃˌi hæd nˈO dˈWt ʌv wˌʌt mˈɪstəɹ"
+},
+{
+"text": "Saturday, September seventh.",
+"phonemes": "sˈæTəɹdˌA, sɛptˈɛmbəɹ sˈɛvənθ."
+},
+{
+"text": "Is it twelve ten, or closer to nine oh five?",
+"phonemes": "ˌɪz ɪt twˈɛlv tˈɛn, ɔɹ klˈOsəɹ tə nˈIn ˈO fˈIv?"
+},
+{
+"text": "She asked this question, still without looking at me, but in an unwonted tone of sympathy.",
+"phonemes": "ʃˌi ˈæskt ðɪs kwˈɛsʧᵊn, stˈɪl wɪðˈWt lˈʊkɪŋ æt mˌi, bˌʌt ɪn ɐn ˌʌnwˈɔntᵻd tˈOn ʌv sˈɪmpəθi."
+},
+{
+"text": "As I came along the corridor I saw Mr.",
+"phonemes": "ˌæz ˌI kˈAm əlˈɔŋ ðə kˈɔɹədəɹ ˌI sˈɔ mˈɪstəɹ"
+},
+{
+"text": "I thought more o' th' childer nor of mysel: poor things!",
+"phonemes": "ˌI θˈɔt mˈɔɹ ˈO” ❓” ❓ nˈɔɹ ʌv ❓: pˈʊɹ θˈɪŋz!"
+},
+{
+"text": "Hush, this moment!",
+"phonemes": "hˈʌʃ, ðɪs mˈOmᵊnt!"
+},
+{
+"text": "Willoughby since you left him at Barton?",
+"phonemes": "❓ sˈɪns ju lˈɛft hˌɪm æt bˈɑɹtən?"
+},
+{
+"text": "As he spoke he took off his coat and rolled up his shirt-sleeve.",
+"phonemes": "ˌæz hi spˈOk hi tˈʊk ˈɔf hɪz kˈOt ænd ɹˈOld ˌʌp hɪz ʃˌɜɹtslˈiv."
+},
+{
+"text": "So they gave it him, charging him to try it on a tree.",
+"phonemes": "sˌO ðA ɡˈAv ɪt hˌɪm, ʧˈɑɹʤɪŋ hˌɪm tə tɹˈI ɪt ˌɔn ɐ tɹˈi."
+},
+{
+"text": "The little girl gave a cry of amazement and looked about her, her eyes growing bigger and bigger at the wonderful sights she saw.",
+"phonemes": "ðə lˈɪTᵊl ɡˈɜɹl ɡˈAv ɐ kɹˈI ʌv əmˈAzmənt ænd lˈʊkt əbˈWt hˌɜɹ, hɜɹ ˈIz ɡɹˈOɪŋ bˈɪɡəɹ ænd bˈɪɡəɹ æt ðə wˈʌndəɹfᵊl sˈIts ʃi sˈɔ."
+},
+{
+"text": "The Editor raised objections.",
+"phonemes": "ði ˈɛdəTəɹ ɹˈAzd əbʤˈɛkʃənz."
+},
+{
+"text": "I am all attention, madam.",
+"phonemes": "ˌI ɐm ˈɔl ətˈɛnʧən, mˈædəm."
+},
+{
+"text": "Yes, yes, I know it.",
+"phonemes": "jˈɛs, jˈɛs, ˌI nˈO ɪt."
+},
+{
+"text": "They did so, and stood around Gregor's corpse with their hands in the pockets of their well-worn coats.",
+"phonemes": "ðˌA dˈɪd sˌO, ænd stˈʊd əɹˈWnd ɡɹˈɛɡəɹz kˈɔɹps wɪð ðɛɹ hˈændz ɪn ðə pˈɑkəts ʌv ðɛɹ wˌɛlwˈɔɹn kˈOts."
+},
+{
+"text": "That comes to eight hundred thirty-one dollars and twelve cents.",
+"phonemes": "ðˈæt kˈʌmz tʊ ˈAt hˈʌndɹəd θˈɜɹTiwˌʌn dˈɑləɹz ænd twˈɛlv sˈɛnts."
+},
+{
+"text": "Huck's eyes glowed.",
+"phonemes": "hˈʌks ˈIz ɡlˈOd."
+},
+{
+"text": "Marianne had already sent to say, that she should eat nothing more.",
+"phonemes": "❓ hæd ˌɔlɹˈɛdi sˈɛnt tə sˈA, ðæt ʃi ʃˌʊd ˈit nˈʌθɪŋ mˈɔɹ."
+},
+{
+"text": "Will you come with us on these terms?",
+"phonemes": "wˌɪl ju kˈʌm wɪð ˌʌs ˌɔn ðiz tˈɜɹmz?"
+},
+{
+"text": "They had been dead many days, so that I hurried quickly past them.",
+"phonemes": "ðˌA hæd bɪn dˈɛd mˈɛni dˈAz, sˌO ðæt ˌI hˈɜɹid kwˈɪkli pˈæst ðˌɛm."
+},
+{
+"text": "At his side was a large green box.",
+"phonemes": "ˌæt hɪz sˈId wʌz ɐ lˈɑɹʤ ɡɹˈin bˈɑks."
+},
+{
+"text": "I must confess that my satisfaction with my first theories of an automatic civilisation and a decadent humanity did not long endure.",
+"phonemes": "ˌI mˈʌst kənfˈɛs ðæt mI sˌæTəsfˈækʃən wɪð mI fˈɜɹst θˈɪɹiz ʌv ɐn ˌɔTəmˈæTɪk ❓ ænd ɐ dˈɛkədᵊnt hjumˈænəTi dˈɪd nˌɑt lˈɔŋ ɪndˈʊɹ."
+},
+{
+"text": "You may come and wish Miss Catherine welcome, like the other servants.",
+"phonemes": "jˌu mˈA kˈʌm ænd wˈɪʃ mˈɪs ❓ wˈɛlkəm, lˈIk ði ˈʌðəɹ sˈɜɹvənts."
+},
+{
+"text": "I came suddenly into the theatre from the garden.",
+"phonemes": "ˌI kˈAm sˈʌdᵊnli ˈɪntu ðə θˈiəTəɹ fɹʌm ðə ɡˈɑɹdən."
+},
+{
+"text": "Wednesday, March twenty-third.",
+"phonemes": "wˈɛnzdˌA, mˈɑɹʧ twˈɛntiθˌɜɹd."
+},
+{
+"text": "And at last, in one of the really air-tight cases, I found a box of matches.",
+"phonemes": "ˌænd æt lˈæst, ɪn wˈʌn ʌv ðə ɹˈiᵊli ˌɛɹtˈIt kˈAsᵻz, ˌI fˈWnd ɐ bˈɑks ʌv mˈæʧᵻz."
+},
+{
+"text": "Then, without his willing it, his head sank down completely, and his last breath flowed weakly from his nostrils.",
+"phonemes": "ðˈɛn, wɪðˈWt hɪz wˈɪlɪŋ ɪt, hɪz hˈɛd sˈæŋk dˌWn kəmplˈitli, ænd hɪz lˈæst bɹˈɛθ flˈOd wˈikli fɹʌm hɪz nˈɑstɹᵊlz."
+},
+{
+"text": "The End of the Islander Chapter XI.",
+"phonemes": "ði ˈɛnd ʌv ði ˈIləndəɹ ʧˈæptəɹ ˌɛksˈI."
+},
+{
+"text": "I remember a certain famous occasion when you forced me to confess that you had been drinking.",
+"phonemes": "ˌI ɹəmˈɛmbəɹ ɐ sˈɜɹtn fˈAməs əkˈAʒᵊn wˌɛn ju fˈɔɹst mˌi tə kənfˈɛs ðæt ju hæd bɪn dɹˈɪŋkɪŋ."
+},
+{
+"text": "It was not a lot, but it had not been touched in the meantime and some interest had accumulated.",
+"phonemes": "ˌɪt wʌz nˌɑt ɐ lˈɑt, bˌʌt ɪt hæd nˌɑt bɪn tˈʌʧt ɪn ðə mˈintˌIm ænd sˌʌm ˈɪntɹəst hæd əkjˈumjəlˌATᵻd."
+},
+{
+"text": "That's just the same way they go on round me.",
+"phonemes": "ðˈæts ʤˈʌst ðə sˈAm wˈA ðA ɡˌO ˌɔn ɹˈWnd mˌi."
+},
+{
+"text": "It's six oh five right now.",
+"phonemes": "ˌɪts sˈɪks ˈO fˈIv ɹˈIt nˈW."
+},
+{
+"text": "This circumstance was a growing attachment between her eldest girl and the brother of Mrs.",
+"phonemes": "ðˌɪs sˈɜɹkəmstˌæns wʌz ɐ ɡɹˈOɪŋ ətˈæʧmənt bətwˈin hɜɹ ˈɛldᵻst ɡˈɜɹl ænd ðə bɹˈʌðəɹ ʌv mˈɪsɪz"
+},
+{
+"text": "Gregor's father seemed so obsessed with what he was doing that he forgot all the respect he owed to his tenants.",
+"phonemes": "ɡɹˈɛɡəɹz fˈɑðəɹ sˈimd sˌO əbsˈɛst wɪð wˌʌt hi wʌz dˈuɪŋ ðæt hi fəɹɡˈɑt ˈɔl ðə ɹəspˈɛkt hi ˈOd tə hɪz tˈɛnənts."
+},
+{
+"text": "When the gun fired, how should I dare to go down to the boats among those fiends, still smoking from their crime?",
+"phonemes": "wˌɛn ðə ɡˈʌn fˈIəɹd, hˌW ʃˌʊd ˌI dˈɛɹ tə ɡˌO dˌWn tə ðə bˈOts əmˈʌŋ ðOz fˈindz, stˈɪl smˈOkɪŋ fɹʌm ðɛɹ kɹˈIm?"
+},
+{
+"text": "Then I walked slowly down the drive away from the house, intending to wait by the gate.",
+"phonemes": "ðˈɛn ˌI wˈɔkt slˈOli dˌWn ðə dɹˈIv əwˈA fɹʌm ðə hˈWs, ɪntˈɛndɪŋ tə wˈAt bI ðə ɡˈAt."
+},
+{
+"text": "I might say it to almost any one: but would it be true of almost any one?",
+"phonemes": "ˌI mˌIt sˈA ɪt tʊ ˈɔlmOst ˈɛni wˈʌn: bˌʌt wʊd ɪt bi tɹˈu ʌv ˈɔlmOst ˈɛni wˈʌn?"
+},
+{
+"text": "Beyond their dark line there was a ribbon of clear sky, hardly broad enough to hold the red large moon.",
+"phonemes": "bijˈɑnd ðɛɹ dˈɑɹk lˈIn ðɛɹ wʌz ɐ ɹˈɪbən ʌv klˈɪɹ skˈI, hˈɑɹdli bɹˈɔd ɪnˈʌf tə hˈOld ðə ɹˈɛd lˈɑɹʤ mˈun."
+},
+{
+"text": "The guest heard the sharpening, and hurried down the steps again as fast as he could.",
+"phonemes": "ðə ɡˈɛst hˈɜɹd ðə ʃˈɑɹpənɪŋ, ænd hˈɜɹid dˌWn ðə stˈɛps əɡˈɛn æz fˈæst æz hi kˈʊd."
+},
+{
+"text": "Second, you let the enemy out o' this here trap for nothing.",
+"phonemes": "sˈɛkənd, ju lˈɛt ði ˈɛnəmi ˈWt ˈO” ðɪs hˈɪɹ tɹˈæp fɔɹ nˈʌθɪŋ."
+},
+{
+"text": "His soul is as hellish as his form, full of treachery and fiend-like malice.",
+"phonemes": "hˌɪz sˈOl ɪz æz hˈɛlɪʃ æz hɪz fˈɔɹm, fˈʊl ʌv tɹˈɛʧəɹi ænd fˌindlˈIk mˈæləs."
+},
+{
+"text": "After passing several hours, we returned hopeless, most of my companions believing it to have been a form conjured up by my fancy.",
+"phonemes": "ˈæftəɹ pˈæsɪŋ sˈɛvəɹəl ˈWəɹz, wi ɹətˈɜɹnd hˈOpləs, mˈOst ʌv mI kəmpˈænjənz bᵻlˈivɪŋ ɪt tə hæv bɪn ɐ fˈɔɹm kənʤˈʊɹd ˌʌp bI mI fˈænsi."
+},
+{
+"text": "Friday, January seventeenth.",
+"phonemes": "fɹˈIdˌA, ʤˈænjəwˌɛɹi sˌɛvəntˈinθ."
+},
+{
+"text": "A highly popular murder had been committed, and Mr.",
+"phonemes": "ɐ hˈIli pˈɑpjələɹ mˈɜɹdəɹ hæd bɪn kəmˈɪTᵻd, ænd mˈɪstəɹ"
+},
+{
+"text": "There he opened his safe, took from the most private part of it a document endorsed on the envelope as Dr.",
+"phonemes": "ðˌɛɹ hi ˈOpᵊnd hɪz sˈAf, tˈʊk fɹʌm ðə mˈOst pɹˈIvət pˈɑɹt ʌv ɪt ɐ dˈɑkjəmənt ɪndˈɔɹst ˌɔn ði ˈɛnvəlˌOp æz dˈɑktəɹ"
+},
+{
+"text": "I never heard any harm of her; indeed I hardly ever heard her mentioned; except that Mrs.",
+"phonemes": "ˌI nˈɛvəɹ hˈɜɹd ˈɛni hˈɑɹm ʌv hˌɜɹ; ɪndˈid ˌI hˈɑɹdli ˈɛvəɹ hˈɜɹd hɜɹ mˈɛnʧᵊnd; ɪksˈɛpt ðæt mˈɪsɪz"
+},
+{
+"text": "She did not feel that she could trust him, and she could not look at him nor think of him without an inward shudder.",
+"phonemes": "ʃˌi dˈɪd nˌɑt fˈil ðæt ʃi kʊd tɹˈʌst hˌɪm, ænd ʃi kʊd nˌɑt lˈʊk æt hˌɪm nˈɔɹ θˈɪŋk ʌv hˌɪm wɪðˈWt ɐn ˈɪnwəɹd ʃˈʌdəɹ."
+},
+{
+"text": "Weston, to people of large fortune?, You would be amazed to hear how my brother, Mr.",
+"phonemes": "❓, tə pˈipᵊl ʌv lˈɑɹʤ fˈɔɹʧən?, jˌu wʊd bi əmˈAzd tə hˈɪɹ hˌW mI bɹˈʌðəɹ, mˈɪstəɹ"
+},
+{
+"text": "I know nothing further of the matter.",
+"phonemes": "ˌI nˈO nˈʌθɪŋ fˈɜɹðəɹ ʌv ðə mˈæTəɹ."
+},
+{
+"text": "'What does he look like, my dear?",
+"phonemes": "“wˌʌt dˈʌz hi lˈʊk lˈIk, mI dˈɪɹ?"
+},
+{
+"text": "This bore some resemblance to incipient rigour, and was accompanied by a marked sinking of the pulse.",
+"phonemes": "ðˌɪs bˈɔɹ sˌʌm ɹəzˈɛmbləns tʊ ɪnsˈɪpiənt ɹˈɪɡəɹ, ænd wʌz əkˈʌmpᵊnid bI ɐ mˈɑɹkt sˈɪŋkɪŋ ʌv ðə pˈʌls."
+},
+{
+"text": "He could already hardly feel the decayed apple in his back or the inflamed area around it, which was entirely covered in white dust.",
+"phonemes": "hˌi kʊd ˌɔlɹˈɛdi hˈɑɹdli fˈil ðə dəkˈAd ˈæpᵊl ɪn hɪz bˈæk ɔɹ ði ɪnflˈAmd ˈɛɹiə əɹˈWnd ɪt, wˌɪʧ wʌz əntˈIəɹli kˈʌvəɹd ɪn wˈIt dˈʌst."
+},
+{
+"text": "It's six fifteen right now.",
+"phonemes": "ˌɪts sˈɪks fˌɪftˈin ɹˈIt nˈW."
+},
+{
+"text": "Gregor crawled a little further forward, keeping his head close to the ground so that he could meet her eyes if the chance came.",
+"phonemes": "ɡɹˈɛɡəɹ kɹˈɔld ɐ lˈɪTᵊl fˈɜɹðəɹ fˈɔɹwəɹd, kˈipɪŋ hɪz hˈɛd klˈOs tə ðə ɡɹˈWnd sˌO ðæt hi kʊd mˈit hɜɹ ˈIz ɪf ðə ʧˈæns kˈAm."
+},
+{
+"text": "It was a nut to crack for many, what these two could see in each other, or what subject they could find in common.",
+"phonemes": "ˌɪt wʌz ɐ nˈʌt tə kɹˈæk fɔɹ mˈɛni, wˌʌt ðiz tˈu kʊd sˈi ɪn ˈiʧ ˈʌðəɹ, ɔɹ wˌʌt sˈʌbʤɛkt ðA kʊd fˈInd ɪn kˈɑmən."
+},
+{
+"text": "And yet I wondered, in my heart, that he should show himself so careless.",
+"phonemes": "ˌænd jˈɛt ˌI wˈʌndəɹd, ɪn mI hˈɑɹt, ðæt hi ʃˌʊd ʃˈO hɪmsˈɛlf sˌO kˈɛɹləs."
+},
+{
+"text": "You have now done your duty by her, and must fret no longer.",
+"phonemes": "jˌu hæv nˈW dˈʌn jʊɹ dˈuTi bI hˌɜɹ, ænd mˈʌst fɹˈɛt nˈO lˈɔŋɡəɹ."
+},
+{
+"text": "I wish you would tell me her story.",
+"phonemes": "ˌI wˈɪʃ ju wʊd tˈɛl mˌi hɜɹ stˈɔɹi."
+},
+{
+"text": "Holmes was standing on the door-step, with his hands in his pockets, smoking his pipe.",
+"phonemes": "hˈOmz wʌz stˈændɪŋ ˌɔn ðə dˌɔɹstˈɛp, wɪð hɪz hˈændz ɪn hɪz pˈɑkəts, smˈOkɪŋ hɪz pˈIp."
+},
+{
+"text": "Sherlock Holmes wanted, sir?",
+"phonemes": "ʃˈɜɹlˌɑk hˈOmz wˈɑntᵻd, sˌɜɹ?"
+},
+{
+"text": "Is he injured anywhere?",
+"phonemes": "ˌɪz hi ˈɪnʤəɹd ˈɛniwˌɛɹ?"
+},
+{
+"text": "He did not suppose they could be damp now, in the middle of the day.",
+"phonemes": "hˌi dˈɪd nˌɑt səpˈOz ðA kʊd bi dˈæmp nˈW, ɪn ðə mˈɪdᵊl ʌv ðə dˈA."
+},
+{
+"text": "By and by, out of the stillness, little, scarcely perceptible noises began to emphasize themselves.",
+"phonemes": "bˈI ænd bˈI, ˈWt ʌv ðə stˈɪlnəs, lˈɪTᵊl, skˈɛɹsli pəɹsˈɛptəbᵊl nˈYzᵻz bəɡˈæn tʊ ˈɛmfəsˌIz ðəmsˈɛlvz."
+},
+{
+"text": "Soon a gentle light stole over the heavens and gave me a sensation of pleasure.",
+"phonemes": "sˈun ɐ ʤˈɛntəl lˈIt stˈOl ˈOvəɹ ðə hˈɛvᵊnz ænd ɡˈAv mˌi ɐ sɛnsˈAʃən ʌv plˈɛʒəɹ."
+},
+{
+"text": "What sort of boy is he?",
+"phonemes": "wˌʌt sˈɔɹt ʌv bˈY ɪz hi?"
+},
+{
+"text": "How ugly it all was!",
+"phonemes": "hˌW ˈʌɡli ɪt ˈɔl wʌz!"
+},
+{
+"text": "He may have done a little in all these vocations, Mr.",
+"phonemes": "hˌi mˈA hæv dˈʌn ɐ lˈɪTᵊl ɪn ˈɔl ðiz vOkˈAʃənz, mˈɪstəɹ"
+},
+{
+"text": "I understand that he intends to take orders.",
+"phonemes": "ˌI ˌʌndəɹstˈænd ðæt hi ɪntˈɛndz tə tˈAk ˈɔɹdəɹz."
+},
+{
+"text": "I never could have believed it without experience, but as Joe and Biddy became more at their cheerful ease again, I became quite gloomy.",
+"phonemes": "ˌI nˈɛvəɹ kʊd hæv bəlˈivd ɪt wɪðˈWt ɪkspˈɪɹiəns, bˌʌt æz ʤˈO ænd bˈɪdi bəkˈAm mˈɔɹ æt ðɛɹ ʧˈɪɹfᵊl ˈiz əɡˈɛn, ˌI bəkˈAm kwˈIt ɡlˈumi."
+},
+{
+"text": "The wounds on the throat had absolutely disappeared.",
+"phonemes": "ðə wˈundz ˌɔn ðə θɹˈOt hæd ˈæbsəlˌutli dˌɪsəpˈɪɹd."
+},
+{
+"text": "Just near the shore along the Sound.",
+"phonemes": "ʤˈʌst nˌɪɹ ðə ʃˈɔɹ əlˈɔŋ ðə sˈWnd."
+},
+{
+"text": "On the summit of the East Cliff the new searchlight was ready for experiment, but had not yet been tried.",
+"phonemes": "ˌɔn ðə sˈʌmət ʌv ði ˈist klˈɪf ðə nˈu sˈɜɹʧlˌIt wʌz ɹˈɛdi fɔɹ ɪkspˈɛɹəmənt, bˌʌt hæd nˌɑt jˈɛt bɪn tɹˈId."
+},
+{
+"text": "Did not I tell you what he said of you the other day?",
+"phonemes": "dˈɪd nˌɑt ˌI tˈɛl ju wˌʌt hi sˈɛd ʌv ju ði ˈʌðəɹ dˈA?"
+},
+{
+"text": "Is it five o'clock, or closer to seven thirty?",
+"phonemes": "ˌɪz ɪt fˈIv əklˈɑk, ɔɹ klˈOsəɹ tə sˈɛvən θˈɜɹTi?"
+},
+{
+"text": "I will go, but there is no need that we should hunt for Rikki-tikki afterward.",
+"phonemes": "ˌI wɪl ɡˌO, bˌʌt ðɛɹ ɪz nˈO nˈid ðæt wi ʃˌʊd hˈʌnt fɔɹ ❓❓ ˈæftəɹwəɹd."
+},
+{
+"text": "Monday, August twenty-seventh.",
+"phonemes": "mˈʌndˌA, ˈɔɡəst twˌɛntisˈɛvənθ."
+},
+{
+"text": "A short railway journey and a shorter walk brought us to Fairbank, the modest residence of the great financier.",
+"phonemes": "ɐ ʃˈɔɹt ɹˈAlwˌA ʤˈɜɹni ænd ɐ ʃˈɔɹTəɹ wˈɔk bɹˈɔt ˌʌs tu ❓, ðə mˈɑdəst ɹˈɛzədᵊns ʌv ðə ɡɹˈAt fˌɪnənsˈɪɹ."
+},
+{
+"text": "In a few minutes they heard the pattering of tiny feet, and many of the small gray mice came running up to her.",
+"phonemes": "ɪn ɐ fjˈu mˈɪnəts ðA hˈɜɹd ðə pˈæTəɹɪŋ ʌv tˈIni fˈit, ænd mˈɛni ʌv ðə smˈɔl ɡɹˈA mˈIs kˈAm ɹˈʌnɪŋ ˌʌp tə hˌɜɹ."
+},
+{
+"text": "Oh, I longed for thee both with soul and flesh!",
+"phonemes": "ˈO, ˌI lˈɔŋd fɔɹ ði bˈOθ wɪð sˈOl ænd flˈɛʃ!"
+},
+{
+"text": "Everybody looked at Alice.",
+"phonemes": "ˈɛvɹibədi lˈʊkt æt ˈælɪs."
+},
+{
+"text": "A house of her own!, But where is the advantage of a house of her own?",
+"phonemes": "ɐ hˈWs ʌv hɜɹ ˈOn!, bˌʌt wˌɛɹ ɪz ði ədvˈæntɪʤ ʌv ɐ hˈWs ʌv hɜɹ ˈOn?"
+},
+{
+"text": "That comes to one hundred sixty-six dollars and fifty-two cents.",
+"phonemes": "ðˈæt kˈʌmz tə wˈʌn hˈʌndɹəd sˈɪkstisˌɪks dˈɑləɹz ænd fˈɪftitˌu sˈɛnts."
+},
+{
+"text": "This is not a man, but a boy.",
+"phonemes": "ðˌɪs ɪz nˌɑt ɐ mˈæn, bˌʌt ɐ bˈY."
+},
+{
+"text": "Jerry added, by way of proviso.",
+"phonemes": "❓ ˈædᵻd, bI wˈA ʌv pɹəvˈIzO."
+},
+{
+"text": "There are fifty who can reason synthetically for one who can reason analytically.",
+"phonemes": "ðˌɛɹ ɑɹ fˈɪfti hˌu kæn ɹˈizᵊn sɪnθˈɛTəkᵊli fɔɹ wˈʌn hˌu kæn ɹˈizᵊn ˌænəlˈɪTəkᵊli."
+},
+{
+"text": "Is it eleven ten, or closer to twelve forty-five?",
+"phonemes": "ˌɪz ɪt əlˈɛvᵊn tˈɛn, ɔɹ klˈOsəɹ tə twˈɛlv fˌɔɹTifˈIv?"
+},
+{
+"text": "That comes to four hundred seventy-seven dollars and sixty-five cents.",
+"phonemes": "ðˈæt kˈʌmz tə fˈɔɹ hˈʌndɹəd sˈɛvəntisˌɛvən dˈɑləɹz ænd sˈɪkstifˌIv sˈɛnts."
+},
+{
+"text": "The dustbins from the kitchen found their way in there too.",
+"phonemes": "ðə dˈʌstbˌɪnz fɹʌm ðə kˈɪʧᵊn fˈWnd ðɛɹ wˈA ˈɪn ðɛɹ tˈu."
+},
+{
+"text": "But the king insisted on it, and said: 'You shall sit by me,' until he did it.",
+"phonemes": "bˌʌt ðə kˈɪŋ ɪnsˈɪstᵻd ˌɔn ɪt, ænd sˈɛd: “jˌu ʃˌæl sˈɪt bI mˌi,” ˌʌntˈɪl hi dˈɪd ɪt."
+},
+{
+"text": "How can you be so cross as not to come?",
+"phonemes": "hˌW kæn ju bi sˌO kɹˈɔs æz nˌɑt tə kˈʌm?"
+},
+{
+"text": "Dashwood looked with pleasure at Marianne, whose fine eyes were fixed so expressively on Willoughby, as plainly denoted how well she understood him.",
+"phonemes": "❓ lˈʊkt wɪð plˈɛʒəɹ æt ❓, hˌuz fˈIn ˈIz wɜɹ fˈɪkst sˌO ɪkspɹˈɛsəvli ˌɔn ❓, æz plˈAnli dᵻnˈOTᵻd hˌW wˈɛl ʃi ˌʌndəɹstˈʊd hˌɪm."
+},
+{
+"text": "There being plenty of gravy to-day, Joe spooned into my plate, at this point, about half a pint.",
+"phonemes": "ðˌɛɹ bˈiɪŋ plˈɛnti ʌv ɡɹˈAvi tədˈA, ʤˈO spˈund ˈɪntu mI plˈAt, æt ðɪs pˈYnt, əbˈWt hˈæf ɐ pˈInt."
+},
+{
+"text": "When you have killed all your own birds, Mr.",
+"phonemes": "wˌɛn ju hæv kˈɪld ˈɔl jʊɹ ˈOn bˈɜɹdz, mˈɪstəɹ"
+},
+{
+"text": "Is it nine fifteen, or closer to nine thirty?",
+"phonemes": "ˌɪz ɪt nˈIn fˌɪftˈin, ɔɹ klˈOsəɹ tə nˈIn θˈɜɹTi?"
+},
+{
+"text": "The pulmonary distress caused by the denser atmosphere and greater gravitational attraction was only too evident in the convulsive movements of the outer skin.",
+"phonemes": "ðə pˈʌlmənˌɛɹi dəstɹˈɛs kˈɔzd bI ðə dˈɛnsəɹ ˈætməsfˌɪɹ ænd ɡɹˈATəɹ ɡɹˌævətˈAʃᵊnəl ətɹˈækʃən wʌz ˈOnli tˈu ˈɛvədᵊnt ɪn ðə kənvˈʌlsɪv mˈuvmᵊnts ʌv ði ˈWTəɹ skˈɪn."
+},
+{
+"text": "Better for him that each sin of his life had brought its sure swift penalty along with it.",
+"phonemes": "bˈɛTəɹ fɔɹ hˌɪm ðæt ˈiʧ sˈɪn ʌv hɪz lˈIf hæd bɹˈɔt ɪts ʃˈʊɹ swˈɪft pˈɛnᵊlti əlˈɔŋ wɪð ɪt."
+},
+{
+"text": "You will not like the noise.",
+"phonemes": "jˌu wɪl nˌɑt lˈIk ðə nˈYz."
+},
+{
+"text": "No doubt M.",
+"phonemes": "nˈO dˈWt ˈɛm"
+},
+{
+"text": "The ideal of preventive medicine was attained.",
+"phonemes": "ði Idˈiᵊl ʌv pɹivˈɛntɪv mˈɛdəsᵊn wʌz ətˈAnd."
+},
+{
+"text": "Direct me to her room immediately, or I'll make you sing out sharply.",
+"phonemes": "dəɹˈɛkt mˌi tə hɜɹ ɹˈum ɪmˈidiətli, ɔɹ ˌIl mˌAk ju sˈɪŋ ˈWt ʃˈɑɹpli."
+},
+{
+"text": "The steamboat lurched and rolled him over upon his hands.",
+"phonemes": "ðə stˈimbˌOt lˈɜɹʧt ænd ɹˈOld hˌɪm ˈOvəɹ əpˈɑn hɪz hˈændz."
+},
+{
+"text": "Stop at a telegraph-office, cabby!",
+"phonemes": "stˈɑp æt ɐ tˈɛləɡɹˌæfˌɔfəs, kˈæbi!"
+},
+{
+"text": "Oh, my poor little feet, I wonder who will put on your shoes and stockings for you now, dears?",
+"phonemes": "ˈO, mI pˈʊɹ lˈɪTᵊl fˈit, ˌI wˈʌndəɹ hˌu wɪl pˌʊt ˌɔn jʊɹ ʃˈuz ænd stˈɑkɪŋz fɔɹ ju nˈW, dˈɪɹz?"
+},
+{
+"text": "He have prepare for this in some way, and that last earth-box was ready to ship somewheres.",
+"phonemes": "hˌi hæv pɹipˈɛɹ fɔɹ ðɪs ɪn sˌʌm wˈA, ænd ðˈæt lˈæst ˌɜɹθbˈɑks wʌz ɹˈɛdi tə ʃˈɪp sˈʌmhwˌɛɹz."
+},
+{
+"text": "Is Allenham the only house in the neighbourhood to which you will be welcome?",
+"phonemes": "ˌɪz ❓ ði ˈOnli hˈWs ɪn ðə nˈAbəɹhˌʊd tə wˌɪʧ ju wɪl bi wˈɛlkəm?"
+},
+{
+"text": "You killed the Witch of the East and you wear the silver shoes, which bear a powerful charm.",
+"phonemes": "jˌu kˈɪld ðə wˈɪʧ ʌv ði ˈist ænd ju wˈɛɹ ðə sˈɪlvəɹ ʃˈuz, wˌɪʧ bˈɛɹ ɐ pˈWəɹfᵊl ʧˈɑɹm."
+},
+{
+"text": "Do you not know that all Paris knew it yesterday, and the day before it had already transpired on the Bourse, and M.",
+"phonemes": "dˈu ju nˌɑt nˈO ðæt ˈɔl pˈɛɹəs nˈu ɪt jˈɛstəɹdˌA, ænd ðə dˈA bəfˈɔɹ ɪt hæd ˌɔlɹˈɛdi tɹænspˈIəɹd ˌɔn ðə bˈʊɹs, ænd ˈɛm"
+},
+{
+"text": "And yet you say he is not a medical student?",
+"phonemes": "ˌænd jˈɛt ju sˈA hi ɪz nˌɑt ɐ mˈɛdəkᵊl stˈudᵊnt?"
+},
+{
+"text": "Nothing can be clearer than that.",
+"phonemes": "nˈʌθɪŋ kæn bi klˈɪɹəɹ ðən ðˈæt."
+},
+{
+"text": "You were doubtless surprised at my letter?",
+"phonemes": "jˌu wɜɹ dˈWtləs səɹpɹˈIzd æt mI lˈɛTəɹ?"
+},
+{
+"text": "Our man-cub is in the hands of the Bandar-log now, and we know that of all the Jungle-People they fear Kaa alone.",
+"phonemes": "ˌWəɹ mˌænkˈʌb ɪz ɪn ðə hˈændz ʌv ðə bˈændɑɹlˌɔɡ nˈW, ænd wi nˈO ðˈæt ʌv ˈɔl ðə ʤˈʌŋɡᵊlpˌipᵊl ðA fˈɪɹ ❓ əlˈOn."
+},
+{
+"text": "His disappointment at the failure of his plan, and perhaps also because he was weak from hunger, made it impossible for him to move.",
+"phonemes": "hˌɪz dˌɪsəpˈYntmᵊnt æt ðə fˈAljəɹ ʌv hɪz plˈæn, ænd pəɹhˈæps ˈɔlsO bəkˈʌz hi wʌz wˈik fɹʌm hˈʌŋɡəɹ, mˌAd ɪt ɪmpˈɑsəbᵊl fɔɹ hˌɪm tə mˈuv."
+},
+{
+"text": "The soldiers were having the greatest difficulty in making them realise the gravity of their position.",
+"phonemes": "ðə sˈOlʤəɹz wɜɹ hˈævɪŋ ðə ɡɹˈATᵻst dˈɪfəkəlti ɪn mˈAkɪŋ ðˌɛm ɹˈiəlˌIz ðə ɡɹˈævəTi ʌv ðɛɹ pəzˈɪʃən."
+},
+{
+"text": "There is much food for thought in Richter.",
+"phonemes": "ðˌɛɹ ɪz mˈʌʧ fˈud fɔɹ θˈɔt ˈɪn ❓."
+},
+{
+"text": "Now I felt like a beast in a trap, whose enemy would come upon him soon.",
+"phonemes": "nˈW ˌI fˈɛlt lˈIk ɐ bˈist ɪn ɐ tɹˈæp, hˌuz ˈɛnəmi wʊd kˈʌm əpˈɑn hˌɪm sˈun."
+},
+{
+"text": "She gradually withdrew her eyes from me, and turned them on the fire.",
+"phonemes": "ʃˌi ɡɹˈæʤəwəli ❓ hɜɹ ˈIz fɹʌm mˌi, ænd tˈɜɹnd ðˌɛm ˌɔn ðə fˈIəɹ."
+},
+{
+"text": "You're sure you want me to come?",
+"phonemes": "jˌʊɹ ʃˈʊɹ ju wˈɑnt mˌi tə kˈʌm?"
+},
+{
+"text": "But what had amused me then turned septic on the air now.",
+"phonemes": "bˌʌt wˌʌt hæd əmjˈuzd mˌi ðˈɛn tˈɜɹnd sˈɛptɪk ˌɔn ði ˈɛɹ nˈW."
+},
+{
+"text": "It was from her that I had your address.",
+"phonemes": "ˌɪt wʌz fɹʌm hɜɹ ðæt ˌI hæd jʊɹ ədɹˈɛs."
+},
+{
+"text": "That comes to thirty-one dollars and nine cents.",
+"phonemes": "ðˈæt kˈʌmz tə θˈɜɹTiwˌʌn dˈɑləɹz ænd nˈIn sˈɛnts."
+},
+{
+"text": "Elton's importance with her!",
+"phonemes": "❓s ɪmpˈɔɹtᵊns wɪð hˌɜɹ!"
+},
+{
+"text": "She's not accustomed to be spoiled, not kept for a pet.",
+"phonemes": "ʃˌiz nˌɑt əkˈʌstəmd tə bi spˈYld, nˌɑt kˈɛpt fɔɹ ɐ pˈɛt."
+},
+{
+"text": "Do you mean you've been thinking over what I proposed the other night?",
+"phonemes": "dˈu ju mˈin juv bɪn θˈɪŋkɪŋ ˈOvəɹ wˌʌt ˌI pɹəpˈOzd ði ˈʌðəɹ nˈIt?"
+},
+{
+"text": "There are five thousand five hundred six tries today.",
+"phonemes": "ðˌɛɹ ɑɹ fˈIv θˈWzᵊnd fˈIv hˈʌndɹəd sˈɪks tɹˈIz tədˈA."
+},
+{
+"text": "No, to Combe Magna.",
+"phonemes": "nˈO, tə kˈum mˈæɡnə."
+},
+{
+"text": "What had this man's legacy been?",
+"phonemes": "wˌʌt hæd ðɪs mˈænz lˈɛɡəsi bˌɪn?"
+},
+{
+"text": "It is still Monday night.",
+"phonemes": "ˌɪt ɪz stˈɪl mˈʌndˌA nˈIt."
+},
+{
+"text": "The vehemence of my agitation brought on a copious bleeding at the nose, and still Heathcliff laughed, and still I scolded.",
+"phonemes": "ðə vˈiəməns ʌv mI ˌæʤətˈAʃən bɹˈɔt ˌɔn ɐ kˈOpiəs blˈidɪŋ æt ðə nˈOz, ænd stˈɪl ❓ lˈæft, ænd stˈɪl ˌI skˈOldᵻd."
+},
+{
+"text": "Did you not get my telegram?",
+"phonemes": "dˈɪd ju nˌɑt ɡɛt mI tˈɛləɡɹˌæm?"
+},
+{
+"text": "But remember that the pain of parting from friends will be felt by every body at times, whatever be their education or state.",
+"phonemes": "bˌʌt ɹəmˈɛmbəɹ ðæt ðə pˈAn ʌv pˈɑɹTɪŋ fɹʌm fɹˈɛndz wɪl bi fˈɛlt bI ˈɛvəɹi bˈɑdi æt tˈImz, wəTˈɛvəɹ bi ðɛɹ ˌɛʤəkˈAʃən ɔɹ stˈAt."
+},
+{
+"text": "He lay as still as still, expecting every minute to see Mowgli turn into a tiger too.",
+"phonemes": "hˌi lˈA æz stˈɪl æz stˈɪl, ɛkspˈɛktɪŋ ˈɛvəɹi mˈɪnət tə sˈi ❓ tˈɜɹn ˈɪntu ɐ tˈIɡəɹ tˈu."
+},
+{
+"text": "Now she was flying down the stream, near in to the shore, going at a tremendous rate.",
+"phonemes": "nˈW ʃi wʌz flˈIɪŋ dˌWn ðə stɹˈim, nˌɪɹ ɪn tə ðə ʃˈɔɹ, ɡˈOɪŋ æt ɐ tɹəmˈɛndəs ɹˈAt."
+},
+{
+"text": "It was now quite light in the room.",
+"phonemes": "ˌɪt wʌz nˈW kwˈIt lˈIt ɪn ðə ɹˈum."
+},
+{
+"text": "I didn't mean to take them; but papa told me there were quantities up here, and I wished to see the eggs.",
+"phonemes": "ˌI dˈɪdᵊnt mˈin tə tˈAk ðˌɛm; bˌʌt pˈɑpə tˈOld mˌi ðɛɹ wɜɹ kwˈɑntəTiz ˌʌp hˈɪɹ, ænd ˌI wˈɪʃt tə sˈi ði ˈɛɡz."
+},
+{
+"text": "My dear friend, Doctor Manette!",
+"phonemes": "mˌI dˈɪɹ fɹˈɛnd, dˈɑktəɹ ❓!"
+},
+{
+"text": "Now comes the difference.",
+"phonemes": "nˈW kˈʌmz ðə dˈɪfəɹəns."
+},
+{
+"text": "Have you never at any time had reason to think that he admired her, or that she admired him?",
+"phonemes": "hˌæv ju nˈɛvəɹ æt ˈɛni tˈIm hæd ɹˈizᵊn tə θˈɪŋk ðæt hi ədmˈIəɹd hˌɜɹ, ɔɹ ðæt ʃi ədmˈIəɹd hˌɪm?"
+},
+{
+"text": "Sholto was, on his own confession, with his brother last night.",
+"phonemes": "❓ wʌz, ˌɔn hɪz ˈOn kənfˈɛʃən, wɪð hɪz bɹˈʌðəɹ lˈæst nˈIt."
+},
+{
+"text": "We've got to learn before we've got a chance.",
+"phonemes": "wˌiv ɡɑt tə lˈɜɹn bəfˈɔɹ wiv ɡɑt ɐ ʧˈæns."
+},
+{
+"text": "Doesn't her husband object?",
+"phonemes": "dˈʌzᵊnt hɜɹ hˈʌzbᵊnd əbʤˈɛkt?"
+},
+{
+"text": "Is it agreed?",
+"phonemes": "ˌɪz ɪt əɡɹˈid?"
+},
+{
+"text": "I responded that it was merely a fancy head, and hurried it beneath the other sheets.",
+"phonemes": "ˌI ɹəspˈɑndᵻd ðæt ɪt wʌz mˈɪɹli ɐ fˈænsi hˈɛd, ænd hˈɜɹid ɪt bənˈiθ ði ˈʌðəɹ ʃˈits."
+},
+{
+"text": "The Wey has a treble mouth, and at this point boats are to be hired, and there was a ferry across the river.",
+"phonemes": "ðə ❓ hæz ɐ tɹˈɛbᵊl mˈWθ, ænd æt ðɪs pˈYnt bˈOts ɑɹ tə bi hˈIəɹd, ænd ðɛɹ wʌz ɐ fˈɛɹi əkɹˈɔs ðə ɹˈɪvəɹ."
+},
+{
+"text": "Detestation of the high is the involuntary homage of the low.",
+"phonemes": "dˌitˌɛstˈAʃən ʌv ðə hˈI ɪz ði ɪnvˈɑləntˌɛɹi hˈɑmɪʤ ʌv ðə lˈO."
+},
+{
+"text": "That comes to seven hundred fifteen dollars and fifty-nine cents.",
+"phonemes": "ðˈæt kˈʌmz tə sˈɛvən hˈʌndɹəd fˌɪftˈin dˈɑləɹz ænd fˈɪftinˌIn sˈɛnts."
+},
+{
+"text": "I should not like a man who is so soon discomposed by a hot morning.",
+"phonemes": "ˌI ʃˌʊd nˌɑt lˈIk ɐ mˈæn hˌu ɪz sˌO sˈun dˌɪskəmpˈOzd bI ɐ hˈɑt mˈɔɹnɪŋ."
+},
+{
+"text": "And I put the helm hard up, and the HISPANIOLA swung round rapidly and ran stem on for the low, wooded shore.",
+"phonemes": "ˌænd ˌI pˌʊt ðə hˈɛlm hˈɑɹd ˌʌp, ænd ðə hˌɪspənjˈOlə swˈʌŋ ɹˈWnd ɹˈæpədli ænd ɹˈæn stˈɛm ˌɔn fɔɹ ðə lˈO, wˈʊdᵻd ʃˈɔɹ."
+},
+{
+"text": "I have heerd that my son is a wonderful hand at his business, sir?",
+"phonemes": "ˌI hæv ❓ ðæt mI sˈʌn ɪz ɐ wˈʌndəɹfᵊl hˈænd æt hɪz bˈɪznəs, sˌɜɹ?"
+},
+{
+"text": "The servants, I suppose, forgot to tell you that Mr.",
+"phonemes": "ðə sˈɜɹvənts, ˌI səpˈOz, fəɹɡˈɑt tə tˈɛl ju ðæt mˈɪstəɹ"
+},
+{
+"text": "'Lord strike a blight upon it,' I says, wotever it was I went for, 'if it ain't for him!",
+"phonemes": "“lˈɔɹd stɹˈIk ɐ blˈIt əpˈɑn ɪt,” ˌI sˈɛz, ❓ ɪt wʌz ˌI wˈɛnt fɔɹ, “ɪf ɪt ˈAnt fɔɹ hˌɪm!"
+},
+{
+"text": "Bagheera has noticed us.",
+"phonemes": "❓ hæz nˈOTəst ˌʌs."
+},
+{
+"text": "'Certainly, young sir.",
+"phonemes": "“sˈɜɹtnli, jˈʌŋ sˌɜɹ."
+},
+{
+"text": "Who would not give all else for two p ennyworth only of beautiful Soup?",
+"phonemes": "hˌu wʊd nˌɑt ɡˈɪv ˈɔl ˈɛls fɔɹ tˈu pˈi ❓ ˈOnli ʌv bjˈuTəfəl sˈup?"
+},
+{
+"text": "I shall return home: it is folly dragging you from the hearth-stone, and pretending, what do we pretend?",
+"phonemes": "ˌI ʃˌæl ɹətˈɜɹn hˈOm: ɪt ɪz fˈɑli dɹˈæɡɪŋ ju fɹʌm ðə hˌɑɹθstˈOn, ænd pɹɪtˈɛndɪŋ, wˌʌt dˈu wi pɹitˈɛnd?"
+},
+{
+"text": "You've heard of me, I daresay?",
+"phonemes": "jˌuv hˈɜɹd ʌv mˌi, ˌI dˈɛɹsA?"
+},
+{
+"text": "Caderousse took from his pocket a small case of black shagreen, opened, and gave it to the jeweller.",
+"phonemes": "❓ tˈʊk fɹʌm hɪz pˈɑkət ɐ smˈɔl kˈAs ʌv blˈæk ʃæɡɹˈin, ˈOpᵊnd, ænd ɡˈAv ɪt tə ðə ʤˈuᵊləɹ."
+},
+{
+"text": "Drunk, the same as usual, likely, blamed old rip!",
+"phonemes": "dɹˈʌŋk, ðə sˈAm æz jˈuʒəwəl, lˈIkli, blˈAmd ˈOld ɹˈɪp!"
+},
+{
+"text": "Oz ordered the balloon carried out in front of the Palace, and the people gazed upon it with much curiosity.",
+"phonemes": "ˈɑz ˈɔɹdəɹd ðə bəlˈun kˈɛɹid ˈWt ɪn fɹˈʌnt ʌv ðə pˈæləs, ænd ðə pˈipᵊl ɡˈAzd əpˈɑn ɪt wɪð mˈʌʧ kjˌʊɹiˈɑsəTi."
+},
+{
+"text": "The official turned towards him with sudden distrust.",
+"phonemes": "ði əfˈɪʃᵊl tˈɜɹnd tˈɔɹdz hˌɪm wɪð sˈʌdᵊn dɪstɹˈʌst."
+},
+{
+"text": "I never lose a note of this opera if I can avoid it; the music of William Tell is so sweet.",
+"phonemes": "ˌI nˈɛvəɹ lˈuz ɐ nˈOt ʌv ðɪs ˈɑpəɹə ɪf ˌI kæn əvˈYd ɪt; ðə mjˈuzɪk ʌv wˈɪljəm tˈɛl ɪz sˌO swˈit."
+},
+{
+"text": "Rochester, proceeding from the depths of an immense easy-chair at the fireside.",
+"phonemes": "ɹˈɑtʃˌʌstəɹ, pɹəsˈidɪŋ fɹʌm ðə dˈɛpθs ʌv ɐn ɪmˈɛns ˌiziʧˈɛɹ æt ðə fˈIəɹsˌId."
+},
+{
+"text": "There would be a noise like a pistol shot.",
+"phonemes": "ðˌɛɹ wʊd bi ɐ nˈYz lˈIk ɐ pˈɪstᵊl ʃˈɑt."
+},
+{
+"text": "We never heard of such things at Maple Grove.",
+"phonemes": "wˌi nˈɛvəɹ hˈɜɹd ʌv sˈʌʧ θˈɪŋz æt mˈApəl ɡɹˈOv."
+},
+{
+"text": "You are fresh from a night journey, I understand, which is in itself a monotonous occupation.",
+"phonemes": "jˌu ɑɹ fɹˈɛʃ fɹʌm ɐ nˈIt ʤˈɜɹni, ˌI ˌʌndəɹstˈænd, wˌɪʧ ɪz ɪn ɪtsˈɛlf ɐ mənˈɑtənəs ˌɑkjəpˈAʃən."
+},
+{
+"text": "He bore his own trouble so bravely that my heart bled for him.",
+"phonemes": "hˌi bˈɔɹ hɪz ˈOn tɹˈʌbᵊl sˌO bɹˈAvli ðæt mI hˈɑɹt blˈɛd fɔɹ hˌɪm."
+},
+{
+"text": "I am far from attributing any part of Mr.",
+"phonemes": "ˌI ɐm fˈɑɹ fɹʌm ətɹˈɪbjˌuTɪŋ ˈɛni pˈɑɹt ʌv mˈɪstəɹ"
+},
+{
+"text": "Then I felt other soft little tentacles upon my back and shoulders.",
+"phonemes": "ðˈɛn ˌI fˈɛlt ˈʌðəɹ sˈɔft lˈɪTᵊl tˈɛntəkᵊlz əpˈɑn mI bˈæk ænd ʃˈOldəɹz."
+},
+{
+"text": "And, my dear, whenever he comes, you had better let him look at little Bella's throat.",
+"phonemes": "ˌænd, mI dˈɪɹ, wənˈɛvəɹ hi kˈʌmz, ju hæd bˈɛTəɹ lˈɛt hˌɪm lˈʊk æt lˈɪTᵊl bˈɛləz θɹˈOt."
+},
+{
+"text": "Sometimes, when nature, overcome by hunger, sank under the exhaustion, a repast was prepared for me in the desert that restored and inspirited me.",
+"phonemes": "sˈʌmtˌImz, wˌɛn nˈAʧəɹ, ˌOvəɹkˈʌm bI hˈʌŋɡəɹ, sˈæŋk ˈʌndəɹ ði ɪɡzˈɔsʧən, ɐ ɹəpˈæst wʌz pɹipˈɛɹd fɔɹ mˌi ɪn ðə dˈɛzəɹt ðæt ɹəstˈɔɹd ænd ɪnspˈɪɹəTᵻd mˌi."
+},
+{
+"text": "You shall not die!",
+"phonemes": "jˌu ʃˌæl nˌɑt dˈI!"
+},
+{
+"text": "Soup of the evening, beautiful Soup!",
+"phonemes": "sˈup ʌv ði ˈivnɪŋ, bjˈuTəfəl sˈup!"
+},
+{
+"text": "I., etc., etc., to John Seward, M.",
+"phonemes": "ˈI, ɛtsˈɛTəɹə, ɛtsˈɛTəɹə, tə ʤˈɑn ❓, ˈɛm"
+},
+{
+"text": "They were horribly disappointed.",
+"phonemes": "ðˌA wɜɹ hˈɔɹəbli dˌɪsəpˈYntᵻd."
+},
+{
+"text": "It's six forty-five in the morning.",
+"phonemes": "ˌɪts sˈɪks fˌɔɹTifˈIv ɪn ðə mˈɔɹnɪŋ."
+},
+{
+"text": "I didn't stop for life, dear boy and Pip's comrade, being here.",
+"phonemes": "ˌI dˈɪdᵊnt stˈɑp fɔɹ lˈIf, dˈɪɹ bˈY ænd pˈɪps kˈɑmɹˌæd, bˈiɪŋ hˈɪɹ."
+},
+{
+"text": "You have lived on the money he has given you.",
+"phonemes": "jˌu hæv lˈɪvd ˌɔn ðə mˈʌni hi hæz ɡˈɪvən ju."
+},
+{
+"text": "It had a crazy board fence around it, which leaned inward in places, and outward the rest of the time, but stood upright nowhere.",
+"phonemes": "ˌɪt hæd ɐ kɹˈAzi bˈɔɹd fˈɛns əɹˈWnd ɪt, wˌɪʧ lˈind ˈɪnwəɹd ɪn plˈAsᵻz, ænd ˈWtwəɹd ðə ɹˈɛst ʌv ðə tˈIm, bˌʌt stˈʊd ˈʌpɹˌIt nˈOhwˌɛɹ."
+},
+{
+"text": "Don't palm all your abuses of language upon me.",
+"phonemes": "dˈOnt pˈɑlm ˈɔl jʊɹ əbjˈusᵻz ʌv lˈæŋɡwɪʤ əpˈɑn mˌi."
+},
+{
+"text": "Nobody comes to Novastoshnah except on business, and the only people who have regular business there are the seals.",
+"phonemes": "nˈObˌɑdi kˈʌmz tʊ ❓ ɪksˈɛpt ˌɔn bˈɪznəs, ænd ði ˈOnli pˈipᵊl hˌu hæv ɹˈɛɡjələɹ bˈɪznəs ðɛɹ ɑɹ ðə sˈiᵊlz."
+},
+{
+"text": "There seems to me a very decided difference.",
+"phonemes": "ðˌɛɹ sˈimz tə mˌi ɐ vˈɛɹi dəsˈIdᵻd dˈɪfəɹəns."
+},
+{
+"text": "It's ten oh five right now.",
+"phonemes": "ˌɪts tˈɛn ˈO fˈIv ɹˈIt nˈW."
+},
+{
+"text": "Ship up to back!",
+"phonemes": "ʃˈɪp ˌʌp tə bˈæk!"
+},
+{
+"text": "Next day Gatsby called me on the phone.",
+"phonemes": "nˈɛkst dˈA ɡˈætsbi kˈɔld mˌi ˌɔn ðə fˈOn."
+},
+{
+"text": "'IF that's the case,' said the bear, 'I should very much like to see his royal palace; come, take me thither.",
+"phonemes": "“ˈɪf ðˈæts ðə kˈAs,” sˈɛd ðə bˈɛɹ, “ˌI ʃˌʊd vˈɛɹi mˈʌʧ lˈIk tə sˈi hɪz ɹˈYᵊl pˈæləs; kˈʌm, tˈAk mˌi θˈɪðəɹ."
+},
+{
+"text": "I can't go through this alone.",
+"phonemes": "ˌI kˈænt ɡˌO θɹu ðɪs əlˈOn."
+},
+{
+"text": "It is possible that the post-office may fail me, and this letter not come into your hands until to-morrow morning.",
+"phonemes": "ˌɪt ɪz pˈɑsəbᵊl ðæt ðə pˈOstˌɔfəs mˈA fˈAl mˌi, ænd ðɪs lˈɛTəɹ nˌɑt kˈʌm ˈɪntu jʊɹ hˈændz ˌʌntˈɪl təmˈɔɹO mˈɔɹnɪŋ."
+},
+{
+"text": "Did you never ask him what he was going in for?",
+"phonemes": "dˈɪd ju nˈɛvəɹ ˈæsk hˌɪm wˌʌt hi wʌz ɡˈOɪŋ ˈɪn fɔɹ?"
+},
+{
+"text": "But I always thought I should.",
+"phonemes": "bˌʌt ˌI ˈɔlwˌAz θˈɔt ˌI ʃˌʊd."
+},
+{
+"text": "Don't say a word about it, madam.",
+"phonemes": "dˈOnt sˈA ɐ wˈɜɹd əbˈWt ɪt, mˈædəm."
+},
+{
+"text": "What do you want money for, all of a sudden?",
+"phonemes": "wˌʌt dˈu ju wˈɑnt mˈʌni fɔɹ, ˈɔl ʌv ɐ sˈʌdᵊn?"
+},
+{
+"text": "Is it seven ten, or closer to one ten?",
+"phonemes": "ˌɪz ɪt sˈɛvən tˈɛn, ɔɹ klˈOsəɹ tə wˈʌn tˈɛn?"
+},
+{
+"text": "Progress of Cavalcanti the Younger Meanwhile M.",
+"phonemes": "pɹˈɑɡɹəs ʌv ❓ ðə jˈʌŋɡəɹ mˈinhwˌIl ˈɛm"
+},
+{
+"text": "I must absent myself from all I loved while thus employed.",
+"phonemes": "ˌI mˈʌst æbsˈɛnt mIsˈɛlf fɹʌm ˈɔl ˌI lˈʌvd wˌIl ðˈʌs ɪmplˈYd."
+},
+{
+"text": "The kites have come down to see it.",
+"phonemes": "ðə kˈIts hæv kˈʌm dˌWn tə sˈi ɪt."
+},
+{
+"text": "The woman asked her what she did there, but she looked very strangely and only returned a confused and unintelligible answer.",
+"phonemes": "ðə wˈʊmən ˈæskt hɜɹ wˌʌt ʃi dˈɪd ðˈɛɹ, bˌʌt ʃi lˈʊkt vˈɛɹi stɹˈAnʤli ænd ˈOnli ɹətˈɜɹnd ɐ kənfjˈuzd ænd ˌʌnəntˈɛləʤəbᵊl ˈænsəɹ."
+},
+{
+"text": "It's six ten in the morning.",
+"phonemes": "ˌɪts sˈɪks tˈɛn ɪn ðə mˈɔɹnɪŋ."
+},
+{
+"text": "What is it?",
+"phonemes": "wˌʌt ɪz ɪt?"
+},
+{
+"text": "I will tell you.",
+"phonemes": "ˌI wɪl tˈɛl ju."
+},
+{
+"text": "There were two thousand three hundred twenty-five files in total.",
+"phonemes": "ðˌɛɹ wɜɹ tˈu θˈWzᵊnd θɹˈi hˈʌndɹəd twˈɛntifˌIv fˈIlz ɪn tˈOTᵊl."
+},
+{
+"text": "Give it to your master, Pip.",
+"phonemes": "ɡˈɪv ɪt tə jʊɹ mˈæstəɹ, pˈɪp."
+},
+{
+"text": "How came he into the room?",
+"phonemes": "hˌW kˈAm hi ˈɪntu ðə ɹˈum?"
+},
+{
+"text": "Why was I always suffering, always browbeaten, always accused, for ever condemned?",
+"phonemes": "wˌI wʌz ˌI ˈɔlwˌAz sˈʌfəɹɪŋ, ˈɔlwˌAz ❓, ˈɔlwˌAz əkjˈuzd, fɔɹ ˈɛvəɹ kəndˈɛmd?"
+},
+{
+"text": "What have we to do with this toothless fool?",
+"phonemes": "wˌʌt hæv wi tə dˈu wɪð ðɪs tˈuθləs fˈul?"
+},
+{
+"text": "And why not?",
+"phonemes": "ˌænd wˌI nˌɑt?"
+},
+{
+"text": "It's eleven o'clock in the morning.",
+"phonemes": "ˌɪts əlˈɛvᵊn əklˈɑk ɪn ðə mˈɔɹnɪŋ."
+},
+{
+"text": "The Kingston and Richmond defences forced!",
+"phonemes": "ðə kˈɪŋstən ænd ɹˈɪʧmənd dəfˈɛnsᵻz fˈɔɹst!"
+},
+{
+"text": "Finally one of the biggest mice spoke.",
+"phonemes": "fˈInᵊli wˈʌn ʌv ðə bˈɪɡᵻst mˈIs spˈOk."
+},
+{
+"text": "Whatever shall we do?",
+"phonemes": "wəTˈɛvəɹ ʃˌæl wi dˈu?"
+},
+{
+"text": "My goodness, I wish I was out of this!",
+"phonemes": "mˌI ɡˈʊdnəs, ˌI wˈɪʃ ˌI wʌz ˈWt ʌv ðˈɪs!"
+},
+{
+"text": "I'm glad you possess a consolation, for all you had in me is gone.",
+"phonemes": "ˌIm ɡlˈæd ju pəzˈɛs ɐ kˌɑnsəlˈAʃən, fɔɹ ˈɔl ju hæd ɪn mˌi ɪz ɡˈɔn."
+},
+{
+"text": "Summer balls are fashionable.",
+"phonemes": "sˈʌməɹ bˈɔlz ɑɹ fˈæʃᵊnəbᵊl."
+},
+{
+"text": "It's six oh five at night.",
+"phonemes": "ˌɪts sˈɪks ˈO fˈIv æt nˈIt."
+},
+{
+"text": "The natural messengers of the bandits are the shepherds who live between the city and the mountains, between civilized and savage life.",
+"phonemes": "ðə nˈæʧəɹᵊl mˈɛsᵊnʤəɹz ʌv ðə bˈændɪts ɑɹ ðə ʃˈɛpəɹdz hˌu lˈɪv bətwˈin ðə sˈɪTi ænd ðə mˈWntᵊnz, bətwˈin sˈɪvəlˌIzd ænd sˈævɪʤ lˈIf."
+},
+{
+"text": "Is it seven o'clock, or closer to four ten?",
+"phonemes": "ˌɪz ɪt sˈɛvən əklˈɑk, ɔɹ klˈOsəɹ tə fˈɔɹ tˈɛn?"
+},
+{
+"text": "Mason, a West India planter and merchant, was his old acquaintance.",
+"phonemes": "mˈAsᵊn, ɐ wˈɛst ˈɪndiə plˈæntəɹ ænd mˈɜɹʧənt, wʌz hɪz ˈOld əkwˈAntᵊns."
+},
+{
+"text": "Aren't you well?",
+"phonemes": "ˌɑɹnt ju wˈɛl?"
+},
+{
+"text": "There was a momentary stillness.",
+"phonemes": "ðˌɛɹ wʌz ɐ mˈOməntˌɛɹi stˈɪlnəs."
+},
+{
+"text": "There was a pause, during which Mr.",
+"phonemes": "ðˌɛɹ wʌz ɐ pˈɔz, dˈʊɹɪŋ wˌɪʧ mˈɪstəɹ"
+},
+{
+"text": "There were one thousand six hundred fifty-nine files left.",
+"phonemes": "ðˌɛɹ wɜɹ wˈʌn θˈWzᵊnd sˈɪks hˈʌndɹəd fˈɪftinˌIn fˈIlz lˈɛft."
+},
+{
+"text": "When they came to the meadow, there lay the wolf by the tree and snored so loud that the branches shook.",
+"phonemes": "wˌɛn ðA kˈAm tə ðə mˈɛdO, ðɛɹ lˈA ðə wˈʊlf bI ðə tɹˈi ænd snˈɔɹd sˌO lˈWd ðæt ðə bɹˈænʧᵻz ʃˈʊk."
+},
+{
+"text": "But take care; for she is wicked and fierce, and may not allow you to destroy her.",
+"phonemes": "bˌʌt tˈAk kˈɛɹ; fɔɹ ʃi ɪz wˈɪkɪd ænd fˈɪɹs, ænd mˈA nˌɑt əlˈW ju tə dəstɹˈY hˌɜɹ."
+},
+{
+"text": "Utterson began to recover from the hotness of his alarm, and to grow more at quiet with himself.",
+"phonemes": "❓ bəɡˈæn tə ɹəkˈʌvəɹ fɹʌm ðə hˈɑtnəs ʌv hɪz əlˈɑɹm, ænd tə ɡɹˈO mˈɔɹ æt kwˈIət wɪð hɪmsˈɛlf."
+},
+{
+"text": "The coastguard said the man must have tied up his own hands, fastening the knots with his teeth.",
+"phonemes": "ðə ❓ sˈɛd ðə mˈæn mˈʌst hæv tˈId ˌʌp hɪz ˈOn hˈændz, fˈæsᵊnɪŋ ðə nˈɑts wɪð hɪz tˈiθ."
+},
+{
+"text": "The boys bent their heads together and scarcely breathed.",
+"phonemes": "ðə bˈYz bˈɛnt ðɛɹ hˈɛdz təɡˈɛðəɹ ænd skˈɛɹsli bɹˈɛθt."
+},
+{
+"text": "That is clear and concise.",
+"phonemes": "ðˈæt ɪz klˈɪɹ ænd kənsˈIs."
+},
+{
+"text": "Fancy having one of them lovely things, with its Heat-Ray wide and free!",
+"phonemes": "fˈænsi hˈævɪŋ wˈʌn ʌv ðˌɛm lˈʌvli θˈɪŋz, wɪð ɪts hˌitɹˈA wˈId ænd fɹˈi!"
+},
+{
+"text": "They will have ten thousand pounds divided amongst them.",
+"phonemes": "ðˌA wɪl hæv tˈɛn θˈWzᵊnd pˈWndz dəvˈIdᵻd əmˈʌŋst ðˌɛm."
+},
+{
+"text": "When he had carefully locked the door, he lifted up the cover, and saw a white snake lying on the dish.",
+"phonemes": "wˌɛn hi hæd kˈɛɹfᵊli lˈɑkt ðə dˈɔɹ, hi lˈɪftᵻd ˌʌp ðə kˈʌvəɹ, ænd sˈɔ ɐ wˈIt snˈAk lˈIɪŋ ˌɔn ðə dˈɪʃ."
+},
+{
+"text": "And who is with madame?, M.",
+"phonemes": "ˌænd hˌu ɪz wɪð mədˈɑm?, ˈɛm"
+},
+{
+"text": "Do let me.",
+"phonemes": "dˈu lˈɛt mˌi."
+},
+{
+"text": "Overjoyed at this discovery, he hastened to the house, which was situated in a mean street near the Reuss.",
+"phonemes": "ˌOvəɹʤˈYd æt ðɪs dəskˈʌvəɹi, hi hˈAsᵊnd tə ðə hˈWs, wˌɪʧ wʌz sˈɪʧəwˌATᵻd ɪn ɐ mˈin stɹˈit nˌɪɹ ðə ❓."
+},
+{
+"text": "The wedding was celebrated, and after the king's death, Dummling inherited his kingdom and lived for a long time contentedly with his wife.",
+"phonemes": "ðə wˈɛdɪŋ wʌz sˈɛləbɹˌATᵻd, ænd ˈæftəɹ ðə kˈɪŋz dˈɛθ, ❓ ɪnhˈɛɹəTᵻd hɪz kˈɪŋdəm ænd lˈɪvd fɔɹ ɐ lˈɔŋ tˈIm kəntˈɛntədli wɪð hɪz wˈIf."
+},
+{
+"text": "He turned away; he threw himself on his face on the sofa.",
+"phonemes": "hˌi tˈɜɹnd əwˈA; hi θɹˈu hɪmsˈɛlf ˌɔn hɪz fˈAs ˌɔn ðə sˈOfə."
+},
+{
+"text": "There were five thousand eight hundred sixty steps today.",
+"phonemes": "ðˌɛɹ wɜɹ fˈIv θˈWzᵊnd ˈAt hˈʌndɹəd sˈɪksti stˈɛps tədˈA."
+},
+{
+"text": "It's energy in a gale of funk, and turned clean inside out.",
+"phonemes": "ˌɪts ˈɛnəɹʤi ɪn ɐ ɡˈAl ʌv fˈʌŋk, ænd tˈɜɹnd klˈin ɪnsˈId ˈWt."
+},
+{
+"text": "I think I could, if I only knew how to begin.",
+"phonemes": "ˌI θˈɪŋk ˌI kˈʊd, ɪf ˌI ˈOnli nˈu hˌW tə bəɡˈɪn."
+},
+{
+"text": "What was I, an army surgeon with a weak leg and a weaker banking-account, that I should dare to think of such things?",
+"phonemes": "wˌʌt wʌz ˌI, ɐn ˈɑɹmi sˈɜɹʤən wɪð ɐ wˈik lˈɛɡ ænd ɐ wˈikəɹ bˌæŋkɪŋəkˈWnt, ðæt ˌI ʃˌʊd dˈɛɹ tə θˈɪŋk ʌv sˈʌʧ θˈɪŋz?"
+},
+{
+"text": "Is it three o'clock, or closer to seven thirty-eight?",
+"phonemes": "ˌɪz ɪt θɹˈi əklˈɑk, ɔɹ klˈOsəɹ tə sˈɛvən θˈɜɹTiAt?"
+},
+{
+"text": "If I could persuade myself that my manners were perfectly easy and graceful, I should not be shy.",
+"phonemes": "ˌɪf ˌI kʊd pəɹswˈAd mIsˈɛlf ðæt mI mˈænəɹz wɜɹ pˈɜɹfəktli ˈizi ænd ɡɹˈAsfəl, ˌI ʃˌʊd nˌɑt bi ʃˈI."
+},
+{
+"text": "How should you have liked making sermons?",
+"phonemes": "hˌW ʃˌʊd ju hæv lˈIkt mˈAkɪŋ sˈɜɹmənz?"
+},
+{
+"text": "It's six eleven in the afternoon.",
+"phonemes": "ˌɪts sˈɪks əlˈɛvᵊn ɪn ði ˌæftəɹnˈun."
+},
+{
+"text": "And what was hidden down there, at the foot of that shaft?",
+"phonemes": "ˌænd wˌʌt wʌz hˈɪdᵊn dˌWn ðˈɛɹ, æt ðə fˈʊt ʌv ðˈæt ʃˈæft?"
+},
+{
+"text": "I saw I must employ another hand, and thought of Lanyon.",
+"phonemes": "ˌI sˈɔ ˌI mˈʌst ɪmplˈY ənˈʌðəɹ hˈænd, ænd θˈɔt ʌv ❓."
+},
+{
+"text": "Had he ever spoken of Swandam Lane?",
+"phonemes": "hˌæd hi ˈɛvəɹ spˈOkən ʌv ❓ lˈAn?"
+},
+{
+"text": "I saw altogether about a dozen in the length of the Fulham Road.",
+"phonemes": "ˌI sˈɔ ˌɔltəɡˈɛðəɹ əbˈWt ɐ dˈʌzᵊn ɪn ðə lˈɛŋθ ʌv ðə ❓ ɹˈOd."
+},
+{
+"text": "He would rather jump at Grete's face.",
+"phonemes": "hˌi wʊd ɹˈæðəɹ ʤˈʌmp æt ❓s fˈAs."
+},
+{
+"text": "V When I came home to West Egg that night I was afraid for a moment that my house was on fire.",
+"phonemes": "vˈi wˌɛn ˌI kˈAm hˈOm tə wˈɛst ˈɛɡ ðˈæt nˈIt ˌI wʌz əfɹˈAd fɔɹ ɐ mˈOmᵊnt ðæt mI hˈWs wʌz ˌɔn fˈIəɹ."
+},
+{
+"text": "Thursday, October first.",
+"phonemes": "θˈɜɹzdˌA, ɑktˈObəɹ fˈɜɹst."
+},
+{
+"text": "But that's not all.",
+"phonemes": "bˌʌt ðˈæts nˌɑt ˈɔl."
+},
+{
+"text": "He laid himself down under the thwarts and waited, panting.",
+"phonemes": "hˌi lˈAd hɪmsˈɛlf dˌWn ˈʌndəɹ ðə θwˈɔɹts ænd wˈATᵻd, pˈæntɪŋ."
+},
+{
+"text": "Then these agonies began swiftly to subside, and I came to myself as if out of a great sickness.",
+"phonemes": "ðˈɛn ðiz ˈæɡəniz bəɡˈæn swˈɪftli tə səbsˈId, ænd ˌI kˈAm tə mIsˈɛlf æz ɪf ˈWt ʌv ɐ ɡɹˈAt sˈɪknəs."
+},
+{
+"text": "My name figures in no newspaper.",
+"phonemes": "mˌI nˈAm fˈɪɡjəɹz ɪn nˈO nˈuzpˌApəɹ."
+}
+]

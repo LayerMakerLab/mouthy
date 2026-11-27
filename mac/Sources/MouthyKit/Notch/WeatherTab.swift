@@ -234,15 +234,17 @@ struct WeatherView: View {
     /// Controls and now on the left, the week on the right at the panel's full height, so its bars end with the
     /// same bottom margin as every other tab.
     private func forecast(now: WeatherTab.Now, days: [WeatherTab.Day], glow: Color?, loading: Bool) -> some View {
-        HStack(alignment: .top, spacing: 22) {
-            VStack(alignment: .leading, spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 5) {
                 controls
                 NowView(now: now, place: loading ? "City name" : model.place?.name, glow: glow, fahrenheit: model.place?.fahrenheit ?? false)
                     .skeleton(loading)
             }
-            .frame(width: 236, alignment: .leading)
+            .frame(width: 196, alignment: .leading)
+            .notchTile()
             WeekView(days: days)
                 .skeleton(loading)
+                .notchTile()
         }
         .frame(maxHeight: .infinity, alignment: .top)
     }
@@ -259,17 +261,17 @@ struct NowView: View {
             Image(systemName: WeatherTab.symbol(now.code))
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(now.code <= 2 ? AnyShapeStyle(MouthyTheme.barFill) : AnyShapeStyle(MouthyTheme.cream))
-                .font(.system(size: 34, weight: .light))
+                .font(.system(size: 26, weight: .light))
                 .shadow(color: (glow ?? MouthyTheme.glow).opacity(0.6), radius: 12)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("\(Int(now.temperature.rounded()))°").font(.system(size: 36, weight: .light, design: .rounded))
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(Int(now.temperature.rounded()))°").font(.system(size: 26, weight: .light, design: .rounded))
                     .foregroundStyle(MouthyTheme.cream)
                     .contentTransition(.numericText())
                 Text("Feels \(Int(now.feels.rounded()))° · wind \(Int(now.wind.rounded())) \(fahrenheit ? "mph" : "km/h")")
-                    .font(.system(size: 12.5)).foregroundStyle(MouthyTheme.cream2).lineLimit(1)
+                    .font(.system(size: 11.5)).foregroundStyle(MouthyTheme.cream2).lineLimit(1).minimumScaleFactor(0.85)
                 if let place {
                     Label(place, systemImage: "mappin")
-                        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(MouthyTheme.cream2).lineLimit(1)
+                        .font(.system(size: 11.5, weight: .medium)).foregroundStyle(MouthyTheme.cream2).lineLimit(1)
                 }
             }
         }
@@ -287,19 +289,20 @@ struct WeekView: View {
         let showsRain = days.contains { $0.rain >= 30 }
         HStack(alignment: .top, spacing: 4) {
             ForEach(days) { day in
-                VStack(spacing: 4) {
+                // (Sized for the 90 pt a tile has inside: with the rain row the gaps and the bar's least height give way.)
+                VStack(spacing: showsRain ? 2 : 3) {
                     // Every column gets its weekday; today is the bright one. "Today" did not fit seven columns.
                     let today = Calendar.current.isDateInToday(day.date)
                     Text(day.date.formatted(.dateTime.weekday(.abbreviated)))
-                        .font(.system(size: 12, weight: today ? .semibold : .medium, design: .rounded))
+                        .font(.system(size: 11.5, weight: today ? .semibold : .medium, design: .rounded))
                         .foregroundStyle(today ? MouthyTheme.cream : MouthyTheme.cream2)
                         .fixedSize()
                         .accessibilityLabel(today ? "Today" : day.date.formatted(.dateTime.weekday(.wide)))
                     Image(systemName: WeatherTab.symbol(day.code))
                         .symbolRenderingMode(.monochrome)
                         .foregroundStyle(day.code <= 2 ? MouthyTheme.glow : MouthyTheme.cream)
-                        .frame(height: 16)
-                    Text("\(Int(day.high.rounded()))°").font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.cream)
+                        .font(.system(size: 12)).frame(height: 14)
+                    Text("\(Int(day.high.rounded()))°").font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.cream)
                     // This day's range against the week's: the bar floats between the week's low and high.
                     GeometryReader { box in
                         let span = max(high - low, 1)
@@ -312,12 +315,12 @@ struct WeekView: View {
                         }
                     }
                     .frame(width: 5)
-                    .frame(minHeight: 14, maxHeight: .infinity)
-                    Text("\(Int(day.low.rounded()))°").font(.system(size: 12, design: .rounded)).foregroundStyle(MouthyTheme.cream2)
+                    .frame(minHeight: 8, maxHeight: .infinity)
+                    Text("\(Int(day.low.rounded()))°").font(.system(size: 11, design: .rounded)).foregroundStyle(MouthyTheme.cream2)
                     if showsRain {
                         // Same height in every column, so the bars stay comparable.
                         Text(day.rain >= 30 ? "\(day.rain)%" : " ")
-                            .font(.system(size: 10.5, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.glow)
+                            .font(.system(size: 9.5, weight: .semibold, design: .rounded)).foregroundStyle(MouthyTheme.glow)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

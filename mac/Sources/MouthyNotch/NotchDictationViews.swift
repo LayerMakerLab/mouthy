@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Sizes of the notch's dictation surfaces (the hub's morph contract): the pill while dictating, a taller
@@ -168,6 +169,112 @@ struct DictationPill: View {
         if let prompt { parts.insert("Question: " + prompt, at: 0) }
         if !partial.isEmpty { parts.append(partial) }
         return parts.joined(separator: ". ")
+    }
+}
+
+/// Everything said so far in this dictation, on a card under the band, so the person can look up and see what
+/// they already covered. It hangs below the menu bar (the band above it keeps to its wings), grows a line at a
+/// time and stops at the hub's window: then the oldest lines leave at the top under a short fade.
+struct TranscriptCard: View {
+    let text: String
+    /// The most height the card may take.
+    let room: CGFloat
+    var width: CGFloat = TranscriptCard.width
+    @State private var full: CGFloat = 0
+    /// Where the laid-out part of a long dictation starts (`tailStart`), kept from one word to the next.
+    @State private var start = 0
+
+    static let width: CGFloat = 500
+    /// Between the band's lower edge and the card.
+    static let gap: CGFloat = 5
+    static let fontSize: CGFloat = 15
+    static let lineSpacing: CGFloat = 1
+    static let padding = EdgeInsets(top: 9, leading: 18, bottom: 11, trailing: 18)
+    /// One line of the words with the gap to the next, as SwiftUI lays the font out (ascent and descent each
+    /// rounded up); `transcriptCardGrowsWithTheWordsAndStopsAtItsRoom` holds it to the rendered text.
+    static let line: CGFloat = {
+        let font = NSFont.systemFont(ofSize: fontSize)
+        return ceil(font.ascender) + ceil(-font.descender) + lineSpacing
+    }()
+
+    /// The words said so far, or nil while there is nothing to show (no words yet, or finishing: they are about to
+    /// land where the person is typing).
+    static func words(_ dictation: NotchDictation?) -> String? {
+        guard let dictation, !dictation.transcribing else { return nil }
+        let words = dictation.partialText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return words.isEmpty ? nil : words
+    }
+
+    /// The newest part of a long dictation: the card shows seven lines at most, so laying out an hour of words on
+    /// every new one would be work nobody sees. Up to `tailLimit` UTF-16 units stay whole; past that the start
+    /// moves forward a `tailStep` at a time, so the lines on show re-wrap only once per step.
+    static let tailLimit = 3000
+    static let tailStep = 1000
+    /// How far past a step the start may move to reach the gap between two words.
+    static let tailReach = 100
+
+    /// Where the laid-out part starts, in UTF-16 units, for a text `count` units long. The `previous` start is kept
+    /// while it still leaves between a step and the limit, so a revised partial whose length swings across a step
+    /// never moves the start back and forth.
+    static func tailStart(count: Int, previous: Int = 0) -> Int {
+        guard count > tailLimit else { return 0 }
+        if previous > 0, (tailStep...tailLimit).contains(count - previous) { return previous }
+        return (count - (tailLimit - tailStep)) / tailStep * tailStep
+    }
+
+    /// `text` from `start` on: from the next word when a gap between words is within `tailReach`, else from the
+    /// character at `start` (Chinese and Japanese have no gaps; a run of emoji has none either).
+    static func tail(_ text: String, from start: Int) -> String {
+        let units = text.utf16
+        guard start > 0, start < units.count else { return text }
+        let from = text.rangeOfComposedCharacterSequence(at: units.index(units.startIndex, offsetBy: start)).lowerBound
+        let rest = text[from...]
+        if let gap = rest.prefix(tailReach).firstIndex(where: \.isWhitespace) {
+            let word = rest[gap...].drop(while: \.isWhitespace)
+            if !word.isEmpty { return String(word) }
+        }
+        return String(rest)
+    }
+
+    static func tail(_ text: String) -> String { tail(text, from: tailStart(count: text.utf16.count)) }
+
+    /// The height the words get inside a card of at most `room`: whole lines only, at least two.
+    static func textRoom(in room: CGFloat) -> CGFloat {
+        let free = room - padding.top - padding.bottom
+        return max(2, ((free + lineSpacing) / line).rounded(.down)) * line - lineSpacing
+    }
+
+    var body: some View {
+        let textRoom = Self.textRoom(in: room)
+        let from = Self.tailStart(count: text.utf16.count, previous: start)
+        // No animation on the words themselves: they change several times a second, and a text morph on each
+        // change kept a core busy for as long as someone spoke.
+        Text(Self.tail(text, from: from))
+            .onChange(of: from, initial: true) { start = from }
+            .font(.system(size: Self.fontSize))
+            .lineSpacing(Self.lineSpacing)
+            .foregroundStyle(MouthyTheme.cream)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { full = $0 }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxHeight: textRoom, alignment: .bottom)
+            .clipped()
+            .overlay(alignment: .top) {
+                // Only once lines have left, and only over the top line: the first line of a short dictation stays
+                // whole. The card's own black laid over the words, which costs less than masking them on every word.
+                if full > textRoom + 0.5 {
+                    LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Self.line)
+                }
+            }
+            .padding(Self.padding)
+            .frame(width: width)
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.black)
+                .shadow(color: .black.opacity(0.3), radius: 7, y: 3))
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Said so far: " + text)
     }
 }
 

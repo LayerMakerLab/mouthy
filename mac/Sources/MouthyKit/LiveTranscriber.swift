@@ -9,6 +9,10 @@ import MouthyCore
 /// the speech threshold misses are caught by a quieter energy check and Silero's trained voice detector (Apple
 /// silicon), and recorded audio that might hold words is never thrown away. Audio stays in memory; nothing leaves
 /// the Mac.
+///
+/// The words since the last pass show in one of two ways: a fast guess by the same recognizer at the audio after it
+/// (about ten a second), or, with "Show words instantly", the words of a streaming recognizer that hears the audio as
+/// it arrives (`Stream`, `StreamedWords`). Those are behind the voice by a tenth of a second, not half a second.
 @MainActor
 final class LiveTranscriber {
     /// Recognizes 16 kHz samples; `boost` adds the slower vocabulary pass.
@@ -17,8 +21,14 @@ final class LiveTranscriber {
     /// (and the words it heard before it): the audio before it is context, so the newest words are heard with the words
     /// that led up to them.
     typealias DecodeAfter = @Sendable (_ samples: [Float], _ from: Int) async throws -> ContextWords
+    /// Recognizes 16 kHz samples once, without the vocabulary step, and returns the words on each side of sample `cut`
+    /// by their token times (nil when it has none to go by): how the recognizer writes a pause it hears both sides of.
+    typealias DecodeAround = @Sendable (_ samples: [Float], _ cut: Int) async throws -> ContextWords?
     /// A trained voice detector's verdict on 16 kHz samples; nil when none is on this Mac (energy decides alone).
     typealias HearsSpeech = @Sendable (_ samples: [Float]) async -> Bool?
+    /// The streaming recognizer: hears newly recorded 16 kHz samples (`restart`: they begin a recording) and answers
+    /// with every word since the restart. When it cannot, the fast guesses take over.
+    typealias Stream = @Sendable (_ samples: [Float], _ restart: Bool) async -> StreamAnswer
 
     static let rate = 16_000
     /// Silence after speech before the background pass starts.
@@ -36,7 +46,7 @@ final class LiveTranscriber {
     static let longestAtStop = rate * 15
     static let context = rate * 2
     /// Previews wait this long after capture starts, while the audio device settles.
-    static let firstPreview = Duration.milliseconds(500)
+    static var firstPreview = Duration.milliseconds(500)
     /// Seconds this Mac takes per second of audio, shared by every dictation and smoothed over passes of 4 s or more.
     /// Until measured, Apple silicon is taken as fast and an Intel Mac (Parakeet on the CPU) as slow.
     static var cost: Double = {
@@ -49,6 +59,7 @@ final class LiveTranscriber {
 
     private let decode: Decode
     private let decodeAfter: DecodeAfter?
+    private let decodeAround: DecodeAround?
     private let hearsSpeech: HearsSpeech?
     private let count: () -> Int
     private let read: (Range<Int>) -> [Float]
@@ -65,11 +76,46 @@ final class LiveTranscriber {
     private typealias Result = (end: Int, speechEnd: Int, heardEnd: Int, text: String, speakersAt: Int)
     /// Quiet sound up to here was judged not to be speech by the voice detector.
     private var judgedUntil = 0
+    /// The join before the open part. A pause of `PhraseJoiner.sentencePause` there ends the sentence by the pause
+    /// rule, and people pause that long in the middle of one to think ("not needing. To use a keyboard"): each side
+    /// was recognized without the other, so only the pause could say. The audio around the pause is therefore
+    /// recognized once more in one piece (`decodeAround`), and where that recognizer writes the sentence on, it goes
+    /// on. Heard twice: after the first `seamFirst` of the new words, which wait for it (it then says "goes on" only
+    /// when it does, and an end otherwise), and again with `seamWhole` of them when it heard an end. Not across a
+    /// pause over `seamLongest` (the recognizer hears those as an end anyway), and not where that pass would take
+    /// longer than `seamBudget` by the time the last one took (`seamCost`): the pause decides there, as before.
+    private var seam: Seam?
+    private struct Seam {
+        /// Where the closed part's last sound ended.
+        var heardEnd: Int
+        var continues: Bool?
+        /// How much of the new part the verdict heard.
+        var heard = 0
+        /// The part closed while the person was already talking on: words after it were shown, and stay shown.
+        var talkedOn = false
+    }
+    static let seamBefore = rate * 2
+    static let seamFirst = rate * 3 / 5
+    static let seamWhole = rate * 3
+    static let seamLongest = rate * 2
+    static let seamBudget = 0.2
+    /// Seconds a seam's pass takes per second of audio: measured on each one, and until then the plain guess.
+    static var seamCost = plainCost
     private var job: Task<Void, Never>?
     private var preview: Task<Void, Never>?
     private var previewedAt = 0
-    private var previewInterval = rate / 2
+    /// Audio between previews: 0.1 s where a preview is quick (an M5 takes about 40 ms), so live words follow the
+    /// voice closely; slower Macs stretch it to twice what a preview takes.
+    static var shortestPreviewInterval = rate / 10
+    /// Live passes run at this priority. At `.utility` an Apple silicon Mac ran them on its efficiency cores, two
+    /// to four times slower (367 ms for a 2.9 s pass with custom words, against about 160 ms), and nothing live can
+    /// be shown while one runs. The audio thread is real-time and unaffected.
+    static var livePriority = TaskPriority.userInitiated
+    private var previewInterval = shortestPreviewInterval
     private var failed = false
+    /// The stop or an Enter split is taking the words: a pass still in flight shows nothing more. Its text is the
+    /// part being taken, and shown after the split it was typed again into the field that had just been sent.
+    private var finishing = false
     private let createdAt = ContinuousClock.now
     /// "Only listen to my voice": who is speaking, checked in the background as audio arrives (nil when off).
     private var speakers: SpeakerTrack?
@@ -77,6 +123,39 @@ final class LiveTranscriber {
     private var speakersFed = 0
     /// The speaker check's `nextWindow` after its last batch.
     private var speakersAt = 0
+    /// "Show words instantly": the streaming recognizer (nil: off, or it stopped), fed one batch at a time.
+    private var stream: Stream?
+    private var streamJob: Task<Void, Never>?
+    /// Samples handed to it, and samples it has answered for.
+    private var streamFed = 0
+    private var streamHeard = 0
+    private var streamed: [StreamedWord] = []
+    /// A pass's text before its vocabulary step, shown until the pass itself is done (see `quickFirst`).
+    private var early: (text: String, heardEnd: Int)?
+    /// With the streaming recognizer and custom words: a pass first shows its text without the vocabulary step,
+    /// which takes several times longer (on an M5 with 24 custom words 0.2 to 0.4 s, against 0.05 s). The capitals,
+    /// punctuation and numbers then arrive that much sooner after a pause, and fewer of the words said meanwhile are
+    /// typed again. Costs one more plain recognition per pass, so only where that is short (`quickBudget`): a stop that
+    /// lands in it waits that much longer. Its time is kept out of `cost`, which sizes parts and the stop's work.
+    var quickFirst = false
+    static let quickBudget = 0.08
+    /// Seconds a plain recognition takes per second of audio, measured like `cost` (which is the slower pass with
+    /// the vocabulary step) and starting from the same guess.
+    static var plainCost: Double = {
+        #if arch(arm64)
+        0.007
+        #else
+        0.06
+        #endif
+    }()
+    private var lastShown = ""
+    /// A pass's text the streaming recognizer's words are still to be checked against, once it has heard that far.
+    private var unchecked: (text: String, range: Range<Int>)?
+    /// Whether the live text's newest words come from the streaming recognizer. They never change by themselves, so
+    /// they can be typed at once ("Type as I speak" otherwise waits for two guesses to agree).
+    var streams: Bool { stream != nil }
+    /// Custom words by their lowercase form: streamed words (always lowercase) show as the person spelled them.
+    var spellings: [String: String] = [:]
     /// Whether `ready` was recognized before a scored speaker window reached the last sound it heard. (Waiting for a
     /// window to start past its end, 1.5 s after the last word, outlasted every pause between sentences, so a long
     /// dictation never closed a part and the stop recognized all of it: 26.5 s for the 45 s monologue.)
@@ -88,12 +167,19 @@ final class LiveTranscriber {
     private var wholeAtStop: Int { min(Self.longestAtStop, Int(Self.stopBudget / Self.cost * Double(Self.rate))) }
     /// Live text: closed parts, then the latest background result or a fast guess at the rest.
     var onText: ((String) -> Void)?
+    /// Set while `onText` is called with a pass's text of everything said up to a pause: whether the person was
+    /// still silent when the pass was done, or had talked on (the fast guesses have those words).
+    private(set) var textPause: LiveTyping.Pause?
 
-    init(decode: @escaping Decode, decodeAfter: DecodeAfter? = nil, hearsSpeech: HearsSpeech? = nil,
-         speakers: SpeakerTrack? = SpeakerTrack.forDictation(), count: @escaping () -> Int, read: @escaping (Range<Int>) -> [Float]) {
+    init(decode: @escaping Decode, decodeAfter: DecodeAfter? = nil, decodeAround: DecodeAround? = nil, hearsSpeech: HearsSpeech? = nil,
+         speakers: SpeakerTrack? = SpeakerTrack.forDictation(), stream: Stream? = nil,
+         count: @escaping () -> Int, read: @escaping (Range<Int>) -> [Float]) {
         self.speakers = speakers
+        // The streaming recognizer hears every voice; with "Only listen to my voice" it would show the others' words.
+        self.stream = speakers == nil ? stream : nil
         self.decode = decode
         self.decodeAfter = decodeAfter
+        self.decodeAround = decodeAround
         self.hearsSpeech = hearsSpeech
         self.count = count
         self.read = read
@@ -109,7 +195,9 @@ final class LiveTranscriber {
         let available = count()
         if available > pauses.received { pauses.feed(read(pauses.received..<available)) }
         listenForSpeakers(available)
+        listenForWords(available)
         guard job == nil, preview == nil, !failed else { return }
+        if hearSeam(available) { return }
         let speechEnd = pauses.lastSpeechEnd
         // Quiet sound the speech threshold missed (a soft ending, a quiet voice) counts as heard only once recognized.
         let soundEnd = max(pauses.lastSoundEnd, speechEnd)
@@ -140,11 +228,64 @@ final class LiveTranscriber {
             // Only soft sound is new: recognized once the voice detector hears speech in it (without one, energy
             // decides: when unsure, recognize). Never alone, so faint music is heard as the whole file hears it.
             recognize(committed..<end, speechEnd: speechEnd, heardEnd: soundEnd, judge: heardUntil..<end)
-        } else if speechEnd > committed, ready?.speechEnd != speechEnd, !judgedNoise, available - previewedAt >= previewInterval,
+        } else if stream == nil, speechEnd > committed, ready?.speechEnd != speechEnd, !judgedNoise, available - previewedAt >= previewInterval,
                   createdAt.duration(to: .now) >= Self.firstPreview {
             // Only the words since the last background result, so previews stay short on any Mac.
             previewTail((ready?.end ?? committed)..<available)
         }
+    }
+
+    /// The pause at the seam, when the seam is one to hear: a recognizer that can, a pause long enough to end a
+    /// sentence and short enough to be a pause in one, and a pass that fits its budget. Otherwise the seam is dropped.
+    private func seamPause() -> Int? {
+        guard decodeAround != nil, let seam, !parts.isEmpty, let silence = pauses.silence(after: seam.heardEnd) else { return nil }
+        guard Double(silence) / Double(Self.rate) >= PhraseJoiner.sentencePause, silence <= Self.seamLongest else { self.seam = nil; return nil }
+        // (A verdict already given stands when a later pass is too slow to hear it again.)
+        let longest = Double(Self.seamBefore + silence + Self.seamWhole) / Double(Self.rate)
+        guard longest * Self.seamCost <= Self.seamBudget else { if seam.heard == 0 { self.seam = nil }; return nil }
+        return silence
+    }
+
+    /// The audio around the seam, up to `available`: its range, where the pause's middle is, and how much of the new
+    /// part that is. Nil when there is nothing (more) to hear: no seam to hear, a verdict that stands, or no more
+    /// audio than the last one heard.
+    private func seamAudio(upTo available: Int) -> (range: Range<Int>, cut: Int, heard: Int)? {
+        guard let silence = seamPause(), let seam, seam.continues != true, seam.heard < Self.seamWhole else { return nil }
+        let onset = seam.heardEnd + silence
+        let heard = min(available - onset, Self.seamWhole)
+        guard heard > seam.heard else { return nil }
+        return (max(0, seam.heardEnd - Self.seamBefore)..<(onset + heard), seam.heardEnd + silence / 2, heard)
+    }
+
+    /// One pass over the audio around the seam: whether the sentence went on there, and what the pass cost.
+    private static func judge(_ samples: [Float], cut: Int, with decodeAround: DecodeAround) async -> Bool? {
+        let started = ContinuousClock.now
+        let heard = try? await decodeAround(samples, cut)
+        let took = milliseconds(started.duration(to: .now))
+        // Short passes are mostly fixed cost; only one of 4 s or more says how fast this Mac is.
+        if samples.count >= rate * 4 { seamCost = (seamCost + Double(took) / 1000 / (Double(samples.count) / Double(rate))) / 2 }
+        let continues = heard.flatMap { $0 }.flatMap(PhraseJoiner.continues)
+        Diagnostics.dictation.notice("seam: \(samples.count - cut, privacy: .public) samples after the pause's middle, \(continues.map { $0 ? "goes on" : "ends" } ?? "no verdict", privacy: .public), \(took, privacy: .public) ms")
+        return continues
+    }
+
+    /// Hears the seam when it is time to. True while this tick is taken: the audio around the seam is being
+    /// recognized, or the new part's first words wait until `seamFirst` of them can be.
+    private func hearSeam(_ available: Int) -> Bool {
+        guard let (range, cut, heard) = seamAudio(upTo: available), let seam, let decodeAround else { return false }
+        guard heard >= (seam.heard == 0 ? Self.seamFirst : Self.seamWhole) else { return seam.heard == 0 }
+        let samples = read(range), speakers = speakers
+        preview = Task(priority: Self.livePriority) { [weak self] in
+            let continues = await Self.heard(by: speakers, from: range.lowerBound) { await Self.judge(samples, cut: cut - range.lowerBound, with: decodeAround) }
+            guard let self, !Task.isCancelled else { return }
+            self.preview = nil
+            guard self.seam?.heardEnd == seam.heardEnd else { return }
+            self.seam?.heard = heard
+            if let continues { self.seam?.continues = continues }
+            // The streaming recognizer's words waited for this.
+            if self.stream != nil { self.showStreamed() }
+        }
+        return true
     }
 
     /// Finishes the dictation: waits for work in flight, then uses the background result if nothing that might
@@ -152,13 +293,25 @@ final class LiveTranscriber {
     /// recording since the last split, up to the stop.
     func finish(_ samples: [Float]) async throws -> String {
         let stopped = ContinuousClock.now
+        finishing = true
+        // Nothing live is shown from here on. The streaming recognizer's batch in flight is dropped, and waited for:
+        // it must not still be writing its state when the next part's audio starts it over.
+        let streaming = streamJob
+        streamJob = nil
+        streaming?.cancel()
         await job?.value
         await preview?.value
+        await streaming?.value
         let waited = stopped.duration(to: .now)
         if waited > .milliseconds(20) {
             Diagnostics.dictation.notice("finish: waited \(Self.milliseconds(waited), privacy: .public) ms for a pass in flight")
         }
         if samples.count > pauses.received { pauses.feed(Array(samples[pauses.received...])) }
+        // A seam whose verdict has not heard all the words after it yet is heard with everything there is.
+        if let (range, cut, _) = seamAudio(upTo: samples.count), let decodeAround,
+           let continues = await Self.heard(by: speakers, from: range.lowerBound, { await Self.judge(Array(samples[range]), cut: cut - range.lowerBound, with: decodeAround) }) {
+            seam?.continues = continues
+        }
         let start = min(committed, samples.count)
         // A background pass may have run a little past the stop (the padding after the last word); its words all came
         // before the stop, so it stands.
@@ -243,8 +396,11 @@ final class LiveTranscriber {
     func split(_ taken: [Float]) async throws -> String {
         defer {
             pauses = SpeechPauses(); parts = []; committed = 0; lastPartHeardEnd = 0; ready = nil; previewedAt = 0; failed = false
+            seam = nil
+            finishing = false
             judgedUntil = 0
             speakerJob?.cancel(); speakerJob = nil; speakersFed = 0; speakersAt = 0
+            streamJob?.cancel(); streamJob = nil; streamFed = 0; streamHeard = 0; streamed = []; lastShown = ""; early = nil; unchecked = nil
             speakers = speakers.map { SpeakerTrack(print: $0.print) }
         }
         return try await finish(taken)
@@ -252,9 +408,9 @@ final class LiveTranscriber {
 
     /// Lets work in flight finish (the recognizer can't be interrupted mid-pass) and drops its results.
     func drain() async {
-        job?.cancel(); preview?.cancel(); speakerJob?.cancel()
-        await job?.value; await preview?.value; await speakerJob?.value
-        job = nil; preview = nil; speakerJob = nil
+        job?.cancel(); preview?.cancel(); speakerJob?.cancel(); streamJob?.cancel()
+        await job?.value; await preview?.value; await speakerJob?.value; await streamJob?.value
+        job = nil; preview = nil; speakerJob = nil; streamJob = nil
     }
 
     /// Whether leftover audio might hold words: a voice-length run above the quiet bar, or speech by the voice
@@ -285,6 +441,8 @@ final class LiveTranscriber {
         // while sound ran on (no pause long enough) continues its sentence. A stale loud-speech end made a 0.2 s breath
         // look like 6 s and kept the period mid-sentence ("noon. after").
         guard !parts.isEmpty else { return 0 }
+        // The recognizer heard the sentence go on across this pause (`seam`): joined as a short pause is.
+        if seam?.continues == true { return 0 }
         return Double(pauses.silence(after: lastPartHeardEnd) ?? max(0, start - lastPartHeardEnd)) / Double(Self.rate)
     }
 
@@ -294,6 +452,7 @@ final class LiveTranscriber {
         lastPartHeardEnd = result.heardEnd
         previewedAt = result.end
         ready = nil
+        seam = Seam(heardEnd: result.heardEnd, talkedOn: pauses.lastSpeechEnd > result.end)
     }
 
     /// `judge`: quiet sound to check with the voice detector first; when it hears no speech there, nothing is
@@ -303,20 +462,39 @@ final class LiveTranscriber {
         let judged = judge.map(read)
         let decode = decode, hearsSpeech = hearsSpeech, speakers = speakers, speakersAt = speakers == nil ? Int.max : speakersAt
         let started = ContinuousClock.now
-        // Background passes yield to the audio device and the interface; finishing waits on (and so raises) them.
-        job = Task(priority: .utility) { [weak self] in
+        job = Task(priority: Self.livePriority) { [weak self] in
             if let judged, let hearsSpeech, await hearsSpeech(judged) == false {
                 guard let self, !Task.isCancelled else { return }
                 self.job = nil
                 self.judgedUntil = max(self.judgedUntil, heardEnd)
                 return
             }
+            var passStarted = started
+            let seconds = Double(samples.count) / Double(Self.rate)
+            // The plain step never takes longer than the whole pass does, so a slow measurement of it cannot outlast
+            // `cost`, which every long pass corrects.
+            if let self, self.stream != nil, self.quickFirst, !self.finishing,
+               seconds * min(Self.plainCost, Self.cost) <= Self.quickBudget {
+                let plainStarted = ContinuousClock.now
+                let quick = try? await Self.heard(by: speakers, from: range.lowerBound, { try await decode(samples, false) })
+                passStarted = .now
+                if seconds >= 4 { Self.plainCost = (Self.plainCost + Double(Self.milliseconds(plainStarted.duration(to: passStarted))) / 1000 / seconds) / 2 }
+                guard !Task.isCancelled else { return }
+                // The stop came during the plain step: it recognizes what it needs itself, and must not wait for the
+                // vocabulary step of a pass whose text would no longer be shown.
+                if self.finishing { self.job = nil; return }
+                if let quick, !quick.isEmpty, self.stream != nil, range.lowerBound == self.committed {
+                    self.early = (quick, heardEnd)
+                    self.showStreamed()
+                }
+            }
             let result: String?
             do { result = try await Self.heard(by: speakers, from: range.lowerBound) { try await decode(samples, true) } } catch { result = nil }
-            let took = started.duration(to: .now)
-            Diagnostics.dictation.notice("pass: \(samples.count, privacy: .public) samples\(judged == nil ? "" : " (soft words)", privacy: .public) in \(Self.milliseconds(took), privacy: .public) ms")
+            let took = passStarted.duration(to: .now)
+            Diagnostics.dictation.notice("pass: \(samples.count, privacy: .public) samples\(judged == nil ? "" : " (soft words)", privacy: .public) in \(Self.milliseconds(took), privacy: .public) ms\(passStarted == started ? "" : ", its plain text first", privacy: .public)")
             guard let self, !Task.isCancelled else { return }
             self.job = nil
+            self.early = nil
             // Short passes are mostly fixed cost; only passes of 4 s or more say how fast this Mac is.
             if samples.count >= Self.rate * 4 {
                 let seconds = Double(Self.milliseconds(took)) / 1000 / (Double(samples.count) / Double(Self.rate))
@@ -324,9 +502,21 @@ final class LiveTranscriber {
             }
             guard let result, range.lowerBound == self.committed else { self.failed = result == nil; return }
             let finished = (end: range.upperBound, speechEnd: speechEnd, heardEnd: heardEnd, text: result, speakersAt: speakersAt)
+            let gap = self.gap(before: range.lowerBound)
             if thenClose { self.close(finished) } else { self.ready = finished }
             self.previewedAt = max(self.previewedAt, range.upperBound)
-            self.onText?(PhraseJoiner.join(self.parts + (thenClose ? [] : [(result, self.gap(before: range.lowerBound))]), keepCase: self.keepCase))
+            guard !self.finishing else { return }
+            self.unchecked = (result, range.lowerBound..<heardEnd)
+            self.checkStream()
+            // With the streaming recognizer, the words said since this pass's audio stay shown after its text.
+            if self.stream != nil { self.showStreamed(); return }
+            // A part closed while the person talks on says nothing about the words after its cut. The text shown keeps
+            // them until the next guess, a moment later, has both: shown without them, "Type as I speak" took a
+            // hundred characters back and typed them again.
+            if thenClose, self.pauses.lastSpeechEnd > range.upperBound { return }
+            self.textPause = self.pauses.lastSpeechEnd <= speechEnd ? .held : .talkedOn
+            self.onText?(PhraseJoiner.join(self.parts + (thenClose ? [] : [(result, gap)]), keepCase: self.keepCase))
+            self.textPause = nil
         }
     }
 
@@ -360,19 +550,93 @@ final class LiveTranscriber {
         }
     }
 
+    /// Hands newly recorded audio to the streaming recognizer, one batch at a time, and shows its words.
+    private func listenForWords(_ available: Int) {
+        guard let stream, streamJob == nil, available > streamFed else { return }
+        let from = streamFed
+        streamFed = available
+        let samples = read(from..<available)
+        streamJob = Task(priority: Self.livePriority) { [weak self] in
+            let answer = await stream(samples, from == 0)
+            guard let self, !Task.isCancelled else { return }
+            self.streamJob = nil
+            guard case .words(let words) = answer else {
+                // Still loading: it heard nothing, so the next batch is everything from the start again. It answers
+                // at once, so a stop never waits for a model to load.
+                if answer == .loading { self.streamFed = 0; return }
+                Diagnostics.dictation.notice("live words: the streaming recognizer stopped, guesses take over")
+                self.stream = nil
+                return
+            }
+            self.streamed = words
+            self.streamHeard = available
+            self.checkStream()
+            if self.stream != nil { self.showStreamed() }
+        }
+    }
+
+    /// The live text with the streaming recognizer: closed parts, the latest background result, then the words it
+    /// heard after that result's last sound. Shown under the rules a fast guess is: loud speech since the result, not
+    /// in the first half second, and not sound the voice detector judged to be no voice.
+    private func showStreamed() {
+        guard !failed, !finishing else { return }
+        var shown = parts
+        // The pass in flight heard more than the last result: its text before the vocabulary step stands in.
+        let newest = early ?? ready.map { ($0.text, $0.heardEnd) }
+        if let newest { shown.append((newest.text, gap(before: committed))) }
+        let cut = newest?.heardEnd ?? (parts.isEmpty ? nil : lastPartHeardEnd)
+        // The first words after a seam wait for its first verdict here too, and are joined on as it says. Not words
+        // that were shown before the part closed (a part cut while the person talks on): a hold never takes shown
+        // words away.
+        let waits = newest == nil && seam?.heard == 0 && seam?.talkedOn == false && seamPause() != nil
+        let tail = waits ? [] : StreamedWords.after(cut, in: streamed)
+        let speechEnd = pauses.lastSpeechEnd
+        let moment = parts.isEmpty && newest == nil && pauses.speechFrames < Self.momentOfSound
+        let judgedNoise = moment && judgedUntil >= max(pauses.lastSoundEnd, speechEnd)
+        if let first = tail.first, speechEnd > (cut ?? 0), !judgedNoise, createdAt.duration(to: .now) >= Self.firstPreview {
+            let silence = newest == nil && seam?.continues == true ? 0
+                : cut.map { cut in Double(pauses.silence(after: cut) ?? max(0, first.at - cut)) / Double(Self.rate) } ?? 0
+            let words = StreamedWords.written(tail, spellings: spellings)
+            // The first words of a dictation begin a sentence, as the pass will write them.
+            shown.append((shown.isEmpty ? SmartInsertion.capitalizingFirstWord(words) : words, silence))
+        }
+        let text = PhraseJoiner.join(shown, keepCase: keepCase)
+        guard !text.isEmpty, text != lastShown else { return }
+        lastShown = text
+        onText?(text)
+    }
+
+    /// The streaming recognizer hears English only. When a pass heard something else in the same audio, the person
+    /// is speaking another language (or it is lost), and it stops for the rest of this dictation.
+    private func checkStream() {
+        // Only audio it has answered for, with room for the last word's pieces; until then the check waits.
+        guard stream != nil, let (text, range) = unchecked, streamHeard >= range.upperBound + Self.pause else { return }
+        unchecked = nil
+        let heard = streamed.filter { $0.at >= range.lowerBound && $0.at < range.upperBound + StreamedWords.seam }
+        guard !StreamedWords.agrees(heard, with: text) else { return }
+        Diagnostics.dictation.notice("live words: the streaming recognizer heard other words than the pass (another language?), guesses take over")
+        stream = nil
+        streamJob?.cancel(); streamJob = nil
+        // Its words go from the live text at once; the next guess shows what was said since.
+        var shown = parts
+        if let ready { shown.append((ready.text, gap(before: committed))) }
+        let without = PhraseJoiner.join(shown, keepCase: keepCase)
+        if !without.isEmpty, without != lastShown { onText?(without) }
+    }
+
     private func previewTail(_ range: Range<Int>) {
         previewedAt = range.upperBound
         let samples = read(range)
         let decode = decode, speakers = speakers
         let started = ContinuousClock.now
-        preview = Task(priority: .utility) { [weak self] in
+        preview = Task(priority: Self.livePriority) { [weak self] in
             let guess = try? await Self.heard(by: speakers, from: range.lowerBound) { try await decode(samples, false) }
             guard let self, !Task.isCancelled else { return }
             self.preview = nil
             // Slower Macs preview less often so the background pass is never kept waiting.
             let seconds = Double(Self.milliseconds(started.duration(to: .now))) / 1000
-            self.previewInterval = max(Self.rate / 2, Int(seconds * 2 * Double(Self.rate)))
-            guard range.lowerBound == (self.ready?.end ?? self.committed), let guess, !guess.isEmpty else { return }
+            self.previewInterval = max(Self.shortestPreviewInterval, Int(seconds * 2 * Double(Self.rate)))
+            guard !self.finishing, range.lowerBound == (self.ready?.end ?? self.committed), let guess, !guess.isEmpty else { return }
             var shown = self.parts
             if let ready = self.ready { shown.append((ready.text, self.gap(before: self.committed))) }
             shown.append((guess, self.ready == nil ? self.gap(before: range.lowerBound) : 0.3))

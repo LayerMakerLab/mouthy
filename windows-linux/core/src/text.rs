@@ -57,7 +57,7 @@ pub fn capitalize_first_word(text: &str) -> String {
 /// An email address, a URL or a domain ("mouthy.dev"): letters, then a dot and at least two letters, or "@" or "://".
 fn is_address(word: &str) -> bool {
     let word = word.trim_matches(|c: char| ".,;:!?)]}\"'”’".contains(c));
-    word.contains('@') || word.contains("://")
+    word.contains('@') || word.contains("://") || word.to_lowercase() == "www"
         || Regex::new(r"^[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)*\.\p{L}{2,}(/\S*)?$").unwrap().is_match(word)
 }
 
@@ -105,6 +105,9 @@ pub fn smart_insertion(text: &str, before: &str, after: &str) -> String {
     }
     if let (Some(p), Some(start)) = (previous, out.chars().next()) {
         if !p.is_whitespace() && !OPENERS.contains(&p) && (start.is_alphanumeric() || OPENERS.contains(&start)) {
+            out.insert(0, ' ');
+        } else if (p.is_alphanumeric() || CLOSERS.contains(&p)) && starts_dot_file(&out) {
+            // A dot-file is a word of its own after a word or a closing mark ("the .env"), never after "=" or "`".
             out.insert(0, ' ');
         }
     }
@@ -251,6 +254,201 @@ pub fn spoken_punctuation(text: &str) -> String {
     }
     append(&mut result, &text[cursor..], &mut pending);
     result.trim().to_string()
+}
+
+const MARKS: &[&str] = &["dash", "hyphen", "dot", "slash", "underscore"];
+/// Web endings and file endings: "dot" before one of these is written onto the word before.
+const ENDINGS: &[&str] = &[
+    "com", "org", "dev", "io", "ai", "app", "co", "edu", "gov", "uk", "md", "txt", "json", "swift", "py", "js", "ts", "html",
+    "css", "pdf", "png", "jpg", "zip", "sh", "toml", "yaml", "yml", "rs", "csv", "xml", "plist",
+];
+/// File names that start with a dot: "dot env" → .env, whatever comes before.
+const DOT_FILES: &[&str] = &["env", "gitignore", "zshrc", "bashrc", "git", "github", "claude", "ssh", "vscode", "npmrc", "dockerignore"];
+const ORDINARY_BEFORE: &[&str] = &[
+    "a", "an", "the", "this", "that", "each", "every", "any", "some", "my", "your", "our", "their", "his", "her",
+    "its", "mad", "quick", "door", "em", "en", "to", "i", "we", "you", "they", "i'll", "we'll", "you'll", "they'll", "let's",
+    "gotta", "say", "says", "said", "saying", "word",
+];
+const ORDINARY_AFTER: &[&str] = &["cam", "is", "was", "means"];
+/// A dot-file is named after one of these or at the very start ("the dot env file", "in dot gitignore"); after any
+/// other word "dot github" is part of an address ("api dot github dot com").
+const DOT_FILE_BEFORE: &[&str] = &["in", "into", "from", "of", "add", "edit", "open", "check", "see", "and", "or", "called", "named", "with", "at", "on"];
+/// "an underscore between the words", "you should underscore that point".
+const UNDERSCORE_BEFORE: &[&str] = &[
+    "a", "an", "the", "to", "should", "will", "would", "with", "and", "add", "of", "that", "this", "one", "single", "double",
+    "leading", "trailing", "say", "says", "said", "saying", "word",
+];
+const UNDERSCORE_AFTER: &[&str] = &[
+    "the", "that", "this", "how", "a", "an", "between", "before", "after", "in", "is", "to", "for", "and", "or", "character",
+    "key", "symbol", "sign", "means", "was", "why", "what", "when", "where", "who", "one", "our", "my", "your", "his", "her",
+    "their", "its", "just", "all", "some", "any", "these", "those", "each", "every", "both", "it",
+];
+/// "type slash help" → type /help. Only after "type": "try slash catch" and "send slash receive" are pairs.
+const SLASH_TYPED: &[&str] = &["type", "typed"];
+/// And a dictation that is nothing but "slash" and one word is a command, "slash clear" → /clear; not before one of these.
+const SLASH_AFTER: &[&str] = &[
+    "the", "a", "an", "and", "or", "command", "commands", "prices", "costs", "is", "was", "means", "my", "your", "our", "their",
+    "his", "her", "its", "it", "that", "this", "these", "those", "through", "at",
+];
+
+/// Whether `text` starts with a dot-file name that is a word of its own (".env", ".claude/hooks", ".gitignore,"),
+/// not the start of something longer (".github.com" going on after "www"): `smart_insertion` gives it a space.
+fn starts_dot_file(text: &str) -> bool {
+    let Some(after) = text.strip_prefix('.') else { return false };
+    let name: String = after.chars().take_while(|c| c.is_alphabetic()).collect();
+    if !DOT_FILES.contains(&name.to_lowercase().as_str()) { return false; }
+    let mut rest = after[name.len()..].chars();
+    match rest.next() {
+        None => true,
+        // ".env's" and ".env-specific" are the file; ".github.com" goes on, and so does ".env2" or ".env_file".
+        Some(first) => !first.is_alphanumeric() && first != '_' && !(first == '.' && rest.next().is_some_and(char::is_alphanumeric)),
+    }
+}
+
+/// Spoken marks in ordinary dictation, written as the mark where the words around them say so: "Maple dash Design"
+/// → Maple-Design, "commit dash m" → commit -m, "dash dash help" → --help, "example dot com" → example.com, "readme
+/// dot md" → readme.md, "dot env" → .env, "type slash help" → type /help, "user underscore name" → user_name.
+/// Strict on purpose, so the words stay words wherever they could be meant: only on one line with nothing but spaces
+/// between the spoken mark and its neighbours ("say dash, I mean" and a "dash" that ends the text are left), never
+/// next to another mark, never after or before a word that makes it ordinary ("a dash of salt", "the dot com years",
+/// "an underscore between"), "dot" and "slash" only in the shapes listed below, and never a mark that is one of the
+/// person's own words (`vocabulary`: "Dash" the app stays "Dash"). Every rule looks only at the word before and the
+/// word after, never further ahead. Code modes have their own table (`code_dictation`).
+pub fn spoken_joiners(text: &str, vocabulary: &str) -> String {
+    let (written, command) = write_joiners(text, vocabulary, true);
+    // A command is one word. Where a mark in it did not join ("slash to dash do": "to dash" is ordinary), the text
+    // is no command after all.
+    if command && written.trim().contains(char::is_whitespace) { write_joiners(text, vocabulary, false).0 } else { written }
+}
+
+/// `commands` false: a text that begins with "slash" is never written as a command. The flag returned: it was.
+fn write_joiners(text: &str, vocabulary: &str, commands: bool) -> (String, bool) {
+    // The words and the gap before each one; `tail` is the whitespace after the last word.
+    let mut words: Vec<&str> = Vec::new();
+    let mut gaps: Vec<&str> = Vec::new();
+    let mut index = 0usize;
+    while let Some(offset) = text[index..].find(|c: char| !c.is_whitespace()) {
+        let start = index + offset;
+        let end = text[start..].find(char::is_whitespace).map_or(text.len(), |o| start + o);
+        gaps.push(&text[index..start]);
+        words.push(&text[start..end]);
+        index = end;
+    }
+    let tail = &text[index..];
+    let lower: Vec<String> = words.iter().map(|w| w.to_lowercase()).collect();
+    let vocabulary = vocabulary.to_lowercase();
+    // The person's own words: whole vocabulary entries ("Dash"), not a word inside one ("Polka Dot Studio").
+    let own: Vec<&str> = vocabulary.split([',', '\n', '\r']).map(str::trim).collect();
+    let spaces = |gap: &str| !gap.is_empty() && gap.chars().all(|c| c == ' ');
+    let starts_word = |word: &str| word.chars().next().is_some_and(char::is_alphanumeric);
+    let lead = |at: usize| -> String { words[at].chars().take_while(|c| c.is_alphabetic()).collect::<String>().to_lowercase() };
+    // The word at `at` with its leading letters in lowercase, when those letters are one of `names` and no digit or
+    // underscore follows them ("com", "com." and "com/docs", not "community" or "com2").
+    let named = |at: usize, names: &[&str]| -> Option<String> {
+        let letters: usize = words[at].chars().take_while(|c| c.is_alphabetic()).map(char::len_utf8).sum();
+        let rest = &words[at][letters..];
+        (names.contains(&lead(at).as_str()) && rest.chars().next().is_none_or(|c| !c.is_numeric() && c != '_')).then(|| format!("{}{rest}", lead(at)))
+    };
+    let mark = |at: usize| -> Option<&str> {
+        let word = lower[at].as_str();
+        (MARKS.contains(&word) && !own.contains(&word)).then_some(word)
+    };
+    let mut out = String::new();
+    // The last word written so far, with what was joined onto it ("up-to").
+    let mut written = String::new();
+    // Whether the whole text can be one spoken command: "slash", a word, and nothing after it but more words
+    // joined on by a mark ("slash code dash review"), all with single spaces between. A sentence that only begins
+    // with "slash" ("Slash spending by half") is no command.
+    let command_only = commands && words.len() >= 2 && words.len() % 2 == 0 && (1..words.len()).all(|at| {
+        spaces(gaps[at]) && (at % 2 == 0) == ["dash", "hyphen", "underscore"].contains(&mark(at).unwrap_or("")) && (at % 2 == 0 || !MARKS.contains(&lead(at).as_str()))
+    });
+    let mut command = false;
+    let mut i = 0usize;
+    while i < words.len() {
+        let Some(word) = mark(i) else {
+            written = words[i].to_string();
+            out.push_str(gaps[i]); out.push_str(words[i]);
+            i += 1;
+            continue;
+        };
+        let next = (i + 1 < words.len() && spaces(gaps[i + 1])).then_some(i + 1);
+        if word == "dash" && next.is_some_and(|n| mark(n) == Some("dash")) {
+            out.push_str(gaps[i]);
+            if i + 2 < words.len() && spaces(gaps[i + 2]) && starts_word(words[i + 2]) && !MARKS.contains(&lead(i + 2).as_str()) {
+                written = format!("--{}", words[i + 2]);
+                out.push_str(&written);
+                i += 3;
+            } else {
+                written = words[i + 1].to_string();
+                out.push_str(words[i]); out.push_str(gaps[i + 1]); out.push_str(words[i + 1]);
+                i += 2;
+            }
+            continue;
+        }
+        // The word before, as the ordinary words are listed: lowercase, a straight apostrophe, no opening quote.
+        let before = written.to_lowercase().replace('’', "'");
+        let before = before.trim_start_matches(|c: char| !c.is_alphanumeric());
+        // Onto the word before: one space between them, and that word is no spoken mark itself.
+        let joins = spaces(gaps[i]) && written.chars().next_back().is_some_and(char::is_alphanumeric) && !MARKS.contains(&before);
+        let begins = i == 0 || spaces(gaps[i]);
+        // Never before another spoken mark either ("with dash dash." stays words).
+        if let Some(next) = next.filter(|&n| starts_word(words[n]) && !MARKS.contains(&lead(n).as_str())) {
+            let after = lead(next);
+            let after = after.as_str();
+            let rest = words[next];
+            let (mut joined, mut begun): (Option<String>, Option<String>) = (None, None);
+            match word {
+                "dot" => {
+                    if joins && before == "www" { joined = Some(format!(".{rest}")); }
+                    else if let (true, Some(end)) = (joins && !ORDINARY_BEFORE.contains(&before), named(next, ENDINGS)) { joined = Some(format!(".{end}")); }
+                    else if let (true, Some(file)) = (begins && (!joins || ORDINARY_BEFORE.contains(&before) || DOT_FILE_BEFORE.contains(&before)), named(next, DOT_FILES)) { begun = Some(format!(".{file}")); }
+                }
+                "slash" => {
+                    let address = written.contains(['.', '/']);
+                    let numbers = written.chars().all(char::is_numeric) && rest.chars().next().is_some_and(char::is_numeric);
+                    if joins && (address || numbers || (before == "and" && after == "or")) { joined = Some(format!("/{rest}")); }
+                    else if spaces(gaps[i]) && SLASH_TYPED.contains(&before) && !after.is_empty() && !SLASH_AFTER.contains(&after) { begun = Some(format!("/{rest}")); }
+                    // A dictation that is nothing but a command ("slash clear" → /clear), its ASCII letters in lowercase.
+                    else if i == 0 && command_only && !after.is_empty() && !SLASH_AFTER.contains(&after) {
+                        begun = Some(format!("/{}", rest.to_ascii_lowercase()));
+                        command = true;
+                    }
+                }
+                "underscore" => {
+                    if joins && !UNDERSCORE_BEFORE.contains(&before) && !UNDERSCORE_AFTER.contains(&after) { joined = Some(format!("_{rest}")); }
+                }
+                _ => {
+                    if joins && !ORDINARY_BEFORE.contains(&before) && !ORDINARY_AFTER.contains(&after) {
+                        // One letter after a longer word that starts with a letter is an option of a command: "commit dash m"
+                        // → commit -m ("10 dash K" and "x dash y" join), whatever mark the recognizer put after the letter.
+                        let letter = after.chars().count() == 1 && after != "a" && after != "i"
+                            && !rest.chars().skip_while(|c| c.is_alphabetic()).any(char::is_alphanumeric);
+                        let command = before.chars().count() > 1 && before.chars().next().is_some_and(char::is_alphabetic);
+                        if letter && command { begun = Some(format!("-{rest}")); } else { joined = Some(format!("-{rest}")); }
+                    }
+                }
+            }
+            if let Some(joined) = joined {
+                written.push_str(&joined);
+                out.push_str(&joined);
+                i += 2;
+                continue;
+            }
+            if let Some(begun) = begun {
+                out.push_str(gaps[i]); out.push_str(&begun);
+                written = begun;
+                i += 2;
+                continue;
+            }
+        }
+        written = words[i].to_string();
+        out.push_str(gaps[i]); out.push_str(words[i]);
+        i += 1;
+    }
+    // The period a recognizer ends every dictation with is no part of a command ("/clear." is not one).
+    if command && out.ends_with('.') && !out.ends_with("..") { out.pop(); }
+    out.push_str(tail);
+    (out, command)
 }
 
 /// Removes hesitation fillers ("um", "uh", "erm") with the commas around them. A filler that opened a

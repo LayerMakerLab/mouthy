@@ -49,6 +49,57 @@ private struct Recording {
     }
 }
 
+/// A scripted streaming recognizer ("Show words instantly"): each word shows once the audio 0.15 s past where it was
+/// said has been fed. `restart` starts its audio over, as a new recording does.
+private final class Streamer: @unchecked Sendable {
+    private let lock = NSLock()
+    private let script: [(word: String, at: Double)]
+    private var fed = 0, restartCount = 0, failing = false, loadingBatches = 0
+    init(_ script: [(String, Double)]) { self.script = script.map { (word: $0.0, at: $0.1) } }
+    var restarts: Int { lock.withLock { restartCount } }
+    func fail() { lock.withLock { failing = true } }
+    /// Its model is still loading for this many batches: it hears nothing of them.
+    func load(for batches: Int) { lock.withLock { loadingBatches = batches } }
+    func hear(_ samples: [Float], _ restart: Bool) -> StreamAnswer {
+        lock.withLock {
+            if failing { return .failed }
+            if loadingBatches > 0 { loadingBatches -= 1; return .loading }
+            if restart { fed = 0; restartCount += 1 }
+            fed += samples.count
+            return .words(script.filter { Int(($0.at + 0.15) * 16_000) <= fed }.map { StreamedWord($0.word, at: Int($0.at * 16_000)) })
+        }
+    }
+}
+
+/// Replays `audio` into a transcriber with the scripted streaming recognizer, 100 ms at a time, and returns every
+/// live text it showed. `passes`: what a pass (with the vocabulary step) and a plain recognition answer.
+@MainActor
+private func stream(_ audio: [Float], _ streamer: Streamer, pass: String, plain: String = "", cost: Duration = .zero, quickFirst: Bool = false,
+                    around: LiveTranscriber.DecodeAround? = nil,
+                    then: (LiveTranscriber, [String]) async throws -> Void = { _, _ in }) async throws -> [String] {
+    let saved = LiveTranscriber.firstPreview
+    defer { LiveTranscriber.firstPreview = saved }
+    LiveTranscriber.firstPreview = .zero
+    var recorded = 0, shown: [String] = []
+    let live = LiveTranscriber(decode: { _, boost in
+        if boost, cost > .zero { try await Task.sleep(for: cost) }
+        return boost ? pass : plain
+    }, decodeAround: around, speakers: nil, stream: { samples, restart in streamer.hear(samples, restart) }, count: { recorded }, read: { Array(audio[$0.clamped(to: 0..<recorded)]) })
+    live.quickFirst = quickFirst
+    live.onText = { shown.append($0) }
+    while recorded < audio.count {
+        recorded = min(audio.count, recorded + Recording.rate / 10)
+        live.tick()
+        for _ in 0..<5 { await Task.yield() }
+        try await Task.sleep(for: .milliseconds(2))
+    }
+    // Long enough for a pass still in flight: the stop silences whatever has not shown by then.
+    try await Task.sleep(for: cost * 3 + .milliseconds(40))
+    try await then(live, shown)
+    _ = try await live.finish(audio)
+    return shown
+}
+
 /// Seconds per second of audio: an M5 with Parakeet, and an Intel Mac (Parakeet on the CPU).
 private let fast = 0.007, intel = 0.06
 
@@ -316,6 +367,245 @@ private func on(_ cost: Double, _ body: () async throws -> Void) async rethrows 
         let result = try await recording.replay(calls)
         #expect(result.finishCalls.last?.from != nil, "the stop took the context path")
         #expect(result.text.contains(". "), "\(result.text)")
+    }
+}
+
+/// Replays `audio` 100 ms at a time into a transcriber with a scripted recognizer and stops. Returns the finished
+/// text and every live text shown on the way. `around`: the recognizer's words on each side of a pause.
+@MainActor private func play(_ audio: [Float], around: LiveTranscriber.DecodeAround? = nil, decode: @escaping LiveTranscriber.Decode) async throws -> (text: String, shown: [String]) {
+    let saved = (LiveTranscriber.firstPreview, LiveTranscriber.seamCost)
+    defer { (LiveTranscriber.firstPreview, LiveTranscriber.seamCost) = saved }
+    LiveTranscriber.firstPreview = .zero
+    var recorded = 0, shown: [String] = []
+    let live = LiveTranscriber(decode: decode, decodeAround: around, speakers: nil, count: { recorded }, read: { Array(audio[$0.clamped(to: 0..<recorded)]) })
+    live.onText = { shown.append($0) }
+    while recorded < audio.count {
+        recorded = min(audio.count, recorded + Recording.rate / 10)
+        live.tick()
+        for _ in 0..<5 { await Task.yield() }
+        try await Task.sleep(for: .milliseconds(2))
+    }
+    return (try await live.finish(audio), shown)
+}
+
+/// Two parts that meet at a pause: five seconds of speech, the pause, two more seconds. (The scripted recognizer
+/// answers at once, which halves the measured cost: at 0.2 parts are six seconds, so the pause closes the first.)
+@MainActor private func twoParts(pause: Double, seamCost: Double = fast, around: LiveTranscriber.DecodeAround?) async throws -> (text: String, shown: [String]) {
+    var result: (text: String, shown: [String]) = ("", [])
+    try await on(0.2) {
+        LiveTranscriber.seamCost = seamCost
+        defer { LiveTranscriber.seamCost = fast }
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(5); recording.pause(pause); recording.speak(2); recording.pause(0.4)
+        result = try await play(recording.samples, around: around) { samples, boost in
+            guard boost else { return "To use" }
+            return samples.count > 5 * 16_000 ? "We plan the beds without needing." : "To use a ruler."
+        }
+    }
+    return result
+}
+
+@Test func aLongPauseWhereTwoPartsMeetEndsTheSentenceOnlyWhenTheRecognizerHearsItEnd() async throws {
+    // A part closes at a 1.4 s pause, and the next begins with "To": each was recognized without the other. The
+    // audio around the pause is recognized once more in one piece, its words split at the pause's middle.
+    let goesOn = try await twoParts(pause: 1.4) { samples, cut in
+        // 2 s before the pause, the pause, and what there is of the new words; the cut is the pause's middle.
+        #expect((2 * 16_000 + 8_000...2 * 16_000 + 12_800).contains(cut) && samples.count > cut, "\(cut) of \(samples.count)")
+        return ContextWords(before: "the beds without needing", after: "to use a ruler")
+    }
+    #expect(goesOn.text == "We plan the beds without needing to use a ruler.")
+    // The new part's first words wait for that verdict: a period and capital typed live would stay in the field.
+    #expect(!goesOn.shown.contains { $0.contains("needing. ") }, "\(goesOn.shown)")
+    // The recognizer hears the sentence end, or cannot say: the pause ends it, as before.
+    let ends = try await twoParts(pause: 1.4) { _, _ in ContextWords(before: "the beds without needing.", after: "To use a ruler") }
+    #expect(ends.text == "We plan the beds without needing. To use a ruler.")
+    let unknown = try await twoParts(pause: 1.4) { _, _ in nil }
+    #expect(unknown.text == "We plan the beds without needing. To use a ruler.")
+    let none = try await twoParts(pause: 1.4, around: nil)
+    #expect(none.text == "We plan the beds without needing. To use a ruler.")
+}
+
+@Test func aSeamIsHeardOnlyWhereThatIsQuickAndThePauseIsShort() async throws {
+    let asked = Calls()
+    let around: LiveTranscriber.DecodeAround = { samples, _ in asked.add(samples.count, false); return ContextWords(before: "needing", after: "to use") }
+    // A Mac where that pass would take longer than its budget (7 s of audio at Intel speed): never run.
+    let slow = try await twoParts(pause: 1.4, seamCost: intel, around: around)
+    #expect(slow.text == "We plan the beds without needing. To use a ruler." && asked.all.isEmpty)
+    // A pause of 2.5 s is an end, whatever comes after it.
+    let long = try await twoParts(pause: 2.5, around: around)
+    #expect(long.text == "We plan the beds without needing. To use a ruler." && asked.all.isEmpty, "\(long.text) \(asked.all)")
+    // A short pause continues the sentence by the pause rule alone.
+    let short = try await twoParts(pause: 1.1, around: around)
+    #expect(short.text == "We plan the beds without needing to use a ruler." && !asked.all.isEmpty)
+}
+
+@Test func aPartClosedWhileThePersonTalksOnKeepsTheWordsAfterItShown() async throws {
+    try await on(0.2) {
+        // Ten seconds with one short pause, more than a part holds: the part closes at the pause while the person
+        // talks on. The live text must not lose the words after the cut for a moment ("Type as I speak" took them
+        // all back and typed them again).
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(5); recording.pause(0.3); recording.speak(6); recording.pause(0.3)
+        let result = try await play(recording.samples) { samples, _ in "w\(samples.count)" }
+        let counts = result.shown.map { $0.split(separator: " ").count }
+        let two = try #require(counts.firstIndex(of: 2), "\(result.shown)")
+        #expect(!counts[two...].contains(1), "\(result.shown)")
+        #expect(result.text.split(separator: " ").count == 2)
+    }
+}
+
+@Test func streamedWordsShowAtOnceAndFollowThePassThatHeardTheWordsBeforeThem() async throws {
+    try await on(fast) {
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(1.0); recording.pause(0.5); recording.speak(1.0)
+        let streamer = Streamer([("alpha", 0.5), ("beta", 1.0), ("gamma", 2.0), ("delta", 2.5)])
+        let shown = try await stream(recording.samples, streamer, pass: "First part.") { live, _ in #expect(live.streams) }
+        // Each word as it is said; the pass at the pause writes the words it heard, and only the words said after its
+        // last sound follow it (never "beta" again, never "gamma" missing).
+        #expect(shown == ["Alpha", "Alpha beta", "First part.", "First part gamma", "First part gamma delta"], "\(shown)")
+    }
+}
+
+@Test func streamedWordsSaidDuringAPassStayAfterItsText() async throws {
+    try await on(fast) {
+        // The pass takes 0.4 s; the person goes on talking 0.3 s after pausing. The live text never loses "gamma".
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(1.0); recording.pause(0.3); recording.speak(1.2)
+        let streamer = Streamer([("alpha", 0.5), ("beta", 1.0), ("gamma", 1.7), ("delta", 2.2)])
+        let shown = try await stream(recording.samples, streamer, pass: "First part.", cost: .milliseconds(40))
+        let first = try #require(shown.firstIndex { $0.contains("gamma") })
+        #expect(shown[first...].allSatisfy { $0.contains("gamma") }, "\(shown)")
+        #expect(shown.last == "First part gamma delta", "\(shown)")
+    }
+}
+
+@Test func streamedWordsShownBeforeAPartClosesAreNeverHeldBack() async throws {
+    // A part is cut at its 0.9 s pause while the person talks on: "gamma" and "delta" were shown before the cut was
+    // made. The join there waits for its verdict, but a hold never takes shown words away (typed live, they were
+    // deleted and typed again).
+    let seamCost = LiveTranscriber.seamCost
+    defer { LiveTranscriber.seamCost = seamCost }
+    LiveTranscriber.seamCost = fast
+    try await on(0.2) {
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(3.5); recording.pause(0.9); recording.speak(6); recording.pause(0.3)
+        let streamer = Streamer([("alpha", 1.0), ("beta", 2.5), ("gamma", 5.0), ("delta", 5.5), ("epsilon", 8.0)])
+        let shown = try await stream(recording.samples, streamer, pass: "First part.", around: { _, _ in ContextWords(before: "part", after: "gamma") })
+        let first = try #require(shown.firstIndex { $0.contains("gamma") }, "\(shown)")
+        // (The scripted pass answers "First part." for the second part too, at its end.)
+        #expect(!shown[first...].contains("First part."), "\(shown)")
+        #expect(shown.contains("First part gamma delta"), "\(shown)")
+    }
+}
+
+@Test func aPassShowsItsTextBeforeTheVocabularyStepWithCustomWords() async throws {
+    try await on(fast) {
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(1.0); recording.pause(0.6)
+        let streamer = Streamer([("alpha", 0.5), ("beta", 1.0)])
+        let shown = try await stream(recording.samples, streamer, pass: "Alpha Beta.", plain: "Alpha beta.", cost: .milliseconds(30), quickFirst: true)
+        #expect(shown == ["Alpha", "Alpha beta", "Alpha beta.", "Alpha Beta."], "\(shown)")
+    }
+}
+
+@Test func theStreamingRecognizerStopsWhenThePassHeardAnotherLanguage() async throws {
+    try await on(fast) {
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(2.0); recording.pause(0.6); recording.speak(0.6)
+        let words = ["the", "nex", "the", "tack", "is", "a", "see", "the"].enumerated().map { ($0.element, 0.4 + Double($0.offset) * 0.2) }
+        let streamer = Streamer(words + [("fen", 3.1)])
+        let shown = try await stream(recording.samples, streamer, pass: "Der nächste Tag ist dazu da, die Fenster zu putzen.") { live, _ in
+            #expect(!live.streams)
+        }
+        // Its words leave the live text with the pass, and none come back.
+        let pass = try #require(shown.firstIndex { $0.hasPrefix("Der") })
+        #expect(shown[pass...].allSatisfy { !$0.contains("fen") && !$0.contains("tack") }, "\(shown)")
+    }
+}
+
+@Test func aStreamingRecognizerStillLoadingHearsEverythingOnceItIsReady() async throws {
+    try await on(fast) {
+        // The model loads during the first six batches (0.6 s): they are answered at once with nothing heard, and the
+        // audio is sent again from the start, so the first word is not lost and its time is right.
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(1.5)
+        let streamer = Streamer([("alpha", 0.4), ("beta", 1.0), ("gamma", 1.5)])
+        streamer.load(for: 6)
+        let shown = try await stream(recording.samples, streamer, pass: "First part.") { live, _ in #expect(live.streams) }
+        #expect(streamer.restarts == 1)
+        #expect(shown == ["Alpha beta", "Alpha beta gamma"] || shown == ["Alpha", "Alpha beta", "Alpha beta gamma"], "\(shown)")
+    }
+}
+
+@Test func theStreamingRecognizerFailingBringsTheGuessesBack() async throws {
+    try await on(fast) {
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(2.0)
+        let streamer = Streamer([("alpha", 0.5)])
+        streamer.fail()
+        let shown = try await stream(recording.samples, streamer, pass: "First part.", plain: "a guess") { live, _ in #expect(!live.streams) }
+        #expect(shown.contains("a guess"), "\(shown)")
+    }
+}
+
+@Test func theStreamingRecognizerStartsOverAfterASplit() async throws {
+    try await on(fast) {
+        var first = Recording()
+        first.pause(0.3); first.speak(1.0); first.pause(0.1)
+        var second = Recording()
+        second.pause(0.2); second.speak(1.0)
+        let streamer = Streamer([("alpha", 0.5), ("beta", 1.0)])
+        let saved = LiveTranscriber.firstPreview
+        defer { LiveTranscriber.firstPreview = saved }
+        LiveTranscriber.firstPreview = .zero
+        var audio = first.samples, recorded = 0, shown: [String] = []
+        let live = LiveTranscriber(decode: { _, _ in "Sent." }, speakers: nil, stream: { samples, restart in streamer.hear(samples, restart) },
+                                   count: { recorded }, read: { Array(audio[$0.clamped(to: 0..<recorded)]) })
+        live.onText = { shown.append($0) }
+        @MainActor func play() async throws {
+            while recorded < audio.count {
+                recorded = min(audio.count, recorded + Recording.rate / 10)
+                live.tick()
+                for _ in 0..<5 { await Task.yield() }
+                try await Task.sleep(for: .milliseconds(2))
+            }
+        }
+        try await play()
+        #expect(shown.last == "Alpha beta")
+        // Enter: the words so far are taken, and the recording starts over.
+        _ = try await live.split(audio)
+        audio = second.samples; recorded = 0; shown = []
+        try await play()
+        #expect(streamer.restarts == 2)
+        // Its audio began again: the same script plays from the start, and nothing from before the split is shown.
+        #expect(shown == ["Alpha", "Alpha beta"], "\(shown)")
+        _ = try await live.finish(audio)
+    }
+}
+
+@Test func aPassInFlightWhenEnterIsPressedShowsNothingAfterwards() async throws {
+    try await on(fast) {
+        // The pass that starts at the pause is still running when Enter takes the part. Its text is the part being
+        // sent: shown after the split, it was typed again into the field that had just been emptied.
+        var recording = Recording()
+        recording.pause(0.3); recording.speak(1.0); recording.pause(0.4)
+        let audio = recording.samples
+        var recorded = 0, shown: [String] = []
+        let live = LiveTranscriber(decode: { _, _ in
+            try await Task.sleep(for: .milliseconds(80))
+            return "See you then."
+        }, speakers: nil, count: { recorded }, read: { Array(audio[$0.clamped(to: 0..<recorded)]) })
+        live.onText = { shown.append($0) }
+        while recorded < audio.count {
+            recorded = min(audio.count, recorded + Recording.rate / 10)
+            live.tick()
+            for _ in 0..<5 { await Task.yield() }
+            try await Task.sleep(for: .milliseconds(2))
+        }
+        #expect(shown.isEmpty, "the pass is still in flight: \(shown)")
+        #expect(try await live.split(audio) == "See you then.")
+        try await Task.sleep(for: .milliseconds(120))
+        #expect(shown.isEmpty, "\(shown)")
     }
 }
 }

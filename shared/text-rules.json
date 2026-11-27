@@ -113,6 +113,102 @@
       "before": "",
       "after": "",
       "expected": "E.g. this one."
+    },
+    {
+      "text": ".env holds it",
+      "before": "Add the API key.",
+      "after": "",
+      "expected": " .env holds it"
+    },
+    {
+      "text": ".gitignore",
+      "before": "add it to the",
+      "after": "",
+      "expected": " .gitignore"
+    },
+    {
+      "text": ".com and sign up",
+      "before": "go to example",
+      "after": "",
+      "expected": ".com and sign up"
+    },
+    {
+      "text": ".env",
+      "before": "open ",
+      "after": "",
+      "expected": ".env"
+    },
+    {
+      "text": ".env",
+      "before": "`",
+      "after": "",
+      "expected": ".env"
+    },
+    {
+      "text": ".env",
+      "before": "ENV_FILE=",
+      "after": "",
+      "expected": ".env"
+    },
+    {
+      "text": ".github.com is up",
+      "before": "Go to www",
+      "after": "",
+      "expected": ".github.com is up"
+    },
+    {
+      "text": ".claude/hooks, then",
+      "before": "open",
+      "after": "",
+      "expected": " .claude/hooks, then"
+    },
+    {
+      "text": ".gitignore.",
+      "before": "it is in",
+      "after": "",
+      "expected": " .gitignore."
+    },
+    {
+      "text": ".env",
+      "before": "step 2",
+      "after": "",
+      "expected": " .env"
+    },
+    {
+      "text": ".env_file",
+      "before": "the",
+      "after": "",
+      "expected": ".env_file"
+    },
+    {
+      "text": ".env's keys are wrong",
+      "before": "check the",
+      "after": "",
+      "expected": " .env's keys are wrong"
+    },
+    {
+      "text": ".env-specific settings",
+      "before": "check the",
+      "after": "",
+      "expected": " .env-specific settings"
+    },
+    {
+      "text": ".ssh:.",
+      "before": "word café",
+      "after": "",
+      "expected": ".ssh:."
+    },
+    {
+      "text": "www",
+      "before": "",
+      "after": "",
+      "expected": "www"
+    },
+    {
+      "text": "www.example.com is up",
+      "before": "It works.",
+      "after": "",
+      "expected": " www.example.com is up"
     }
   ],
   "backtrack": [
@@ -201,6 +297,574 @@
     {
       "text": "done period 20 minutes later",
       "expected": "done. 20 minutes later"
+    }
+  ],
+  "spokenJoiners": [
+    {
+      "text": "Name it Maple Dash Design.",
+      "expected": "Name it Maple-Design."
+    },
+    {
+      "text": "one dash two dash three",
+      "expected": "one-two-three"
+    },
+    {
+      "text": "a well hyphen known name",
+      "expected": "a well-known name"
+    },
+    {
+      "text": "keep it up dash to dash date",
+      "expected": "keep it up-to-date"
+    },
+    {
+      "text": "pages 5 dash 10",
+      "expected": "pages 5-10"
+    },
+    {
+      "text": "Maple  dash  Design",
+      "expected": "Maple-Design"
+    },
+    {
+      "text": "run it with dash dash help",
+      "expected": "run it with --help"
+    },
+    {
+      "text": "Dash dash help",
+      "expected": "--help"
+    },
+    {
+      "text": "go to example dot com.",
+      "expected": "go to example.com."
+    },
+    {
+      "text": "Mouthy Dot Dev is live",
+      "expected": "Mouthy.dev is live"
+    },
+    {
+      "text": "write to sam at example dot co dot uk today",
+      "expected": "write to sam at example.co.uk today"
+    },
+    {
+      "text": "open example dot com/docs, then stop",
+      "expected": "open example.com/docs, then stop"
+    },
+    {
+      "text": "I made a mad dash for the door",
+      "expected": "I made a mad dash for the door"
+    },
+    {
+      "text": "add a dash of salt",
+      "expected": "add a dash of salt"
+    },
+    {
+      "text": "if I say dash, I mean a hyphen",
+      "expected": "if I say dash, I mean a hyphen"
+    },
+    {
+      "text": "Maple, dash Design",
+      "expected": "Maple, dash Design"
+    },
+    {
+      "text": "I say dash I mean it",
+      "expected": "I say dash I mean it"
+    },
+    {
+      "text": "we’ll dash over there",
+      "expected": "we’ll dash over there"
+    },
+    {
+      "text": "check dash cam footage",
+      "expected": "check dash cam footage"
+    },
+    {
+      "text": "gotta dash",
+      "expected": "gotta dash"
+    },
+    {
+      "text": "it ends with dash dash",
+      "expected": "it ends with dash dash"
+    },
+    {
+      "text": "Maple dash\nDesign",
+      "expected": "Maple dash\nDesign"
+    },
+    {
+      "text": "that kind of dot art, pixel art",
+      "expected": "that kind of dot art, pixel art"
+    },
+    {
+      "text": "the dot com years",
+      "expected": "the dot com years"
+    },
+    {
+      "text": "the dashboard and a dot community",
+      "expected": "the dashboard and a dot community"
+    },
+    {
+      "text": "example dot com2",
+      "expected": "example dot com2"
+    },
+    {
+      "text": "  spaced dash out  ",
+      "expected": "  spaced-out  "
+    },
+    {
+      "text": "it is written in dot net",
+      "expected": "it is written in dot net"
+    },
+    {
+      "text": "I’ll dash over there",
+      "expected": "I’ll dash over there"
+    },
+    {
+      "text": "ask for option dash dash dash",
+      "expected": "ask for option dash dash dash"
+    },
+    {
+      "text": "café dash bar",
+      "expected": "café-bar"
+    },
+    {
+      "text": "Maple\ndash Design",
+      "expected": "Maple\ndash Design"
+    },
+    {
+      "text": "run it with dash dash\nhelp",
+      "expected": "run it with dash dash\nhelp"
+    },
+    {
+      "text": "Maple\tdash Design",
+      "expected": "Maple\tdash Design"
+    },
+    {
+      "text": "example dot com_x",
+      "expected": "example dot com_x"
+    },
+    {
+      "text": "then dash is typed",
+      "expected": "then dash is typed"
+    },
+    {
+      "text": "then dash was typed",
+      "expected": "then dash was typed"
+    },
+    {
+      "text": "then dash means minus",
+      "expected": "then dash means minus"
+    },
+    {
+      "text": "go to www dot example dot com",
+      "expected": "go to www.example.com"
+    },
+    {
+      "text": "open docs dot example dot co dot uk today",
+      "expected": "open docs dot example.co.uk today"
+    },
+    {
+      "text": "that polka dot dress dot the i",
+      "expected": "that polka dot dress dot the i"
+    },
+    {
+      "text": "I use Dash for docs",
+      "expected": "I use Dash for docs",
+      "vocabulary": "Mouthy\nDash"
+    },
+    {
+      "text": "I use Dash for docs and a well dash known name",
+      "expected": "I use Dash for docs and a well dash known name",
+      "vocabulary": "dash"
+    },
+    {
+      "text": "run Dash dash dash help",
+      "expected": "run Dash dash dash help",
+      "vocabulary": "Dash"
+    },
+    {
+      "text": "written in Dot Net and example dot com",
+      "expected": "written in Dot Net and example.com",
+      "vocabulary": "Dot Net, Mouthy"
+    },
+    {
+      "text": "one hyphen two",
+      "expected": "one-two",
+      "vocabulary": "Dash"
+    },
+    {
+      "text": "café dash bar",
+      "expected": "café dash bar"
+    },
+    {
+      "text": "",
+      "expected": ""
+    },
+    {
+      "text": "   ",
+      "expected": "   "
+    },
+    {
+      "text": "see the blue dot here dot com",
+      "expected": "see the blue dot here.com"
+    },
+    {
+      "text": "it ends with dash dash.",
+      "expected": "it ends with dash dash."
+    },
+    {
+      "text": "ask for option dash dash dash.",
+      "expected": "ask for option dash dash dash."
+    },
+    {
+      "text": "type dash dash, then help",
+      "expected": "type dash dash, then help"
+    },
+    {
+      "text": "run it with dash dash help.",
+      "expected": "run it with --help."
+    },
+    {
+      "text": "Name it maple dash.",
+      "expected": "Name it maple dash."
+    },
+    {
+      "text": "“the dash of salt” and (a dot com boom)",
+      "expected": "“the dash of salt” and (a dot com boom)"
+    },
+    {
+      "text": "well hyphen hyphen known",
+      "expected": "well hyphen hyphen known"
+    },
+    {
+      "text": "git commit dash m fix the bug",
+      "expected": "git commit -m fix the bug"
+    },
+    {
+      "text": "use ls dash l to list the files",
+      "expected": "use ls -l to list the files"
+    },
+    {
+      "text": "x dash y and T dash shirt",
+      "expected": "x-y and T-shirt"
+    },
+    {
+      "text": "plan dash a is fine",
+      "expected": "plan-a is fine"
+    },
+    {
+      "text": "open the file readme dot md",
+      "expected": "open the file readme.md"
+    },
+    {
+      "text": "the bug is in main dot swift.",
+      "expected": "the bug is in main.swift."
+    },
+    {
+      "text": "add the key to the dot env file",
+      "expected": "add the key to the .env file"
+    },
+    {
+      "text": "Dot gitignore has it",
+      "expected": ".gitignore has it"
+    },
+    {
+      "text": "put build in dot gitignore, then stop",
+      "expected": "put build in .gitignore, then stop"
+    },
+    {
+      "text": "the update is at mouthy dot dev slash download",
+      "expected": "the update is at mouthy.dev/download"
+    },
+    {
+      "text": "type slash help in the chat",
+      "expected": "type /help in the chat"
+    },
+    {
+      "text": "run slash code review on the branch",
+      "expected": "run slash code review on the branch"
+    },
+    {
+      "text": "Slash help",
+      "expected": "/help"
+    },
+    {
+      "text": "they will slash prices next week",
+      "expected": "they will slash prices next week"
+    },
+    {
+      "text": "use the slash command to clear it",
+      "expected": "use the slash command to clear it"
+    },
+    {
+      "text": "use slash commands",
+      "expected": "use slash commands"
+    },
+    {
+      "text": "write and slash or on the form",
+      "expected": "write and/or on the form"
+    },
+    {
+      "text": "open 24 slash 7",
+      "expected": "open 24/7"
+    },
+    {
+      "text": "the file is in src slash main",
+      "expected": "the file is in src slash main"
+    },
+    {
+      "text": "name the variable user underscore name",
+      "expected": "name the variable user_name"
+    },
+    {
+      "text": "call get underscore user underscore id",
+      "expected": "call get_user_id"
+    },
+    {
+      "text": "snake case puts an underscore between the words",
+      "expected": "snake case puts an underscore between the words"
+    },
+    {
+      "text": "you should underscore that point",
+      "expected": "you should underscore that point"
+    },
+    {
+      "text": "I use Dash for reading the docs",
+      "expected": "I use Dash for reading the docs",
+      "vocabulary": "Dash"
+    },
+    {
+      "text": "check dash in today",
+      "expected": "check-in today"
+    },
+    {
+      "text": "slash dot is a site and dot slash is a path",
+      "expected": "slash dot is a site and dot slash is a path"
+    },
+    {
+      "text": "type slash help",
+      "expected": "type slash help",
+      "vocabulary": "Slash"
+    },
+    {
+      "text": "user underscore name",
+      "expected": "user underscore name",
+      "vocabulary": "underscore"
+    },
+    {
+      "text": "add the dot env2 file",
+      "expected": "add the dot env2 file"
+    },
+    {
+      "text": "see\ndot env",
+      "expected": "see\ndot env"
+    },
+    {
+      "text": "git commit dash m.",
+      "expected": "git commit -m."
+    },
+    {
+      "text": "tar dash x, then x dash y.",
+      "expected": "tar -x, then x-y."
+    },
+    {
+      "text": "Slash clear, then type slash clear",
+      "expected": "Slash clear, then type /clear"
+    },
+    {
+      "text": "Slash clear.",
+      "expected": "/clear"
+    },
+    {
+      "text": "slash Model opus.",
+      "expected": "slash Model opus."
+    },
+    {
+      "text": "Slash code dash review",
+      "expected": "/code-review"
+    },
+    {
+      "text": "slash help. And then tell me what it says.",
+      "expected": "slash help. And then tell me what it says."
+    },
+    {
+      "text": "Slash the budget in half.",
+      "expected": "Slash the budget in half."
+    },
+    {
+      "text": "Slash through it and move on.",
+      "expected": "Slash through it and move on."
+    },
+    {
+      "text": "Slash and burn.",
+      "expected": "Slash and burn."
+    },
+    {
+      "text": "slash",
+      "expected": "slash"
+    },
+    {
+      "text": "Slash, clear",
+      "expected": "Slash, clear"
+    },
+    {
+      "text": "now slash clear",
+      "expected": "now slash clear"
+    },
+    {
+      "text": "slash clear...",
+      "expected": "/clear..."
+    },
+    {
+      "text": "Slash spending by half.",
+      "expected": "Slash spending by half."
+    },
+    {
+      "text": "Slash played the opening solo.",
+      "expected": "Slash played the opening solo."
+    },
+    {
+      "text": "Slash I think we should cut it.",
+      "expected": "Slash I think we should cut it."
+    },
+    {
+      "text": "Slash them all.",
+      "expected": "Slash them all."
+    },
+    {
+      "text": "Slash Clear.",
+      "expected": "/clear"
+    },
+    {
+      "text": "slash code hyphen review dash v2.",
+      "expected": "/code-review-v2"
+    },
+    {
+      "text": "slash user underscore name",
+      "expected": "/user_name"
+    },
+    {
+      "text": "slash clear dash",
+      "expected": "slash clear dash"
+    },
+    {
+      "text": "slash dash clear",
+      "expected": "slash dash clear"
+    },
+    {
+      "text": "slash open readme dot md.",
+      "expected": "slash open readme.md."
+    },
+    {
+      "text": "Slash budgets, dash hopes.",
+      "expected": "Slash budgets, dash hopes."
+    },
+    {
+      "text": "slash to dash do",
+      "expected": "slash to dash do"
+    },
+    {
+      "text": "slash user underscore the",
+      "expected": "slash user underscore the"
+    },
+    {
+      "text": "slash  clear",
+      "expected": "/clear"
+    },
+    {
+      "text": "see example dot com and type slash help",
+      "expected": "see example.com and type /help",
+      "vocabulary": "Polka Dot Studio, Slash Records"
+    },
+    {
+      "text": "I use Dash for docs and maple dash design",
+      "expected": "I use Dash for docs and maple dash design",
+      "vocabulary": "Mouthy,  Dash \r\nParakeet"
+    },
+    {
+      "text": "my take dash home pay and work dash from dash home",
+      "expected": "my take-home pay and work-from-home"
+    },
+    {
+      "text": "it is free dash for dash all",
+      "expected": "it is free-for-all"
+    },
+    {
+      "text": "wrap it in a try slash catch block",
+      "expected": "wrap it in a try slash catch block"
+    },
+    {
+      "text": "press enter slash return or run slash debug",
+      "expected": "press enter slash return or run slash debug"
+    },
+    {
+      "text": "go to www dot github dot com",
+      "expected": "go to www.github.com"
+    },
+    {
+      "text": "call api dot github dot com",
+      "expected": "call api dot github.com"
+    },
+    {
+      "text": "open www dot claude dot ai",
+      "expected": "open www.claude.ai"
+    },
+    {
+      "text": "the dot git folder and the dot claude folder",
+      "expected": "the .git folder and the .claude folder"
+    },
+    {
+      "text": "clone it from origin slash repo dot git",
+      "expected": "clone it from origin slash repo dot git"
+    },
+    {
+      "text": "(use git commit dash m)",
+      "expected": "(use git commit -m)"
+    },
+    {
+      "text": "run \"git commit dash m\"",
+      "expected": "run \"git commit -m\""
+    },
+    {
+      "text": "the (x dash y, z)",
+      "expected": "the (x-y, z)"
+    },
+    {
+      "text": "file the 10 dash K and form 1099 dash K",
+      "expected": "file the 10-K and form 1099-K"
+    },
+    {
+      "text": "python3 dash m venv",
+      "expected": "python3 -m venv"
+    },
+    {
+      "text": "option dash i and option dash a",
+      "expected": "option-i and option-a"
+    },
+    {
+      "text": "These delays underscore why we need a backup plan.",
+      "expected": "These delays underscore why we need a backup plan."
+    },
+    {
+      "text": "Let me underscore one thing.",
+      "expected": "Let me underscore one thing."
+    },
+    {
+      "text": "The results underscore our point.",
+      "expected": "The results underscore our point."
+    },
+    {
+      "text": "add an underscore name",
+      "expected": "add an underscore name"
+    },
+    {
+      "text": "open 24 slash seven and type slash 5",
+      "expected": "open 24 slash seven and type slash 5"
+    },
+    {
+      "text": "and slash maybe",
+      "expected": "and slash maybe"
+    },
+    {
+      "text": "Check dot env is missing",
+      "expected": "Check .env is missing"
     }
   ],
   "process": [

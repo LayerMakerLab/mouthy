@@ -223,3 +223,29 @@ private func breath(_ seconds: Double, level: Float) -> [Float] {
     #expect(PhraseJoiner.join("Run the build.", heard: ContextWords(before: "the build", after: "and wait."), gap: 1.2, keepCase: terms)
             == "Run the build and wait.")
 }
+
+@Test func aSentenceGoesOnAcrossAPauseWhenTheRecognizerThatHeardBothSidesWritesItOn() {
+    // The recognizer's words on each side of the pause: the sentence went on when the side before does not end one.
+    #expect(PhraseJoiner.continues(ContextWords(before: "hands-free, not needing", after: "to use a keyboard")) == true)
+    #expect(PhraseJoiner.continues(ContextWords(before: "dictation and stuff like that.", after: "But yeah, so")) == false)
+    #expect(PhraseJoiner.continues(ContextWords(before: "is that \"right?\"", after: "So proper")) == false)
+    #expect(PhraseJoiner.continues(ContextWords(before: "the model,", after: "to fully understand")) == true)
+    // Words said again after the pause are on their side of it: the end before them stands.
+    #expect(PhraseJoiner.continues(ContextWords(before: "That's the plan.", after: "The plan is to start on Monday")) == false)
+    // A side without words: no verdict.
+    #expect(PhraseJoiner.continues(ContextWords(before: "hands free not needing.", after: "")) == nil)
+    #expect(PhraseJoiner.continues(ContextWords(before: "", after: "to use a keyboard")) == nil)
+    #expect(PhraseJoiner.continues(ContextWords(before: "...", after: "to use")) == nil)
+}
+
+@Test func aLaterPhraseNeverBeginsWithAClosingMark() {
+    // A recognizer writes a mark for the pause its audio starts in; joined on, it doubled the period.
+    #expect(PhraseJoiner.join([("and stuff like that.", 0), (". But yeah, so", 1.2)]) == "and stuff like that. But yeah, so")
+    #expect(PhraseJoiner.join([("and stuff like that.", 0), (", But yeah, so", 1.2)]) == "and stuff like that. But yeah, so")
+    #expect(PhraseJoiner.join([("and stuff like that", 0), (", but yeah", 0.3)]) == "and stuff like that but yeah")
+    #expect(PhraseJoiner.join([("One.", 0), ("...", 1.2), ("Two.", 1.2)]) == "One. Two.")
+    // A mark with no space after it begins a word, and stays.
+    #expect(PhraseJoiner.join([("The dose is", 0), (".5 milligrams twice a day.", 0.3)]) == "The dose is .5 milligrams twice a day.")
+    #expect(PhraseJoiner.join([("Open the file called", 0), (".env and add the key.", 0.3)]) == "Open the file called .env and add the key.")
+    #expect(PhraseJoiner.join([("It runs on", 0), (".NET 8.", 0.3)]) == "It runs on .NET 8.")
+}

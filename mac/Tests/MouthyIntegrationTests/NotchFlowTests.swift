@@ -394,6 +394,11 @@ func notchFlowMusicThenDictationRealGeometry() throws {
         ("music-dictation-hovered", { hub.presentDictation(NotchDictation(target: "Notes", level: 0.5)); hub.hover(true) }),
         ("music-result-hovered", { hub.presentResult("Inserted", ok: true); hub.hover(true) }),
         ("music-prompt", { hub.presentDictation(NotchDictation(target: "Claude Code", level: 0.4, prompt: "Which branch should I deploy to staging, main or the release branch?")) }),
+        // What has been said so far hangs under the band, below the menu bar: a few lines, a full card whose oldest
+        // lines have left at the top, and under an agent's question.
+        ("music-dictation-words", { hub.presentDictation(NotchDictation(target: "Notes", level: 0.6, partialText: "So the plan for the weekend is to finish the shelf brackets first, then reprint the hinge with the thicker wall, and after that I want to photograph both of them outside while the light is good.")) }),
+        ("music-dictation-words-full", { hub.presentDictation(NotchDictation(target: "Notes", level: 0.6, partialText: "So the plan for the weekend is to finish the shelf brackets first, then reprint the hinge with the thicker wall, and after that I want to photograph both of them outside while the light is good. For the listing I still need the measurements, the print time and the filament weight, and I should mention that the bracket holds about twelve kilos. So the plan for the weekend is to finish the shelf brackets first, then reprint the hinge with the thicker wall, and after that I want to photograph both of them outside while the light is good. Then on Sunday I want to answer the two questions about the hinge and thank the person who sent the photo.")) }),
+        ("music-prompt-words", { hub.presentDictation(NotchDictation(target: "Claude Code", level: 0.4, partialText: "So the plan for the weekend is to finish the shelf brackets first, then reprint the hinge with the thicker wall, and after that I want to photograph both of them outside while the light is good. For the listing I still need the measurements, the print time and the filament weight, and I should mention that the bracket holds about twelve kilos. So the plan for the weekend is to finish the shelf brackets first, then reprint the hinge with the thicker wall, and after that I want to photograph both of them outside while the light is good. Then on Sunday I want to answer the two questions about the hinge and thank the person who sent the photo.", prompt: "Which branch should I deploy to staging, main or the release branch?")) }),
         // Starting dictation with the panel open morphs the panel into the band in place.
         ("open-then-dictation", {
             hub.stageForPreview(open: true)
@@ -415,7 +420,18 @@ func notchFlowMusicThenDictationRealGeometry() throws {
         // else is ever ember there.
         let embers = try emberPixels(in: url, rect: CGRect(x: notchRight - window.minX, y: 0, width: wingRight - (notchRight - window.minX), height: geometry.notchHeight), pointWidth: size.width)
         if name.hasSuffix("attention") ? !(1...160).contains(embers) : embers > 0 { problems.append("\(name): \(embers) ember px in the right ear") }
-        print("FLOW \(name): \(hidden) lit px under the camera, \(covering) black px beyond the wings, \(embers) ember px")
+        // The words said so far: a black card under the band, wider than it, that ends above the window's lower
+        // edge (not cut off by it). No other state draws anything there.
+        let below = CGRect(x: 4, y: geometry.notchHeight + 70, width: wingLeft - 12, height: 20)
+        let card = try litPixels(in: url, rect: below, pointWidth: size.width, dark: true)
+        let cut = try litPixels(in: url, rect: CGRect(x: 0, y: size.height - 6, width: size.width, height: 6), pointWidth: size.width, dark: true)
+        if name.hasSuffix("words-full") || name == "music-prompt-words" {
+            if card == 0 { problems.append("\(name): no transcript card under the band") }
+            if cut > 0 { problems.append("\(name): the transcript card reaches the window's lower edge") }
+        } else if !name.contains("words"), !name.hasPrefix("open"), !name.hasSuffix("peek"), card > 0 {
+            problems.append("\(name): \(card) black px where only the transcript card belongs")
+        }
+        print("FLOW \(name): \(hidden) lit px under the camera, \(covering) black px beyond the wings, \(embers) ember px, \(card) card px")
         hub.hover(false)
         hub.endDictation()
     }

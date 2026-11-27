@@ -259,8 +259,8 @@ public enum SpeechModels {
 
 /// The text rules every dictation goes through before a style or delivery, in Mouthy and in host apps
 /// (`DictationSession`): backtrack, replacements, spoken punctuation, fillers, custom-word names, then code
-/// casing and symbols, or for prose clock times and a capital first word (a recognizer may write it lowercase;
-/// code keeps its case: "git commit -m").
+/// casing and symbols, or for prose clock times, spoken joiners ("dash", "dot com") and a capital first word (a
+/// recognizer may write it lowercase; code keeps its case: "git commit -m").
 @MainActor enum DictationText {
     /// Whether a word (lowercase) is in the dictionary of the dictation's language ("en-US" -> English) alone. The
     /// spell checker's default reads every language the Mac lists, where made-up words ("alama", "marchie") pass.
@@ -274,8 +274,9 @@ public enum SpeechModels {
         }
     }
 
+    /// `live`: a guess while the person is still speaking, so a spoken joiner that ends it waits for the next word.
     static func shape(_ raw: String, code: Bool, replacements: [Replacement], punctuation: Bool, removeFillers: Bool, vocabulary: String,
-                      locale: String = "en-US") -> String {
+                      locale: String = "en-US", live: Bool = false) -> String {
         if let snippet = TextPipeline.wholeReplacement(raw, replacements: replacements) { return snippet }
         var text = TextPipeline.process(raw, replacements: replacements, punctuation: punctuation)
         if removeFillers { text = Fillers.remove(text) }
@@ -284,11 +285,13 @@ public enum SpeechModels {
             let isKnownWord = knownWord(locale: locale)
             text = VocabularyGuard.names(VocabularyGuard.spelling(text, terms: terms, isKnownWord: isKnownWord), terms: terms, isKnownWord: isKnownWord)
         }
-        return code ? CodeDictation.apply(text) : SmartInsertion.capitalizingFirstWord(ClockTimes.apply(text))
+        if code { return CodeDictation.apply(text) }
+        text = ClockTimes.apply(text)
+        return SmartInsertion.capitalizingFirstWord(punctuation ? SpokenJoiners.apply(text, vocabulary: vocabulary, open: live) : text)
     }
 
-    static func shape(_ raw: String, code: Bool, config: Preferences) -> String {
+    static func shape(_ raw: String, code: Bool, config: Preferences, live: Bool = false) -> String {
         shape(raw, code: code, replacements: config.replacements, punctuation: config.punctuationCommands,
-              removeFillers: config.removeFillers, vocabulary: config.vocabulary, locale: config.locale)
+              removeFillers: config.removeFillers, vocabulary: config.vocabulary, locale: config.locale, live: live)
     }
 }

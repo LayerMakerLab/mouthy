@@ -53,6 +53,7 @@ struct PreferencesView: View {
         .sheet(isPresented: $showAbout) { AboutView(model: model) { showAbout = false } }
         .onDisappear { if recordingShortcut { recordingShortcut = false; model.registerHotkey() } }
         .onChange(of: model.preferences.speechEngine) { Task { await model.refreshCapabilities() }; model.prewarmSpeech() }
+        .onChange(of: model.preferences.instantWords) { model.prewarmSpeech() }
         .onChange(of: model.preferences.locale) { Task { await model.refreshCapabilities() } }
         .onChange(of: model.preferences.whisperModel) {
             if !model.preferences.whisperModel.supportsTranslation { model.preferences.whisperTranslateToEnglish = false }
@@ -222,6 +223,14 @@ struct PreferencesView: View {
                     }
                     .buttonStyle(.compact)
                 }
+                SettingDivider()
+                SettingRow("AI you pay for", detail: "The notch's AI usage tab shows these, read on this Mac only.", controlWidth: nil) { EmptyView() }
+                AIServiceChips(selected: Set(model.preferences.aiPicks)) { service, on in
+                    var picks = model.preferences.aiPicks
+                    if on { picks.append(service) } else { picks.removeAll { $0 == service } }
+                    model.preferences.aiPicks = picks
+                }
+                .padding(.bottom, 12)
                 if showNotchTabs {
                     NotchSettingsView()
                         .padding(14)
@@ -260,6 +269,14 @@ struct PreferencesView: View {
                         .frame(height: 76)
                 }
                 .padding(.vertical, 12)
+            }
+            SettingDivider()
+            SettingRow("Type as I speak", detail: "Words go into the text field while you talk. Off: all at once when you stop.", controlWidth: nil) {
+                Toggle("Type as I speak", isOn: $model.preferences.typeAsYouSpeak).labelsHidden().toggleStyle(.warmSwitch)
+            }
+            if LiveWords.supported, model.preferences.speechEngine == .parakeet {
+                SettingDivider()
+                InstantWordsRow(model: model)
             }
             SettingDivider()
             SettingRow("Remove filler words", detail: "Drops “um”, “uh” and “erm”.", controlWidth: nil) {
@@ -467,6 +484,35 @@ struct WarmTextBox: View {
         .padding(8)
         .background(shape.fill(MouthyTheme.raised))
         .overlay(shape.strokeBorder(MouthyTheme.hoof, lineWidth: 1))
+    }
+}
+
+/// "Show words instantly": Download until its model is on this Mac, then a switch (and Remove while it is off).
+struct InstantWordsRow: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        SettingRow("Show words instantly", detail: detail, controlWidth: nil) {
+            HStack(spacing: 6) {
+                if !model.instantWordsInstalled {
+                    if model.setupBusy { ProgressView().controlSize(.small) }
+                    Button("Download") { model.installInstantWords() }.buttonStyle(.compact)
+                        .disabled(model.preferences.localOnly || model.setupBusy || model.busy)
+                } else {
+                    if !model.preferences.instantWords {
+                        Button("Remove") { model.removeInstantWords() }.buttonStyle(.compact).disabled(model.setupBusy || model.busy)
+                    }
+                    Toggle("Show words instantly", isOn: $model.preferences.instantWords).labelsHidden().toggleStyle(.warmSwitch)
+                }
+            }
+        }
+    }
+
+    private var detail: String {
+        let what = "English only. Each word shows as you say it, in lowercase. Capitals, punctuation and corrections follow at every pause."
+        if model.instantWordsInstalled { return what }
+        if model.preferences.localOnly { return what + " Network use is blocked, so its model can't download." }
+        return what + " Needs a \(LiveWords.megabytes) MB model."
     }
 }
 

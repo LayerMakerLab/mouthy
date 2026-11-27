@@ -22,7 +22,7 @@ Other MCP clients work the same way: run the bridge as a stdio server.
 
 When an agent asks, the question appears in Mouthy's recording overlay (on the Mac, in the notch while the notch hub runs). Speak your answer and finish with your dictation shortcut; Escape cancels. The answer goes to the agent and is not typed into any app.
 
-Agent questions can be turned off in Settings. On the Mac, Settings can also have Mouthy read each question aloud.
+Agent questions can be turned off in Settings. On the Mac, "Read agent questions aloud" has Mouthy speak each question in its own voice. The voice runs on your Mac; nothing is sent anywhere. If it cannot run, the system voice reads instead.
 
 ## How it is protected
 

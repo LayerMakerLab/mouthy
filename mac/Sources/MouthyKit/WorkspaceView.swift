@@ -35,7 +35,7 @@ struct WorkspaceView: View {
             MouthyBackdrop(listening: model.phase == .listening)
             HStack(spacing: 0) {
                 WorkspaceSidebar(model: model, page: page) { model.selectedPage = $0.rawValue }
-                    .padding(10)
+                    .padding(MouthyTheme.Layout.windowInset)
                 ZStack {
                     pageView(page)
                         .id(page)
@@ -50,7 +50,7 @@ struct WorkspaceView: View {
             .ignoresSafeArea(.container, edges: .top)
         }
         .overlay(alignment: .bottom) {
-            StatusToast(model: model).padding(.bottom, 22).padding(.leading, 240)
+            StatusToast(model: model).padding(.bottom, 22).padding(.leading, 220 + 2 * MouthyTheme.Layout.windowInset)
         }
         .tint(MouthyTheme.orange)
         .foregroundStyle(MouthyTheme.cream)
@@ -103,11 +103,11 @@ struct WorkspaceSidebar: View {
                     }
                 }
                 .padding(.horizontal, 8)
-                .padding(.top, 40)
-                .padding(.bottom, 22)
+                .padding(.top, 48)
+                .padding(.bottom, 24)
                 .animation(MouthyMotion.resolve(MouthyMotion.pose, reduceMotion: reduceMotion), value: model.phase == .listening)
 
-                VStack(spacing: 2) {
+                VStack(spacing: 5) {
                     ForEach(WorkspacePage.allCases) { item in
                         SidebarRow(page: item, selected: item == page, namespace: selection) { select(item) }
                     }
@@ -195,7 +195,7 @@ struct StatusToast: View {
     struct Message: Equatable { let id = UUID(); let text: String; let tone: Tone }
 
     static let attentionPrefixes = ["Ready to copy", "No speech", "No final transcript", "Microphone", "Transcription timed out", "Command failed", "Couldn't", "Could not"]
-    static let successPrefixes = ["Inserted", "Pasted", "Answer sent", "Sent", "Copied", "Saved", "Opened", "Searched", "Ran", "Ready. Review", "Exported"]
+    static let successPrefixes = ["Inserted", "Typed", "Pasted", "Answer sent", "Sent", "Copied", "Saved", "Opened", "Searched", "Ran", "Ready. Review", "Exported"]
 
     /// Whether a status deserves a toast (not the resting "Ready.").
     static func shouldShow(_ status: String) -> Bool {

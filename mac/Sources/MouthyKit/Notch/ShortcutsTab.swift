@@ -89,7 +89,7 @@ import SwiftUI
 
 struct ShortcutsView: View {
     @ObservedObject var model: ShortcutsTab
-    private let columns = [GridItem(.adaptive(minimum: 170), spacing: 8)]
+    private let columns = [GridItem(.adaptive(minimum: 120), spacing: 8)]
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if model.names.isEmpty {
@@ -156,11 +156,11 @@ struct ShortcutButton: View {
                     .foregroundStyle(pinned || running || hovering ? MouthyTheme.glow : MouthyTheme.cream2)
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: 14)
-                Text(name).font(.system(size: 14)).foregroundStyle(MouthyTheme.cream).lineLimit(1)
+                Text(name).font(.system(size: 13)).foregroundStyle(MouthyTheme.cream).lineLimit(1)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10).frame(minHeight: 32)
-            .smokedGlass(RoundedRectangle(cornerRadius: 10, style: .continuous), lit: hovering)
+            .notchControl(RoundedRectangle(cornerRadius: 9, style: .continuous), lit: hovering)
             .contentShape(Rectangle())
         }
         .buttonStyle(NotchPressStyle())

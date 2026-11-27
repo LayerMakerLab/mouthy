@@ -10,7 +10,9 @@ struct MouthyBackdrop: View {
     var body: some View {
         ZStack {
             MouthyTheme.backdrop
-            RadialGradient(colors: [MouthyTheme.orange.opacity(listening ? 0.18 : glow), .clear],
+            // A faint light from above at rest; the accent only while listening (as a tint at rest it turned the
+            // graphite olive).
+            RadialGradient(colors: [listening ? MouthyTheme.orange.opacity(0.13) : Color.white.opacity(glow * 0.4), .clear],
                            center: UnitPoint(x: 0.58, y: 0.0), startRadius: 0, endRadius: 600)
                 .animation(MouthyMotion.resolve(MouthyMotion.pose, reduceMotion: reduceMotion), value: listening)
         }

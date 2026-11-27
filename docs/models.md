@@ -10,12 +10,12 @@ The tile measures regular-file bytes on disk, including compiled-model package c
 
 ## Download size evidence
 
-Counts below are transfer file bytes, verified against publisher metadata on 2026-10-06. Core ML downloads follow the upstream revision chosen by the existing SDKs, so Mouthy labels these totals “About”; the immutable revisions below identify the metadata used, not an added download pin. Installed sizes can differ because of compilation, older cached files and SDK bookkeeping. These estimates require no network requests from Settings.
+Counts below are transfer file bytes, verified against publisher metadata on 2026-10-06 (the Parakeet Intel row on 2026-11-23, after upstream replaced that archive). Core ML downloads follow the upstream revision chosen by the existing SDKs, so Mouthy labels these totals “About”; the immutable revisions below identify the metadata used, not an added download pin. Installed sizes can differ because of compilation, older cached files and SDK bookkeeping. These estimates require no network requests from Settings.
 
 | Model | Download bytes | Metadata source and selection |
 | --- | ---: | --- |
 | Parakeet v3 Core ML | 586,061,111 | 483,257,242 for [v3 at 7dd20fe](https://huggingface.co/FluidInference/parakeet-tdt-0.6b-v3-coreml/tree/7dd20fe6b1797d35f5e3307e8b1732d9a178edfe), plus 102,803,869 for [CTC at accdafd](https://huggingface.co/FluidInference/parakeet-ctc-110m-coreml/tree/accdafd8cf8a2ff1cabe3c11e54416b405d409aa). |
-| Parakeet v3 Intel int8 | 487,170,055 | [sherpa-onnx archive](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2), SHA-256 `5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf`. Exact pinned archive size. |
+| Parakeet v3 Intel int8 | 487,211,443 | [sherpa-onnx archive](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2), SHA-256 `1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9`. Exact pinned archive size. |
 | Whisper Base English | 149,114,215 | 146,707,731 model + 2,406,484 tokenizer bytes. |
 | Whisper Small | 220,113,912 | 217,350,763 model + 2,763,149 tokenizer bytes. |
 | Whisper Medium | 1,532,417,382 | 1,529,654,233 model + 2,763,149 tokenizer bytes. |

@@ -203,6 +203,14 @@ public enum PhraseJoiner {
         var output = ""
         for (raw, gap) in phrases {
             var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            // A later phrase never begins with a closing mark of its own: a recognizer writes one for the pause its
+            // audio starts in ("that." and ". But yeah" were "that.. But yeah", and the doubled period then went as a
+            // hesitation: "that But yeah").
+            // (A mark with no space after it is the start of a word: ".5 milligrams", ".env".)
+            if !output.isEmpty {
+                let rest = text.drop { ".,;:!?…".contains($0) }
+                if rest.first.map(\.isWhitespace) ?? true { text = String(rest.drop(while: \.isWhitespace)) }
+            }
             guard !text.isEmpty else { continue }
             if output.isEmpty { output = text; continue }
             let last = output.last { !SmartInsertion.quoteClosers.contains($0) } ?? " "
@@ -268,6 +276,15 @@ public enum PhraseJoiner {
             output.removeLast()
         }
         return output + " " + newer
+    }
+
+    /// Whether a sentence went on across a pause, as a recognizer that heard both sides of it wrote it: `heard` is
+    /// its text on each side (split by its token times, so words said again after the pause are on their side). It
+    /// went on when the words before the pause do not end a sentence. Nil when either side has no words.
+    public static func continues(_ heard: ContextWords) -> Bool? {
+        guard let last = heard.before.split(whereSeparator: \.isWhitespace).last, !words(heard.before).isEmpty, !words(heard.after).isEmpty else { return nil }
+        let mark = last.last { !SmartInsertion.quoteClosers.contains($0) }
+        return !(mark.map(SmartInsertion.sentenceEnds.contains) ?? false)
     }
 
     /// An abbreviation's period ("3 p.m.", "e.g.") ends the text.

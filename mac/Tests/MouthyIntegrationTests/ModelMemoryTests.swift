@@ -165,6 +165,18 @@ struct ModelMemoryTests {
         await VoiceActivity.shared.prepare()
         _ = await VoiceActivity.shared.hearsSpeech(speech)
         step("silero")
+        // "Show words instantly": its recognizer beside Parakeet, and what releasing it gives back.
+        if LiveWords.installed {
+            await LiveWords.shared.prepare()
+            _ = await LiveWords.shared.hear(speech, restart: true)
+            step("streaming recognizer")
+            // A dictation heard a moment ago keeps it (macOS short of memory mid-sentence must not restart its audio).
+            await LiveWords.shared.releaseIfIdle()
+            #expect(await LiveWords.shared.loaded)
+            await LiveWords.shared.releaseIfIdle(quiet: .zero)
+            #expect(await !LiveWords.shared.loaded)
+            step("streaming recognizer released")
+        }
         // A dictation's background passes: every pause recognizes the open part again, a different length each time.
         let long = Array((0..<6).map { _ in speech + Corpus.silence(0.4) }.joined())
         func cpuSeconds() -> Double {

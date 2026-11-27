@@ -63,6 +63,13 @@ final class SpeechService {
     private var vocabulary = ""
     private var warmup: Task<Void, Error>?
     private var live: LiveTranscriber?
+    /// "Show words instantly" for the next start: the streaming recognizer shows the newest words (Parakeet, with
+    /// its model on this Mac).
+    var instantWords = false
+    private var streams = false
+    var previewIsFirm: Bool { live?.streams ?? false }
+    var previewMarksPauses: Bool { live.map { !$0.streams } ?? false }
+    var previewPause: LiveTyping.Pause? { live?.textPause }
     private var liveTicker: Task<Void, Never>?
     private(set) var document = TranscriptionDocument(text: "")
     private(set) var inputDevice: InputDevice?
@@ -169,6 +176,8 @@ final class SpeechService {
         try Task.checkCancellation()
         self.provider = provider
         self.whisperModel = whisperModel; self.whisperLanguage = whisperLanguage; self.translate = translate; self.vocabulary = vocabulary
+        // The streaming recognizer is Parakeet's companion: same family, so the two agree on most words.
+        streams = instantWords && provider == .parakeet && LiveWords.installed
         document = TranscriptionDocument(text: "")
         if provider != .apple {
             guard provider == .parakeet ? ParakeetRecognizer.installed : WhisperRecognizer.installed(whisperModel) else {
@@ -303,14 +312,20 @@ final class SpeechService {
     /// recognizes what was said after the last pause.
     private func startLive(token: UUID) {
         let provider = provider, model = whisperModel, language = whisperLanguage, translate = translate, vocabulary = vocabulary
+        var stream: LiveTranscriber.Stream?
+        if streams { stream = { samples, restart in await LiveWords.shared.hear(samples, restart: restart) } }
         let live = LiveTranscriber(decode: { samples, boost in
             if provider == .parakeet { return try await ParakeetRecognizer.shared.transcribe(samples: samples, boost: boost) }
             let samples = await VoiceActivity.shared.voiceOnly(samples) ?? samples   // Whisper too hears only the voice
             guard !samples.isEmpty else { return "" }
             return try await WhisperRecognizer.shared.transcribe(samples: samples, model: model, language: language, translate: translate,
                                                                   vocabulary: boost ? vocabulary : "").text
-        }, decodeAfter: provider == .parakeet ? ParakeetRecognizer.decodeAfter : nil, hearsSpeech: VoiceActivity.hearsSpeech, count: { [weak self] in self?.parakeet.sampleCount ?? 0 }, read: { [weak self] in self?.parakeet.samples($0) ?? [] })
+        }, decodeAfter: provider == .parakeet ? ParakeetRecognizer.decodeAfter : nil,
+           decodeAround: provider == .parakeet ? ParakeetRecognizer.decodeAround : nil, hearsSpeech: VoiceActivity.hearsSpeech, stream: stream, count: { [weak self] in self?.parakeet.sampleCount ?? 0 }, read: { [weak self] in self?.parakeet.samples($0) ?? [] })
         live.keepCase = PhraseJoiner.lowercaseTerms(VocabularyLearner.terms(vocabulary))
+        // One-word custom words keep the person's spelling in the streamed words ("mouthy" shows as "Mouthy").
+        live.quickFirst = provider == .parakeet && VocabularyLearner.terms(vocabulary).contains { $0.count >= 3 }
+        live.spellings = Dictionary(VocabularyLearner.terms(vocabulary).filter { !$0.contains(" ") }.map { ($0.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
         live.onText = { [weak self] text in
             guard let self, self.sessionID == token else { return }
             self.onPreview?(text)

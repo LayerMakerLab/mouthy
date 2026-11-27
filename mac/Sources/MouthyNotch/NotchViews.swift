@@ -200,6 +200,26 @@ struct MorphingNotch: View {
                 .clipShape(shape)
         }
         .frame(width: size.width, height: size.height, alignment: .top)
+        // What has been said so far hangs under the band, below the menu bar, down to the window's lower edge less
+        // the room its shadow needs.
+        .overlay(alignment: .top) {
+            let words = transcript
+            // Only the card coming and going is animated, and only inside this layer, so the shape keeps its own
+            // springs. When the dictation gives way to something else (the panel opening, a cancel) the card is
+            // gone at once, never fading over what replaces it; coming back from another stage with words (the
+            // pointer leaving the open panel) it rides the shape's own spring, just under its closing edge.
+            ZStack(alignment: .top) {
+                if let words {
+                    TranscriptCard(text: words, room: Self.transcriptRoom(panelHeight: panel.height, bandHeight: size.height),
+                                   width: min(TranscriptCard.width, panel.width))
+                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                }
+            }
+            .offset(y: size.height + TranscriptCard.gap)
+            .animation(!isDictation(stage) ? nil
+                       : isDictation(lastStage) ? MouthyMotion.resolve(MouthyMotion.grow, reduceMotion: reduceMotion)
+                       : animation(for: stage), value: words != nil)
+        }
         // Keeps the camera centred while only the left side has grown.
         .offset(x: leftOnly ? -NotchGeometry.compactSide / 2 : 0)
         .animation(animation(for: stage), value: StageKey(stage: stage, size: size, band: band))
@@ -210,6 +230,17 @@ struct MorphingNotch: View {
     }
 
     private struct StageKey: Equatable { let stage: NotchStage; let size: CGSize; let band: Bool }
+
+    /// How far the transcript card may reach into the window's shadow margin (the rest stays for its shadow).
+    static let transcriptReach: CGFloat = 12
+    /// The most height the transcript card gets under a band `bandHeight` tall (the band with an agent's question
+    /// is taller) in a hub whose panel is `panelHeight` tall.
+    static func transcriptRoom(panelHeight: CGFloat, bandHeight: CGFloat) -> CGFloat {
+        panelHeight + transcriptReach - bandHeight - TranscriptCard.gap
+    }
+    private func isDictation(_ stage: NotchStage) -> Bool { if case .dictation = stage { true } else { false } }
+    /// The words said so far while a dictation is listening.
+    private var transcript: String? { isDictation(stage) ? TranscriptCard.words(hub.dictation) : nil }
 
     /// The shape's size for `stage`. Every closed state shares the compact band, so crowded menu bars keep their
     /// items and moving from music to dictation to a result never jumps wider. A peek with nothing for the right
@@ -650,9 +681,9 @@ struct OpenLayers: View {
                 .opacity(bodyIn ? 1 : 0)
                 .scaleEffect(bodyIn || reduceMotion ? 1 : 0.985, anchor: .top)
             }
-            .padding(.top, notchHeight + 10)
-            .padding(.horizontal, 20 + shoulder)
-            .padding(.bottom, 14)
+            .padding(.top, notchHeight + NotchGeometry.contentTop)
+            .padding(.horizontal, NotchGeometry.contentSide + shoulder)
+            .padding(.bottom, NotchGeometry.contentBottom)
             // A tab taller than the panel is cut at the bottom; it never pushes the band out of the camera row.
             .frame(width: size.width, height: size.height, alignment: .top)
             .clipped()
@@ -799,14 +830,6 @@ struct TabRail: View {
                 }
             }
             .padding(compact ? 2 : 4)
-            .background {
-                if let selectedID, shown.contains(where: { $0.id == selectedID }) {
-                    Capsule(style: .circular)
-                        .fill(MouthyTheme.cream.opacity(0.16))
-                        .overlay(Capsule(style: .circular).strokeBorder(MouthyTheme.cream.opacity(0.08), lineWidth: 0.5))
-                        .matchedGeometryEffect(id: selectedID, in: namespace, isSource: false)
-                }
-            }
             .modifier(RailGlass())
         }
         .padding(compact ? 0 : 6)
@@ -875,6 +898,10 @@ struct RailButton: View {
                     .font(.system(size: compact ? 13 : 16, weight: selected ? .semibold : .medium))
                     .foregroundStyle(selected ? MouthyTheme.glow : hovering ? MouthyTheme.cream : MouthyTheme.cream2)
                     .frame(width: compact ? 16 : 20, height: compact ? 16 : 20)
+                    .overlay(alignment: .bottom) {
+                        // The selected tab: its icon in the accent with a small dot under it (no capsule behind).
+                        if selected { Circle().fill(MouthyTheme.glow).frame(width: 3.5, height: 3.5).offset(y: 5.5).transition(.opacity) }
+                    }
                     .keyframeAnimator(initialValue: 1.0, trigger: selected) { glyph, scale in
                         glyph.scaleEffect(reduceMotion ? 1 : scale)
                     } keyframes: { _ in

@@ -154,19 +154,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.contentView = nil
         if mainWindow == nil { NSApp.setActivationPolicy(.accessory) }
     }
+    /// The main window around its content: the title bar is the content's own top edge, with the three window
+    /// buttons over it.
+    static func mainWindow(for content: some View) -> NSWindow {
+        let window = MainWindow(contentRect: NSRect(x: 0, y: 0, width: 1080, height: 760), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window.title = "Mouthy"; window.identifier = NSUserInterfaceItemIdentifier("main")
+        window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
+        window.minSize = NSSize(width: 900, height: 640); window.isReleasedWhenClosed = false
+        // An empty unified toolbar makes the title bar tall, which is how the system sets the three window buttons
+        // further in and down: inside the sidebar card, clear of its border and corner (in a plain title bar they
+        // sat on the card's edge, cut by it).
+        let toolbar = NSToolbar(identifier: "main")
+        toolbar.showsBaselineSeparator = false
+        // Nothing to customize in an empty toolbar: its "Icon Only / Text Only" menu changed the title bar's height
+        // and left the buttons in the system's place.
+        toolbar.allowsDisplayModeCustomization = false
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
+        window.contentView = NSHostingView(rootView: content)
+        window.placeButtons()
+        return window
+    }
     func openMainWindow() {
         if mainWindow == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1080, height: 760), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-            window.title = "Mouthy"; window.identifier = NSUserInterfaceItemIdentifier("main")
-            window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
-            window.minSize = NSSize(width: 900, height: 640); window.isReleasedWhenClosed = false
+            let window = Self.mainWindow(for: WorkspaceView(model: model))
             window.setFrameAutosaveName("MainWindow")
-            window.contentView = NSHostingView(rootView: WorkspaceView(model: model))
             window.delegate = self; window.center(); mainWindow = window
         }
         NSApp.setActivationPolicy(.regular)
         mainWindow?.makeKeyAndOrderFront(nil); NSApp.activate()
         Task { await model.refreshCapabilities() }
+    }
+    /// In full screen the empty toolbar hides with the menu bar, so no blank band stays over the content.
+    func window(_ window: NSWindow, willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []) -> NSApplication.PresentationOptions {
+        [.fullScreen, .autoHideMenuBar, .autoHideToolbar, .autoHideDock]
     }
     func windowWillClose(_ notification: Notification) {
         let window = notification.object as? NSWindow
@@ -183,4 +205,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 extension Notification.Name {
     /// Settings → "Say hi again" replays the welcome tour.
     static let mouthyReplayWelcome = Notification.Name("dev.mouthy.replayWelcome")
+}
+
+/// The main window. Its three buttons start where the sidebar's wordmark starts (`WorkspaceSidebar.contentLeading`),
+/// so the corner reads as one column: buttons, giraffe, pages. The system lays them out again whenever the window
+/// changes size or state, so they are set after each of those; in full screen they are the system's own.
+final class MainWindow: NSWindow {
+    /// The left edge of the close button, from the window's left edge.
+    static let buttonLeading: CGFloat = 30
+    private var watching: [NSObjectProtocol] = []
+
+    override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing: NSWindow.BackingStoreType, defer flag: Bool) {
+        super.init(contentRect: contentRect, styleMask: style, backing: backing, defer: flag)
+        for name in [NSWindow.didResizeNotification, NSWindow.didExitFullScreenNotification, NSWindow.didBecomeKeyNotification,
+                     NSWindow.didResignKeyNotification, NSWindow.didEndLiveResizeNotification] {
+            watching.append(NotificationCenter.default.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.placeButtons() }
+            })
+        }
+    }
+
+    deinit { watching.forEach(NotificationCenter.default.removeObserver) }
+
+    func placeButtons() {
+        guard !styleMask.contains(.fullScreen) else { return }
+        let buttons = [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].compactMap(standardWindowButton)
+        guard buttons.count == 3 else { return }
+        // The system's own spacing, from wherever it put them.
+        let step = buttons[1].frame.minX - buttons[0].frame.minX
+        guard step > 0 else { return }
+        for (index, button) in buttons.enumerated() {
+            button.setFrameOrigin(NSPoint(x: Self.buttonLeading + CGFloat(index) * step, y: button.frame.minY))
+        }
+    }
 }

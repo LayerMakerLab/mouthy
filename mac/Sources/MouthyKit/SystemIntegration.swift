@@ -158,16 +158,39 @@ final class HotkeyService {
         if hubReference == nil {
             RegisterEventHotKey(UInt32(kVK_ANSI_N), UInt32(controlKey | optionKey), EventHotKeyID(signature: 0x564F4943, id: 3), target, 0, &hubReference)
         }
-        let preset = carbonKeys.preset
-        guard preset < 4 || standsIn else { return true }
+        guard let mainKey else { return true }
         if reference == nil {
-            let modifiers = [UInt32(controlKey | optionKey), UInt32(cmdKey | shiftKey), UInt32(controlKey | shiftKey)]
-            // Standing in for a modifier shortcut: ⌃⌥Space, the first preset.
-            let keyCode = preset == 3 ? carbonKeys.keyCode : UInt32(kVK_Space)
-            let combination = standsIn ? modifiers[0] : preset == 3 ? carbonKeys.modifiers : modifiers[max(0, min(2, preset))]
-            RegisterEventHotKey(keyCode, combination, EventHotKeyID(signature: 0x564F4943, id: 1), target, 0, &reference)
+            RegisterEventHotKey(mainKey.keyCode, mainKey.modifiers, EventHotKeyID(signature: 0x564F4943, id: 1), target, 0, &reference)
         }
         return reference != nil
+    }
+    /// The dictation shortcut when it is a key combination; nil for the double tap and Hold Fn.
+    private var mainKey: (keyCode: UInt32, modifiers: UInt32)? {
+        Self.mainKey(preset: carbonKeys.preset, keyCode: carbonKeys.keyCode, modifiers: carbonKeys.modifiers, standsIn: standsIn)
+    }
+    static func mainKey(preset: Int, keyCode: UInt32, modifiers: UInt32, standsIn: Bool) -> (keyCode: UInt32, modifiers: UInt32)? {
+        guard preset < 4 || standsIn else { return nil }
+        let presets = [UInt32(controlKey | optionKey), UInt32(cmdKey | shiftKey), UInt32(controlKey | shiftKey)]
+        // Standing in for a modifier shortcut: ⌃⌥Space, the first preset.
+        if standsIn { return (UInt32(kVK_Space), presets[0]) }
+        return preset == 3 ? (keyCode, modifiers) : (UInt32(kVK_Space), presets[max(0, min(2, preset))])
+    }
+    /// Whether a key press is one of Mouthy's own shortcuts (dictation, a mode, paste last, the notch hub): pressing
+    /// one to stop is not the person typing in the field.
+    func isOwnShortcut(_ key: Int64, flags: CGEventFlags) -> Bool {
+        guard let registered = lastRegistration else { return false }
+        var shortcuts: [(keyCode: UInt32, modifiers: UInt32)] = [(UInt32(kVK_ANSI_V), UInt32(controlKey | cmdKey)), (UInt32(kVK_ANSI_N), UInt32(controlKey | optionKey))]
+        if let main = Self.mainKey(preset: registered.preset, keyCode: registered.keyCode, modifiers: registered.modifiers, standsIn: standsIn) { shortcuts.append(main) }
+        shortcuts += registered.modes.compactMap { $0.map { ($0.keyCode, $0.modifiers) } }
+        let held = flags.intersection([.maskCommand, .maskShift, .maskAlternate, .maskControl])
+        return shortcuts.contains { shortcut in
+            var wanted: CGEventFlags = []
+            if shortcut.modifiers & UInt32(cmdKey) != 0 { wanted.insert(.maskCommand) }
+            if shortcut.modifiers & UInt32(shiftKey) != 0 { wanted.insert(.maskShift) }
+            if shortcut.modifiers & UInt32(optionKey) != 0 { wanted.insert(.maskAlternate) }
+            if shortcut.modifiers & UInt32(controlKey) != 0 { wanted.insert(.maskControl) }
+            return key == Int64(shortcut.keyCode) && held == wanted
+        }
     }
     private func installHandler() -> Bool {
         guard handler == nil else { return true }
@@ -315,7 +338,9 @@ final class TextDelivery {
         AXUIElementSetMessagingTimeout(element, 0.3)
         return element
     }
-    private static func selectionRange(_ element: AXUIElement) -> CFRange? {
+    static func role(of element: AXUIElement) -> String? { attribute(element, kAXRoleAttribute) as? String }
+    static func subrole(of element: AXUIElement) -> String? { attribute(element, kAXSubroleAttribute) as? String }
+    static func selectionRange(_ element: AXUIElement) -> CFRange? {
         guard let value = attribute(element, kAXSelectedTextRangeAttribute), CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
         let axValue = value as! AXValue
         guard AXValueGetType(axValue) == .cfRange else { return nil }
@@ -437,7 +462,7 @@ final class TextDelivery {
         return verified ? "Inserted into \(name)." : "Pasted into \(name)."
     }
     /// The same app and field are focused, and no password field or secure input has appeared.
-    private static func stillFocused(pid: pid_t, field: AXUIElement?) -> Bool {
+    static func stillFocused(pid: pid_t, field: AXUIElement?) -> Bool {
         guard frontmost()?.processIdentifier == pid, !IsSecureEventInputEnabled() else { return false }
         let now = focusedElement(pid: pid)
         if (now.flatMap { attribute($0, kAXSubroleAttribute) as? String }) == kAXSecureTextFieldSubrole { return false }

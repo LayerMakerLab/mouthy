@@ -2,7 +2,6 @@ import Foundation
 
 // Talk: a realtime voice conversation with a provider's model. This file holds the pure parts (configuration,
 // usage, transcript, PCM and each provider's wire format); the session, socket and audio live in MouthyKit.
-// Decisions and the verified protocol facts: notes/ADR-talk-sessions.md.
 
 /// A realtime voice provider Talk can drive.
 public enum TalkProvider: String, Sendable, Codable, CaseIterable {

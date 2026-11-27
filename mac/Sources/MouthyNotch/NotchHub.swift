@@ -500,7 +500,13 @@ import SwiftUI
             guard abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) * 1.5 else { return event }
             self.swipeTravel += event.scrollingDeltaX
             if abs(self.swipeTravel) > 70 {
-                self.selectAdjacent(self.swipeTravel > 0 ? -1 : 1)
+                let step = self.swipeTravel > 0 ? -1 : 1
+                // The open tab turns its own pages first (AI usage's rings); at its ends the swipe moves tabs.
+                if let tab = self.selectedID.flatMap({ self.tabs[$0] }), tab.page(step) {
+                    if self.haptics { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) }
+                } else {
+                    self.selectAdjacent(step)
+                }
                 self.swipeTravel = 0
                 return nil
             }

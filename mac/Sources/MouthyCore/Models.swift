@@ -103,6 +103,12 @@ public struct Preferences: Codable {
     public var islandCorner = 2
     public var rewriteSelection = false
     public var smartFormatting = true
+    /// "Type as I speak": the words go into the focused text field while the person is still talking, and are
+    /// corrected in place as recognition settles. Off: they arrive together at the stop.
+    public var typeAsYouSpeak = false
+    /// "Show words instantly" (Parakeet, Apple silicon, English): a small streaming recognizer writes the newest words
+    /// as they are said; the main one still writes the text at every pause and at the stop. Needs its model downloaded.
+    public var instantWords = false
     public var mediaWhileDictating: MediaWhileDictating = .nothing
     public var playSounds = false
     public var modes: [DictationMode] = []
@@ -128,11 +134,22 @@ public struct Preferences: Codable {
     /// "Only listen to my voice": other voices (a TV, people nearby) are turned down like other non-voice sound.
     /// Off until the person trains their voiceprint; Parakeet and Whisper only.
     public var onlyMyVoice = false
+    /// The AI services the person pays for (`AIService` raw values), shown in the notch's AI usage tab. Nil until
+    /// they choose (setup or Settings); a name from a newer build is kept and ignored.
+    public var aiServices: [String]?
     public init() {}
+    /// The chosen services this build knows, in Mouthy's order.
+    public var aiPicks: [AIService] {
+        get { AIService.allCases.filter { (aiServices ?? []).contains($0.rawValue) } }
+        set {
+            let unknown = (aiServices ?? []).filter { AIService(rawValue: $0) == nil }
+            aiServices = AIService.allCases.filter(newValue.contains).map(\.rawValue) + unknown
+        }
+    }
     enum CodingKeys: String, CodingKey {
         case speechEngine, whisperModel, whisperLanguage, whisperTranslateToEnglish, locale, inputDeviceUID, holdToTalk, shortcut, customKeyCode, customModifiers, customShortcutLabel, autoInsert, keepHistory, historyLimit, mode,
              customInstructions, vocabulary, replacements, punctuationCommands, showOverlay, notchHub, islandCorner, rewriteSelection, 
-             smartFormatting, mediaWhileDictating, playSounds, modes, agentVoice, speakAgentQuestions, localOnly, automaticActivation, removeFillers, learnWords, onboarded, syncFolder, checkForUpdates, onlyMyVoice, microphoneHintSeen
+             smartFormatting, mediaWhileDictating, playSounds, modes, agentVoice, speakAgentQuestions, localOnly, automaticActivation, removeFillers, learnWords, onboarded, syncFolder, checkForUpdates, onlyMyVoice, microphoneHintSeen, aiServices, typeAsYouSpeak, instantWords
     }
     /// Missing keys keep the defaults above, written once. Two differ for a file that lacks them, since it comes from
     /// an older build: its shortcut was ⌃⌥Space and its owner already finished setup.
@@ -162,6 +179,8 @@ public struct Preferences: Codable {
         try read(.automaticActivation, &automaticActivation); try read(.removeFillers, &removeFillers); try read(.learnWords, &learnWords)
         try read(.onboarded, &onboarded); try read(.syncFolder, &syncFolder); try read(.checkForUpdates, &checkForUpdates)
         try read(.onlyMyVoice, &onlyMyVoice); try read(.microphoneHintSeen, &microphoneHintSeen)
+        try read(.typeAsYouSpeak, &typeAsYouSpeak); try read(.instantWords, &instantWords)
+        readOrKeep(.aiServices, &aiServices)
     }
 }
 

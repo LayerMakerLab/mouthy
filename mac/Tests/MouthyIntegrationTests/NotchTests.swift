@@ -218,11 +218,11 @@ func notchBandAndHoverTargetAgreeOnEveryNotch(screen: NSRect, safeTop: CGFloat, 
         let hex = MouthyTheme.hexValue(color) ?? 0
         let r = UInt8((hex >> 16) & 0xFF), g = UInt8((hex >> 8) & 0xFF), b = UInt8(hex & 0xFF)
         #expect(!isBlue(r: r, g: g, b: b))
-        #expect(r >= b, "notch roles are warm: red leads blue")
+        #expect(r >= b, "notch roles are never cool: red leads blue")
     }
-    #expect(MouthyTheme.hexValue(NotchPalette.shine) == 0xFFD27A)
-    #expect(MouthyTheme.hexValue(NotchPalette.silver) == 0xFFB547)
-    #expect(MouthyTheme.hexValue(NotchPalette.graphite) == 0xCBB08C)
+    #expect(MouthyTheme.hexValue(NotchPalette.shine) == 0xE4FAA4)
+    #expect(MouthyTheme.hexValue(NotchPalette.silver) == 0xCFF56A)
+    #expect(MouthyTheme.hexValue(NotchPalette.graphite) == 0xA6A6A0)
 }
 
 // MARK: Renders
@@ -346,6 +346,96 @@ private enum RenderError: Error { case unreadable(URL) }
     hub.show(tabID: tab.id)
     let window = try #require(NSApp.windows.first { $0.accessibilityLabel() == "Mouthy notch" })
     #expect(window.frame.height == NotchGeometry.openSize.height + NotchGeometry.shadowMargin)
+}
+
+/// The card under the band shows everything said so far: nothing before the first word or while finishing, a line
+/// at a time as the words come, and never past the room it is given however long the dictation runs.
+@MainActor @Test func transcriptCardGrowsWithTheWordsAndStopsAtItsRoom() {
+    #expect(TranscriptCard.words(nil) == nil)
+    #expect(TranscriptCard.words(NotchDictation(target: "Notes", level: 0.5)) == nil)
+    #expect(TranscriptCard.words(NotchDictation(target: "Notes", partialText: "  pick up oat milk \n")) == "pick up oat milk")
+    #expect(TranscriptCard.words(NotchDictation(target: "Notes", partialText: "pick up oat milk", transcribing: true)) == nil)
+    // Whole lines only: seven in the room under a 32 pt notch, at least two in any room.
+    let line = TranscriptCard.line, gap = TranscriptCard.lineSpacing
+    let room = MorphingNotch.transcriptRoom(panelHeight: NotchGeometry.openSize.height, bandHeight: 32)
+    // Under the tallest band (a 38 pt notch with a three-line question) the card still ends inside the window.
+    #expect(room == NotchGeometry.openSize.height + MorphingNotch.transcriptReach - 32 - TranscriptCard.gap)
+    #expect(96 + TranscriptCard.gap + MorphingNotch.transcriptRoom(panelHeight: NotchGeometry.openSize.height, bandHeight: 96)
+            < NotchGeometry.openSize.height + NotchGeometry.shadowMargin)
+    #expect(TranscriptCard.textRoom(in: room) == 7 * line - gap)
+    #expect(TranscriptCard.textRoom(in: 10) == 2 * line - gap)
+    let sentence = "Pick up oat milk and the good bread on the way home, and call the vet about Friday. "
+    func height(_ repeats: Int) -> CGFloat {
+        ImageRenderer(content: TranscriptCard(text: String(repeating: sentence, count: repeats), room: room)).nsImage?.size.height ?? 0
+    }
+    let one = height(1), three = height(3), thirty = height(30), sixty = height(60)
+    #expect(one > 0 && three > one && thirty > three)
+    #expect(thirty <= room && thirty > room - line && sixty == thirty)
+    // The line height the room is counted in is the one the text is drawn with, so no line is ever cut in half.
+    let inset = TranscriptCard.padding.top + TranscriptCard.padding.bottom
+    let drawn = ImageRenderer(content: TranscriptCard(text: "one\ntwo\nthree", room: room)).nsImage?.size.height ?? 0
+    #expect(drawn == 3 * line - gap + inset)
+    #expect(thirty == 7 * line - gap + inset)
+    // A narrower display gets a narrower card, never one cut off at the window's sides.
+    #expect(ImageRenderer(content: TranscriptCard(text: sentence, room: room, width: 380)).nsImage?.size.width == 380)
+
+    // A full card keeps the newest words: its last line is the dictation's last word, alone at the left, and the
+    // line above it runs across. Kept from the top instead, the last line on show would be a full one.
+    let filler = String(repeating: "mmmm ", count: 400)
+    let image = ImageRenderer(content: TranscriptCard(text: filler + "\nend", room: room)).cgImage
+    let bitmap = image.map { NSBitmapImageRep(cgImage: $0) }
+    func lit(line fromBottom: CGFloat, x: ClosedRange<CGFloat>) -> Int {
+        guard let bitmap else { return -1 }
+        let scale = CGFloat(bitmap.pixelsWide) / TranscriptCard.width
+        let bottom = CGFloat(bitmap.pixelsHigh) / scale - TranscriptCard.padding.bottom - fromBottom * line
+        var count = 0
+        for y in Int((bottom - line + gap) * scale)..<Int(bottom * scale) {
+            for px in Int(x.lowerBound * scale)..<Int(x.upperBound * scale) {
+                // The ink on the card's black, in either appearance (cream in the hub, cocoa in a light render).
+                if let c = bitmap.colorAt(x: px, y: y)?.usingColorSpace(.deviceRGB), c.redComponent > 0.1 { count += 1 }
+            }
+        }
+        return count
+    }
+    #expect(lit(line: 0, x: 18...80) > 0 && lit(line: 0, x: 250...480) == 0)
+    #expect(lit(line: 1, x: 250...480) > 0)
+}
+
+/// A long dictation is laid out from a later start, a step at a time and always at a word, so the card's work
+/// stays bounded and the lines on show re-wrap only when the start moves.
+@Test func transcriptTailKeepsTheNewestWordsAndMovesInSteps() {
+    let limit = TranscriptCard.tailLimit, step = TranscriptCard.tailStep
+    let short = String(repeating: "word ", count: limit / 5)   // exactly the limit: kept whole
+    #expect(TranscriptCard.tail(short) == short)
+    let long = String(repeating: "alpha beta gamma ", count: limit / 5) + "the very last words"   // over three limits
+    let tail = TranscriptCard.tail(long)
+    #expect(long.hasSuffix(tail) && tail.hasSuffix("the very last words"))
+    #expect(tail.utf16.count > limit - step - 20 && tail.utf16.count <= limit)
+    #expect(["alpha", "beta", "gamma"].contains { tail.hasPrefix($0 + " ") })
+    // Ten more words leave the start where it was: the new tail is the old one plus those words.
+    let longer = long + String(repeating: " more", count: 10)
+    #expect(TranscriptCard.tail(longer) == tail + String(repeating: " more", count: 10))
+    // Chinese and Japanese have no gaps between words: the start is the character at the step, never the whole
+    // text and never one far-off gap near the end.
+    let chinese = String(repeating: "今天天气很好我们去公园散步", count: limit / 4)   // over three limits, no spaces
+    let cut = TranscriptCard.tail(chinese)
+    #expect(chinese.hasSuffix(cut) && cut.utf16.count >= limit - step && cut.utf16.count <= limit)
+    let mixed = TranscriptCard.tail(chinese + "我用 iPhone 拍照")
+    #expect(mixed.hasSuffix("我用 iPhone 拍照") && mixed.utf16.count >= limit - step)
+    // A start inside an emoji moves to the emoji's own start, so no half character is ever drawn.
+    let faces = String(repeating: "👩‍👩‍👧‍👦", count: limit / 4)   // 11 units each
+    let family = TranscriptCard.tail(faces)
+    #expect(family.utf16.count % 11 == 0 && family.utf16.count >= limit - step && family.utf16.count <= limit + 11)
+    // The start moves a step at a time: none up to the limit, then always leaving between a step less than the
+    // limit and the limit.
+    #expect(TranscriptCard.tailStart(count: limit) == 0 && TranscriptCard.tailStart(count: limit + 1) == step)
+    #expect(TranscriptCard.tailStart(count: limit + step - 2) == step && TranscriptCard.tailStart(count: limit + step + 3) == 2 * step)
+    // A revised partial whose length swings across a step keeps its start, so the lines on show don't re-wrap.
+    let moved = TranscriptCard.tailStart(count: limit + step + 3, previous: step)
+    #expect(moved == 2 * step && TranscriptCard.tailStart(count: limit + step - 2, previous: moved) == moved)
+    // A start that no longer fits (a shorter text) is dropped.
+    #expect(TranscriptCard.tailStart(count: limit - 10, previous: step) == 0)
+    #expect(TranscriptCard.tailStart(count: limit + 5, previous: 5 * step) == step)
 }
 
 /// Always on: the dictation pill (plain and with an agent's question) and the result pill render at their

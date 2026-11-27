@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mouthy</title>
 <style>
-  :root { --bg:#131412; --surface:#1d1e1c; --line:rgba(255,255,255,.07); --ink:#f0ebdc; --muted:#9a968b; --accent:#e0ab66; }
+  :root { --bg:#171717; --surface:#272727; --line:rgba(255,255,255,.07); --ink:#f2f2ee; --muted:#a6a6a0; --accent:#c2f04e; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui, "Segoe UI", Ubuntu, sans-serif; display:flex; height:100vh; overflow:hidden; }
-  nav { width:200px; background:rgba(29,30,28,.6); border-right:1px solid var(--line); padding:34px 16px; display:flex; flex-direction:column; gap:4px; }
+  nav { width:200px; background:rgba(31,31,31,.6); border-right:1px solid var(--line); padding:34px 16px; display:flex; flex-direction:column; gap:4px; }
   .brand { font-size:24px; font-weight:600; letter-spacing:-1px; margin:0 10px 30px; }
   .brand span { color:var(--accent); }
   nav button { all:unset; cursor:pointer; padding:11px 12px; border-radius:10px; color:var(--muted); font-weight:500; }
@@ -30,7 +30,7 @@
   input[type=text], select, textarea { background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 9px; font:inherit; min-width:240px; }
   textarea { width:100%; min-height:70px; resize:vertical; }
   button.act { background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 12px; font:inherit; cursor:pointer; }
-  button.primary { background:var(--accent); color:#1a1408; border:0; font-weight:600; }
+  button.primary { background:var(--accent); color:#131b08; border:0; font-weight:600; }
   button.link { all:unset; color:var(--accent); cursor:pointer; font-size:12px; }
   button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; }
@@ -85,7 +85,7 @@
       <div id="replacements"></div><button class="act" id="addReplacement">Add replacement</button></div>
     <div class="card"><h3>Spoken commands</h3>
       <div class="row"><label for="fillers">Remove “um”, “uh” and “erm”</label><input type="checkbox" id="fillers"></div>
-      <div class="row"><label for="punctuation">“period”, “comma”, “question mark”, “new line”, “scratch that”…</label><input type="checkbox" id="punctuation"></div></div>
+      <div class="row"><label for="punctuation">“period”, “comma”, “new line”, “dash”, “dot com”, “slash”, “scratch that”…</label><input type="checkbox" id="punctuation"></div></div>
   </section>
 
   <section id="meetings">

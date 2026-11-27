@@ -19,6 +19,8 @@ final class AppModel: ObservableObject {
     }
     @Published var status = "Ready."
     @Published var liveText = ""
+    /// Whether `liveText` is a pass's text at a pause (`DictationSpeech.previewPause`).
+    private var liveTextPause: LiveTyping.Pause?
     @Published var output = ""
     @Published var document = TranscriptionDocument(text: "")
     @Published var fileResults: [FileResult] = []
@@ -51,6 +53,8 @@ final class AppModel: ObservableObject {
     /// Whether this process is trusted under Accessibility (`refreshPermissions` and the shortcuts ask it; a seam for tests).
     let accessibilityCheck: @MainActor () -> Bool
     @Published var speechAssetsReady = false
+    /// "Show words instantly": whether its model is on this Mac.
+    @Published var instantWordsInstalled = LiveWords.installed
     @Published var intelligenceReady = false
     @Published var selectedPage = "Dictate"
     @Published var targetName = "Mouthy workspace"
@@ -129,6 +133,16 @@ final class AppModel: ObservableObject {
     let meeting = MeetingRecorder()
     let media = MediaControl()
     let returnTap = ReturnKeyTap()
+    /// "Type as I speak": types this dictation's words into the focused field as they are heard. Nil when the
+    /// setting is off or this dictation's words go somewhere else (a rewrite, the clipboard, an agent's answer).
+    private(set) var liveTyper: LiveTyper? { didSet { if liveTyper == nil, typingLive { typingLive = false } } }
+    /// The live words are going into the focused field ("Type as I speak"), so the notch and the island do not show
+    /// them as well: the words are already in front of the person.
+    /// True from the start of such a dictation, false once no field takes the words or they were left behind: then
+    /// the card is how the person sees them.
+    @Published private(set) var typingLive = false
+    /// The live words for the notch card and the island: none while they go into the field.
+    var shownLiveText: String { typingLive ? "" : liveText }
     /// An Enter-key split is being sent.
     private var splitting = false
     /// Parts of this dictation already delivered by Enter splits, and the last of them.
@@ -217,12 +231,15 @@ final class AppModel: ObservableObject {
             preferences = try store.load("preferences.json", as: Preferences.self) ?? Preferences()
         } catch { status = "Settings could not be read: \(error.localizedDescription)" }
         stats = (try? store.load("stats.json", as: UsageStats.self)) ?? UsageStats()
+        if let kept = try? store.load("scores.json", as: [DictationScore].self) { scores = kept; keepsScores = true }
         do {
             history = try store.load("history.json", as: [MouthyCore.Transcript].self) ?? []
         } catch { status = "History could not be read: \(error.localizedDescription)" }
         speech.onPreview = { [weak self] text in
             guard let self else { return }
             self.liveText = text
+            self.liveTextPause = self.speech.previewPause
+            self.liveTyper?.hear(text, firm: self.speech.previewIsFirm, pause: self.liveTextPause)
         }
         speech.onLevel = { [weak self] value in self?.receiveLevel(value) }
         speech.onFailure = { [weak self] message in self?.fail(message) }
@@ -272,6 +289,14 @@ final class AppModel: ObservableObject {
         hotkey.onToggleHub = { NotchHub.shared.toggleFromKeyboard() }
         returnTap.onReturn = { [weak self] in self?.sendAndContinue() ?? false }
         returnTap.onEscape = { [weak self] in self?.cancel() }
+        returnTap.onActivity = { [weak self] key, flags in
+            guard let self, let typer = self.liveTyper else { return }
+            // Mouthy's own shortcuts and controls (Stop and Cancel in the notch, the island and the menu bar) are
+            // not the person typing or clicking in the field.
+            if let key { if self.hotkey.isOwnShortcut(key, flags: flags) { return } }
+            else if Self.pointerIsOverOwnWindow() { return }
+            typer.touched()
+        }
         hotkey.onModeShortcut = { [weak self] index in
             guard let self, !self.meetingCapture, index < self.preferences.modes.count else { return }
             if self.busy { self.stop() } else { self.begin(captureTarget: true, modeID: self.preferences.modes[index].id) }
@@ -292,9 +317,20 @@ final class AppModel: ObservableObject {
         autosave = $preferences.dropFirst()
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
             .sink { [weak self] _ in self?.persistPreferences() }
+        // The notch's AI usage tab shows the services the person picked; its own picker writes back here.
+        aiPicks = $preferences.map(\.aiServices).removeDuplicates().sink { raw in
+            UsageTab.shared.setPicks(raw.map { names in AIService.allCases.filter { names.contains($0.rawValue) } })
+        }
+        UsageTab.shared.onPick = { [weak self] service, on in
+            guard let self else { return }
+            var picks = self.preferences.aiPicks
+            if on { if !picks.contains(service) { picks.append(service) } } else { picks.removeAll { $0 == service } }
+            self.preferences.aiPicks = picks
+        }
         Task { await refreshCapabilities() }
     }
     private var autosave: AnyCancellable?
+    private var aiPicks: AnyCancellable?
     /// The settings as last written, to skip writes when nothing changed.
     private var persistedPreferences: Data?
     private static func encoded(_ preferences: Preferences) -> Data? {
@@ -392,7 +428,7 @@ final class AppModel: ObservableObject {
         guard !busy, !setupBusy else { return }
         prewarmTask?.cancel()
         let engine = preferences.speechEngine, model = preferences.whisperModel, vocabulary = preferences.vocabulary
-        let localOnly = preferences.localOnly
+        let localOnly = preferences.localOnly, instantWords = preferences.instantWords
         prewarmTask = Task(priority: .utility) {
             guard !Task.isCancelled else { return }
             await SpeechModels.keepOnly(engine, whisperModel: model, vocabulary: vocabulary)
@@ -400,9 +436,12 @@ final class AppModel: ObservableObject {
             let ready = engine == .parakeet ? ParakeetRecognizer.installed : engine == .whisper ? WhisperRecognizer.installed(model) : false
             // Silero (about 1 MB) for installs made before it shipped, or Whisper-only ones; never during dictation.
             if ready && !localOnly { await VoiceActivity.download() }
+            // "Show words instantly": its recognizer stays warm with Parakeet, and goes when it is switched off.
+            if instantWords && engine == .parakeet { await LiveWords.shared.prepare() } else { await LiveWords.shared.releaseIfIdle() }
         }
     }
     func refreshCapabilities() async {
+        instantWordsInstalled = LiveWords.installed
         launchAtLogin = SMAppService.mainApp.status == .enabled
         inputDevices = AudioDevices.inputs()
         refreshPermissions()
@@ -508,6 +547,35 @@ final class AppModel: ObservableObject {
             } catch { status = error.localizedDescription }
         }
     }
+    /// "Show words instantly": downloads the streaming recognizer's model (an explicit action) and switches it on.
+    func installInstantWords() {
+        guard !setupBusy, !busy else { return }
+        guard !preferences.localOnly else { status = "Network use is blocked. Allow it in Settings to download models."; return }
+        setupBusy = true
+        status = "Downloading the model for instant words (\(LiveWords.megabytes) MB)…"
+        operation = Task {
+            defer { setupBusy = false }
+            do {
+                try await LiveWords.shared.download()
+                instantWordsInstalled = LiveWords.installed
+                preferences.instantWords = instantWordsInstalled
+                status = "Words now show as you say them."
+            } catch { status = error.localizedDescription }
+        }
+    }
+    func removeInstantWords() {
+        guard !setupBusy, !busy else { return }
+        preferences.instantWords = false
+        setupBusy = true
+        operation = Task {
+            defer { setupBusy = false }
+            do {
+                try await LiveWords.shared.removeDownload()
+                status = "The model for instant words moved to Trash."
+            } catch { status = error.localizedDescription }
+            instantWordsInstalled = LiveWords.installed
+        }
+    }
     func removeModel(_ id: SpeechModelID) {
         guard !setupBusy, !busy else { return }
         let locale = speechLocale(preferences.locale)
@@ -543,6 +611,7 @@ final class AppModel: ObservableObject {
         voiceRouter.cancelAnswer()
         startedInNotch = fromNotch
         isFailing = false
+        liveTyper?.abandon(); liveTyper = nil
         generation = UUID(); let token = generation
         config = preferences
         // "Only listen to my voice" (Parakeet and Whisper): the saved voiceprint, read fresh so "Forget my voice" holds.
@@ -574,6 +643,7 @@ final class AppModel: ObservableObject {
             media.engage(quietMode)
         } }
         armWatchdog(seconds: 120, message: "Preparation took too long. Check the language assets and microphone.")
+        speech.instantWords = config.instantWords
         operation = Task {
             do {
                 try await speech.start(locale: speechLocale(config.locale), vocabulary: config.vocabulary, inputDeviceUID: config.inputDeviceUID, provider: config.speechEngine, whisperModel: config.whisperModel, whisperLanguage: config.whisperLanguage, translate: config.whisperTranslateToEnglish) { self.status = $0 }
@@ -583,8 +653,24 @@ final class AppModel: ObservableObject {
                 phase = .listening; status = "Listening…"; started = Date(); segmentStart = started
                 silence.start(at: started.timeIntervalSinceReferenceDate)
                 let insertsText = (activeOutput == .insert || activeOutput == .insertAndReturn) && config.autoInsert && !(config.rewriteSelection && selectedForRewrite)
-                if target != nil, agentReply == nil, insertsText, interactive, !returnTap.start() {
+                let typesInto = target != nil && agentReply == nil && insertsText
+                // Typing live would replace a selection at the first word; the paste at the stop replaces it then.
+                let typesLive = typesInto && config.typeAsYouSpeak && !selectedForRewrite
+                if typesInto, interactive, !returnTap.start(watchingMouse: typesLive) {
                     status = "Listening… (Enter-to-send is unavailable: allow Mouthy under Privacy & Security → Input Monitoring.)"
+                }
+                // Typing live needs the key tap, which tells it when the person types or clicks in the field.
+                if typesLive, returnTap.isActive || !interactive {
+                    let config = config, code = codeDictation
+                    liveTyper = LiveTyper(shape: { DictationText.shape($0, code: code, config: config, live: true) },
+                                          smartFormatting: config.smartFormatting, names: VocabularyLearner.terms(config.vocabulary),
+                                          settlesAtPauses: speech.previewMarksPauses)
+                    typingLive = true
+                    liveTyper?.onTyping = { [weak self, weak typer = liveTyper] typing in
+                        guard let self, let typer, self.liveTyper === typer, self.typingLive != typing else { return }
+                        self.typingLive = typing
+                    }
+                    if !liveText.isEmpty { liveTyper?.hear(liveText, firm: speech.previewIsFirm, pause: liveTextPause) }
                 }
                 startupSeconds = started.timeIntervalSince(requested)
                 currentInputName = speech.inputDeviceName
@@ -629,6 +715,8 @@ final class AppModel: ObservableObject {
     private func splitNow(endWithReturn: Bool) -> Bool {
         guard phase == .listening, target != nil, !splitting else { return false }
         splitting = true
+        // Guesses from here on belong to the next part.
+        liveTyper?.pause()
         let token = generation
         splitTask = Task {
             defer { splitting = false; splitTask = nil }
@@ -636,14 +724,16 @@ final class AppModel: ObservableObject {
                 let raw = try await speech.split()
                 guard generation == token else { return }
                 await sendSegments(raw, endWithReturn: endWithReturn, token: token)
-                let delivered = ["Sent", "Inserted", "Pasted"].contains { status.hasPrefix($0) }
-                if delivered, phase == .listening { status = "Listening…" }
+                if Self.delivered(status), phase == .listening { status = "Listening…" }
             } catch {
                 guard generation == token else { return }
                 status = "That part could not be sent: " + error.localizedDescription
                 splitFailure = status
-                // The Enter was taken by the tap; nothing went in, so still let it reach the app once.
-                if endWithReturn { pressReturn() }
+                // The Enter was taken by the tap; nothing went in, so still let it reach the app once. Not when
+                // "Type as I speak" already put this part's unfinished words in the field: Return would send them.
+                let typedLive = liveTyper?.typedAnything ?? false
+                restartTyping()
+                if endWithReturn, !typedLive { pressReturn() }
             }
         }
         return true
@@ -659,7 +749,10 @@ final class AppModel: ObservableObject {
             // deliver the Return the person pressed.
             guard generation == token, !Task.isCancelled else { return }
             guard part.text.contains(where: { $0.isLetter || $0.isNumber }) else {
-                if part.submit { pressReturn() }
+                // Words a guess typed that the finished part does not hold go before the Return.
+                let wordsRemain = await liveTyper?.takeBack() ?? false
+                restartTyping()
+                if part.submit, !wordsRemain { pressReturn() }
                 continue
             }
             var text = shape(part.text, code: codeDictation)
@@ -670,8 +763,9 @@ final class AppModel: ObservableObject {
             guard generation == token, !Task.isCancelled else { return }
             let spokenUntil = Date()
             TextDelivery.customWords = VocabularyLearner.terms(config.vocabulary)
-            status = await deliverText(text, nil, config.smartFormatting, false, part.submit)
-            if status.hasPrefix("Sent") || status.hasPrefix("Inserted") || status.hasPrefix("Pasted") {
+            status = await deliver(text, to: nil, replacingSelection: false, submit: part.submit)
+            restartTyping()
+            if Self.delivered(status) {
                 recordUsage(text, until: spokenUntil)
                 sentSegments += 1; lastSentText = text; splitFailure = nil
                 RecentResults.shared.add(text)
@@ -684,13 +778,76 @@ final class AppModel: ObservableObject {
             }
         }
     }
+    /// Whether the pointer is over one of Mouthy's windows that takes clicks (the closed notch hub lets them through).
+    static func pointerIsOverOwnWindow() -> Bool {
+        let number = NSWindow.windowNumber(at: NSEvent.mouseLocation, belowWindowWithWindowNumber: 0)
+        guard let window = NSApp?.window(withWindowNumber: number) else { return false }
+        return !window.ignoresMouseEvents
+    }
+    /// Stops the key tap once nothing needs it: not while listening, and not while "Type as I speak" is still
+    /// bringing the field to the finished text (it has to hear the person's keys and clicks until then).
+    private func releaseTap() { if liveTyper == nil, phase != .listening { returnTap.stop() } }
+    /// Whether a delivery status says the words reached the app.
+    static func delivered(_ status: String) -> Bool { ["Sent", "Inserted", "Pasted", "Typed"].contains { status.hasPrefix($0) } }
+    /// Delivers a finished text. With "Type as I speak" most of it is in the field already: the field is brought to
+    /// the finished text and only what could not be typed (text after a line break, or everything when no text
+    /// field took the words) is pasted.
+    private func deliver(_ text: String, to target: InsertionTarget?, replacingSelection: Bool, submit: Bool) async -> String {
+        typingCounts = nil
+        guard let typer = liveTyper, !replacingSelection else {
+            return await deliverText(text, target, config.smartFormatting, replacingSelection, submit)
+        }
+        let name = { typer.appName }
+        let outcome = await typer.finish(text)
+        if typer.typedAnything { typingCounts = typer.counts }
+        switch outcome {
+        case .typed(let rest, let verified):
+            // All of the words are in the one field (text after a first line break goes in by paste).
+            if !rest.isEmpty {
+                // Only into the field that holds the first line.
+                guard await typer.stillThere() else { return "Typed into \(name()) up to the first line break. Focus changed, so the rest was not inserted." }
+                let pasted = await deliverText(rest, nil, false, false, submit)
+                return Self.delivered(pasted) ? pasted : "Typed into \(name()) up to the first line break. " + pasted
+            }
+            guard submit else { return (verified ? "Inserted into " : "Typed into ") + name() + "." }
+            // A moment for the app to take the last key presses before Return.
+            try? await Task.sleep(for: .milliseconds(verified ? 50 : 150))
+            guard await typer.stillThere() else { return "Typed into \(name()). Not sent, because focus changed." }
+            pressReturn()
+            return "Sent in \(name())."
+        case .untyped(let remainder):
+            guard typer.typedAnything else { return await deliverText(remainder, target, config.smartFormatting, false, submit) }
+            // Some of the words are in a field already, left where they were typed. The rest goes in at the cursor,
+            // and Return never follows: it would send a text that is not all in one place.
+            let unsent = submit ? " Not sent, because part of the text was left where it was typed." : ""
+            guard !remainder.isEmpty else { return "Typed into \(name())." + unsent }
+            let pasted = await deliverText(remainder, target, config.smartFormatting, false, false)
+            return Self.delivered(pasted) ? pasted + unsent : pasted
+        }
+    }
+    /// The Enter-split part is done: the typer starts over at the cursor, with the guess for the next part that came
+    /// while it was busy (nothing sends that one again).
+    private func restartTyping() {
+        guard let typer = liveTyper else { return }
+        typer.restart()
+        // With the pause it came with: a phrase heard at a pause during the split is typed now, not at the next one.
+        if phase == .listening, !liveText.isEmpty { typer.hear(liveText, pause: liveTextPause) }
+    }
+    /// Takes back words "Type as I speak" typed for a result that is not inserted (a command, an empty result).
+    private func takeBackTyped() async {
+        guard let typer = liveTyper else { return }
+        await typer.takeBack()
+        liveTyper = nil
+        releaseTap()
+    }
     /// Where the recording ends: the moment the stop shortcut began (its key clicks, and music resuming, come after).
     private var stopCut: TimeInterval?
 
     func stop() {
         let cut = stopCut ?? ProcessInfo.processInfo.systemUptime
         stopCut = nil
-        returnTap.stop()
+        // "Type as I speak" still corrects the field after the stop: the tap keeps telling it of keys and clicks.
+        if liveTyper == nil { returnTap.stop() }
         if meetingCapture { cancelMeeting(); return }
         if phase == .preparing { stopRequested = true; return }
         guard phase == .listening else { return }
@@ -741,6 +898,7 @@ final class AppModel: ObservableObject {
         }
         guard raw.contains(where: { $0.isLetter || $0.isNumber }) else {
             guard dictation else { status = "No speech found in \(sourceName)."; return }
+            await takeBackTyped()
             // Everything was already sent with Enter: report that, never re-offer the stale preview. A failed last
             // split keeps its own message and clipboard text. Status comes before hide(), which reads it.
             if let splitFailure { status = splitFailure }
@@ -758,6 +916,7 @@ final class AppModel: ObservableObject {
             // (quietly: this status shows no outcome) so the notch is free for its peek. Words said to Mouthy by
             // name from any app are kept for Paste last, in case they were meant as text.
             status = "Handled in the notch."
+            await takeBackTyped()
             if !startedInNotch { output = shape(raw, code: false) }
             watchdog?.cancel(); phase = .idle; overlay?.hide(); level = 0
             status = await voiceRouter.run(command)
@@ -818,14 +977,17 @@ final class AppModel: ObservableObject {
             if let historyNote { status += " " + historyNote }
             return
         }
-        if activeOutput == .clipboard { TextDelivery.copy(text); status = "Copied to the clipboard." }
-        else if activeOutput == .historyOnly { status = historyNote ?? "Saved to history."; historyNote = nil }
+        // A mode chosen by a trigger word may send the result elsewhere: words typed live then come back out.
+        if activeOutput == .clipboard { await takeBackTyped(); TextDelivery.copy(text); status = "Copied to the clipboard." }
+        else if activeOutput == .historyOnly { await takeBackTyped(); status = historyNote ?? "Saved to history."; historyNote = nil }
         else if shouldInsert && target != nil {
             phase = .delivering
             TextDelivery.customWords = VocabularyLearner.terms(config.vocabulary)
-            status = await deliverText(text, target, config.smartFormatting, rewroteSelection, activeOutput == .insertAndReturn)
+            status = await deliver(text, to: target, replacingSelection: rewroteSelection, submit: activeOutput == .insertAndReturn)
+            liveTyper = nil; returnTap.stop()
+            // (The score first: the corrections watched from here on are noted in it.)
+            if Self.delivered(status) { recordUsage(text, until: stopTime ?? Date()) }
             if status.hasPrefix("Inserted") { learnFromCorrections() }
-            if status.hasPrefix("Inserted") || status.hasPrefix("Pasted") || status.hasPrefix("Sent") { recordUsage(text, until: stopTime ?? Date()) }
         }
         else { status = "Ready. Review, copy, or export your words." }
         if let enhancementNote { status += " " + enhancementNote }
@@ -867,8 +1029,10 @@ final class AppModel: ObservableObject {
             status = "Agent question: " + (agentQuestion ?? "") + " — speak, then use your shortcut to send."
         }
     }
-    /// Reads text aloud with the system voice (on-device) and waits until it finishes.
+    /// Reads text aloud and waits until it finishes: Mouthy's own voice (on-device), or the system voice when that
+    /// isn't installed or fails.
     private static func say(_ text: String) async {
+        do { try await MouthyVoicePlayer.shared.speak(String(text.prefix(2_000))); return } catch {}
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/say")
@@ -898,6 +1062,7 @@ final class AppModel: ObservableObject {
         guard config.learnWords, let insertion = TextDelivery.lastInsertion else { return }
         TextDelivery.lastInsertion = nil
         let count = insertion.text.split(whereSeparator: { $0.isWhitespace }).count
+        let scored = lastScore
         /// The inserted range as it reads now (nil once the field no longer holds it: sent or cleared).
         func region() -> String? {
             guard let value = TextDelivery.value(of: insertion.element) else { return nil }
@@ -908,11 +1073,14 @@ final class AppModel: ObservableObject {
         }
         var latest = insertion.text
         var done = false
+        /// The dictation's score gets the number of words that read differently now.
+        let note = { [weak self] in self?.score(scored, corrected: DictationScore.changedWords(inserted: insertion.text, within: latest)) }
         let finish = { [weak self] in
             guard !done else { return }
             done = true
             self?.correctionWatch?.watcher?.stop(); self?.correctionWatch = nil
             self?.learn(inserted: insertion.text, region: latest, wordCount: count)
+            note()
         }
         var pid: pid_t = 0
         AXUIElementGetPid(insertion.element, &pid)
@@ -929,7 +1097,7 @@ final class AppModel: ObservableObject {
                     try? await Task.sleep(for: .seconds(delay))
                     guard !done else { return }
                     if let now = region() { latest = now }
-                    if self?.learn(inserted: insertion.text, region: latest, wordCount: count, finalRead: false) == true { done = true; self?.correctionWatch = nil; return }
+                    if self?.learn(inserted: insertion.text, region: latest, wordCount: count, finalRead: false) == true { done = true; self?.correctionWatch = nil; note(); return }
                 }
                 finish()
             } else {
@@ -1076,13 +1244,39 @@ final class AppModel: ObservableObject {
         // Already has notes: open them; otherwise make them.
         if MeetingNotes.load(url) != nil { openTranscript = url } else { makeMeetingNotes(folder: url) }
     }
-    /// Counts delivered words and the speaking time behind them (no text is stored).
+    /// Counts delivered words and the speaking time behind them, and keeps the dictation's score (no text is stored).
     private func recordUsage(_ text: String, until end: Date = Date()) {
-        stats.record(text: text, seconds: end.timeIntervalSince(segmentStart))
+        let seconds = max(0, end.timeIntervalSince(segmentStart))
+        stats.record(text: text, seconds: seconds)
         segmentStart = Date()
         try? store.save(stats, as: "stats.json")
+        guard keepsScores else { typingCounts = nil; return }
+        let score = DictationScore(seconds: seconds, words: text.split(whereSeparator: \.isWhitespace).count, typed: typingCounts?.typed,
+                                   tookBack: typingCounts?.back, tookBackAtStop: typingCounts?.backAtStop,
+                                   delivery: String(status.prefix { $0.isLetter }))
+        typingCounts = nil
+        scores = Array((scores + [score]).suffix(DictationScore.limit))
+        lastScore = score.id
+        try? store.save(scores, as: "scores.json")
     }
-    func resetStats() { stats = UsageStats(); try? store.save(stats, as: "stats.json") }
+    func resetStats() {
+        stats = UsageStats(); try? store.save(stats, as: "stats.json")
+        scores = []; lastScore = nil
+        if keepsScores { try? store.save(scores, as: "scores.json") }
+    }
+    /// Each dictation in numbers (`DictationScore`), the newest last.
+    private(set) var scores: [DictationScore] = []
+    /// A testing tool, off unless `scores.json` is already in the application folder at launch: Mouthy never creates it.
+    private var keepsScores = false
+    private var lastScore: UUID?
+    /// What "Type as I speak" typed and took back for the text being delivered.
+    private var typingCounts: (typed: Int, back: Int, backAtStop: Int)?
+    /// Notes in a dictation's score how many of its words the person changed afterwards.
+    private func score(_ id: UUID?, corrected: Int) {
+        guard let id, let index = scores.lastIndex(where: { $0.id == id }) else { return }
+        scores[index].corrected = corrected
+        try? store.save(scores, as: "scores.json")
+    }
     func enhance(_ text: String, mode: WritingMode) async throws -> String {
         try await enhancer(text, mode, config.customInstructions, contextSummary())
     }
@@ -1108,9 +1302,13 @@ final class AppModel: ObservableObject {
         if !busy, !setupBusy, voiceRouter.cancelAnswer() { status = "Cancelled. Nothing was inserted."; return }
         guard phase != .delivering, phase != .cancelling, busy || setupBusy else { return }
         level = 0
-        media.release(); returnTap.stop()
+        media.release()
         finishAgent("(The user cancelled the spoken answer.)")
-        let cancelledOperation = operation, cancelledSplit = splitTask
+        // "Type as I speak" stops typing at once; the tap stays until its words are taken back, so a key or click
+        // meanwhile still counts.
+        let cancelledOperation = operation, cancelledSplit = splitTask, typer = liveTyper
+        typer?.pause()
+        if typer == nil { returnTap.stop() }
         generation = UUID(); let cancellation = generation
         splitTask?.cancel(); operation?.cancel(); batchToken = nil; watchdog?.cancel(); timer?.invalidate(); timer = nil
         for index in fileResults.indices where fileResults[index].document == nil && ["Queued", "Transcribing"].contains(fileResults[index].state) { fileResults[index].state = "Cancelled" }
@@ -1118,8 +1316,13 @@ final class AppModel: ObservableObject {
         phase = .cancelling; status = "Cancelling…"
         Task {
             await cancelledOperation?.value; await cancelledSplit?.value; await speech.cancel()
+            // "Type as I speak" takes its words back; ones the person had already moved on from stay.
+            let wordsRemain = await typer?.takeBack() ?? false
+            if let typer, liveTyper === typer { liveTyper = nil }
+            returnTap.stop()
             guard generation == cancellation else { return }
-            phase = .idle; status = "Cancelled. Nothing was inserted."; overlay?.hide(); level = 0
+            phase = .idle; status = wordsRemain ? "Cancelled. The words already typed were left in place." : "Cancelled. Nothing was inserted."
+            overlay?.hide(); level = 0
         }
     }
     /// Why the microphone ended the current recording early, shown after its words are delivered.
@@ -1140,6 +1343,8 @@ final class AppModel: ObservableObject {
         media.release(); returnTap.stop()
         finishAgent("(Mouthy could not record an answer: \(message))")
         isFailing = true
+        // Words typed live stay: they are still what was said.
+        liveTyper?.abandon(); liveTyper = nil
         if output.isEmpty && !liveText.isEmpty { output = liveText }
         let failedOperation = operation, failedSplit = splitTask
         generation = UUID(); let failure = generation

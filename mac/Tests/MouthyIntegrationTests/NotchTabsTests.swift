@@ -161,7 +161,7 @@ import MouthyCore
     let blue = CGColor(srgbRed: 0.1, green: 0.4, blue: 0.95, alpha: 1)
     let warm = NSColor(CalendarTab.warm(blue)).usingColorSpace(.sRGB)!
     #expect(abs(warm.hueComponent - glowHue) < 0.01)
-    #expect(MouthyTheme.hexValue(CalendarTab.warm(nil)) == 0xE08A2E)
+    #expect(MouthyTheme.hexValue(CalendarTab.warm(nil)) == 0xC2F04E)
 }
 
 @MainActor @Test func timerShowsTheSelectedLengthBeforeStarting() {
@@ -285,6 +285,58 @@ final class RequestCounter: URLProtocol, @unchecked Sendable {
         try render("tab-\(tab.id)")
         MouthyTabs.networkAllowed = { false }
     }
+    // Timers at rest, and with a plain timer chosen (the minutes beside Start); the loop above drew one running.
+    hub.selectedID = TimersTab.shared.id
+    TimersTab.shared.stop()
+    try render("tab-mouthy.timers-idle")
+    TimersTab.shared.selected = .countdown
+    try render("tab-mouthy.timers-countdown")
+    // The longest plain timer: its minutes must read whole beside Start.
+    let minutes = TimersTab.shared.countdownMinutes
+    TimersTab.shared.countdownMinutes = 180
+    try render("tab-mouthy.timers-countdown-180")
+    TimersTab.shared.countdownMinutes = minutes
+    TimersTab.shared.selected = .focus
+    TimersTab.shared.start(.focus)
+    // The tightest fits a tab has: a week with rain (one more row), four services (page dots under the rings), counts
+    // in the hundreds of thousands, and an agent's question over live words.
+    hub.selectedID = WeatherTab.shared.id
+    MouthyTabs.networkAllowed = { true }
+    WeatherTab.shared.showForPreview(place: .init(name: "Saint-Germain-en-Laye, France", latitude: 48.9, longitude: 2.1, fahrenheit: false),
+                                     now: WeatherTab.sampleNow,
+                                     days: WeatherTab.sampleDays.enumerated().map { index, day in
+                                         WeatherTab.Day(date: day.date, high: day.high, low: day.low, code: 61, rain: index % 2 == 0 ? 80 : 10)
+                                     })
+    try render("tab-mouthy.weather-rain")
+    MouthyTabs.networkAllowed = { false }
+    hub.selectedID = UsageTab.shared.id
+    UsageTab.shared.showForPreview(picks: [.claude, .chatgpt, .gemini, .cursor],
+                                   claude: ServiceLimits(week: UsageLimit(percent: 41, resets: Date().addingTimeInterval(86_400)), fiveHour: UsageLimit(percent: 86, resets: Date().addingTimeInterval(3_600))),
+                                   awake: [.claude])
+    try render("tab-mouthy.usage-four")
+    UsageTab.shared.showForPreview(picks: [])
+    hub.selectedID = VoiceTab.shared.id
+    let stats = model.stats
+    model.stats.words = 148_237; model.stats.sessions = 4_812; model.stats.speakingSeconds = 148_237.0 / 150 * 60
+    try render("tab-mouthy.voice-big-counts")
+    model.status = "Ready to copy. Enable Accessibility for automatic insertion."
+    try render("tab-mouthy.voice-big-counts-attention")
+    model.status = "Ready."
+    model.stats = stats
+    model.phase = .listening; model.targetName = "Terminal"; model.elapsed = 12
+    model.agentQuestion = "Should I rebase the release branch onto main first, or keep it on its own until the build is out?"
+    model.liveText = "keep it on its own for now and we will rebase it after the build has gone out to everyone"
+    try render("tab-mouthy.voice-question")
+    model.phase = .idle; model.agentQuestion = nil; model.liveText = ""
+    // The usage rings with limits: one near its limit and awake, one asleep, one that shows no limits.
+    hub.selectedID = UsageTab.shared.id
+    let soon = Date().addingTimeInterval(3 * 3600)
+    UsageTab.shared.showForPreview(picks: [.claude, .chatgpt, .gemini],
+                                   claude: ServiceLimits(week: UsageLimit(percent: 41, resets: soon.addingTimeInterval(86_400 * 3)), fiveHour: UsageLimit(percent: 86, resets: soon)),
+                                   codex: ServiceLimits(week: UsageLimit(percent: 23, resets: soon.addingTimeInterval(86_400 * 2)), fiveHour: UsageLimit(percent: 12, resets: soon)),
+                                   awake: [.claude])
+    try render("tab-mouthy.usage-rings")
+    UsageTab.shared.showForPreview(picks: [])
     hub.selectedID = WeatherTab.shared.id
     try render("tab-mouthy.weather-local-only")
     MouthyTabs.networkAllowed = { true }

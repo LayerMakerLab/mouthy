@@ -98,7 +98,7 @@ import MouthyNotch
     let code = try #require(examples.first { $0.name == "Code" })
     #expect(code.apps == ["com.apple.Terminal", "com.apple.dt.Xcode"] && code.codeDictation)
     let chat = try #require(examples.first { $0.name == "Chat" })
-    #expect(chat.websites == ["chatgpt.com", "claude.ai"] && chat.output == .insertAndReturn)
+    #expect(chat.websites == ["chatgpt.com", "claude.ai"] && chat.output == .insert)
     #expect(Set(examples.map(\.id)).count == 3)
     #expect(ModeExamples.missing(from: examples).isEmpty)
     #expect(ModeExamples.missing(from: [DictationMode(name: "email")]).map(\.name) == ["Code", "Chat"])

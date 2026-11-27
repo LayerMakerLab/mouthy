@@ -27,6 +27,14 @@ fn spoken_punctuation_matches_fixtures() {
     }
 }
 #[test]
+fn spoken_joiners_match_fixtures() {
+    let cases = fixtures()["spokenJoiners"].as_array().unwrap().clone();
+    assert!(!cases.is_empty());
+    for case in cases {
+        assert_eq!(spoken_joiners(s(&case, "text"), case["vocabulary"].as_str().unwrap_or("")), s(&case, "expected"), "{case}");
+    }
+}
+#[test]
 fn process_matches_fixtures() {
     for case in fixtures()["process"].as_array().unwrap() {
         let rules: Vec<Replacement> = serde_json::from_value(case["replacements"].clone()).unwrap();

@@ -36,6 +36,9 @@ public struct NotchBadge: Equatable, Sendable {
     func compactLeading() -> AnyView?
     /// A few words for the middle of the pill on displays without a notch (song title, "Focus").
     var compactCaption: String? { get }
+    /// A sideways two-finger swipe while this tab is open: turn the tab's own pages (-1 back, 1 forward) and return
+    /// true, or return false (the default, or at either end) so the hub moves to the neighbouring tab.
+    func page(_ step: Int) -> Bool
 }
 
 public extension NotchTab {
@@ -46,6 +49,7 @@ public extension NotchTab {
     var ambientColor: Color? { nil }
     func compactLeading() -> AnyView? { nil }
     var compactCaption: String? { nil }
+    func page(_ step: Int) -> Bool { false }
 }
 
 public extension EnvironmentValues {

@@ -19,8 +19,11 @@ final class Harness {
     let pasteboard = NSPasteboard(name: .init("dev.mouthy.Mouthy.delivery-test"))
     /// Pasteboard types present at the moment each paste keystroke would be sent.
     var typesAtPaste: [[NSPasteboard.PasteboardType]] = []
+    /// The live typer's pause rule, shortened while a harness runs so a test's last guess is typed without a wait.
+    @MainActor private static var pause: Duration?
 
     init() async throws {
+        await MainActor.run { Self.pause = Self.pause ?? LiveTyper.settleAfter; LiveTyper.settleAfter = .milliseconds(300) }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("mouthy-delivery-target")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let binary = directory.appendingPathComponent("target")
@@ -64,6 +67,7 @@ final class Harness {
     /// Never hands delivery back to the real frontmost app or clipboard: a test still dictating in another suite would
     /// paste into whatever app is open (it once pasted into a chat app). After a harness, nothing is focused.
     func stop() {
+        MainActor.assumeIsolated { if let pause = Self.pause { LiveTyper.settleAfter = pause; Self.pause = nil } }
         process.terminate()
         TextDelivery.frontmost = { nil }
         TextDelivery.pasteboard = NSPasteboard(name: .init("dev.mouthy.Mouthy.delivery-test.idle"))

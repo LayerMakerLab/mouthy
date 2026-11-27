@@ -2626,7 +2626,7 @@ dependencies = [
 
 [[package]]
 name = "mouthy-app"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "arboard",
@@ -2661,7 +2661,7 @@ dependencies = [
 
 [[package]]
 name = "mouthy-core"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "regex",
  "serde",

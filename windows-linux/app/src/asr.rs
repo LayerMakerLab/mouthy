@@ -65,9 +65,11 @@ fn files(engine: SpeechEngine, whisper: &str) -> Result<Files> {
 }
 
 /// Downloads and unpacks a model archive. `progress` receives 0…1.
-/// SHA-256 of each release archive, pinned 2026-10-04 so a replaced upstream asset is refused.
+/// SHA-256 of each release archive, pinned 2026-10-04 so a replaced upstream asset is refused. Upstream re-exported
+/// Parakeet on 2026-11-07 (new encoder, decoder and joiner, same tokens), which made every new install refuse its
+/// model; its pin is the new archive since 2026-11-23.
 pub const ARCHIVE_SHA256: &[(&str, &str)] = &[
-    ("sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8", "5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf"),
+    ("sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8", "1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9"),
     ("sherpa-onnx-whisper-tiny.en", "2bd6cf965c8bb3e068ef9fa2191387ee63a9dfa2a4e37582a8109641c20005dd"),
     ("sherpa-onnx-whisper-base.en", "475bc7052ce299c007f6d5d5407ba8601f819a2867f6eecee510ed17df581542"),
     ("sherpa-onnx-whisper-small", "486a46afbb7ba798507190ffe02fea2dd726049af212e774537efac6afb210a6"),

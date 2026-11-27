@@ -246,7 +246,8 @@ struct PermissionMark: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: size, weight: .semibold))
                     .symbolRenderingMode(.palette)
-                    .foregroundStyle(MouthyTheme.surface, MouthyTheme.orange)
+                    // The check in the accent's own ink on a fill that reads on paper too (white on lime did not).
+                    .foregroundStyle(MouthyTheme.night, MouthyTheme.glow)
                     .transition(.drawOnCheck(reduceMotion: reduceMotion))
             } else {
                 Circle().fill(MouthyTheme.glow)
@@ -384,7 +385,7 @@ enum VocabularyEditing {
 
 /// What the menu bar panel and onboarding say and show for the dictation state.
 enum MenuPanelState {
-    static let successPrefixes = ["Inserted", "Pasted", "Sent", "Copied", "Saved to history"]
+    static let successPrefixes = ["Inserted", "Typed", "Pasted", "Sent", "Copied", "Saved to history"]
 
     static func isSuccess(_ status: String) -> Bool { successPrefixes.contains(where: status.hasPrefix) }
 

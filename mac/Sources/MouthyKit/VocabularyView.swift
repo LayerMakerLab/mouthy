@@ -24,7 +24,7 @@ struct VocabularyView: View {
             teachTile
             replacementsTile
             Tile(padding: 0) {
-                SettingRow("Spoken commands", detail: "Punctuation, “new line” and “scratch that”.", controlWidth: nil) {
+                SettingRow("Spoken commands", detail: "Punctuation, “new line”, “dash”, “dot com”, “slash” and “scratch that”.", controlWidth: nil) {
                     Toggle("Spoken commands", isOn: $model.preferences.punctuationCommands).labelsHidden().toggleStyle(.warmSwitch)
                 }
                 .padding(.horizontal, 20).padding(.vertical, 4)

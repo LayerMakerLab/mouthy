@@ -65,7 +65,7 @@ enum DictateHero {
     /// The short success word for a finished status, or nil when the status is not a success.
     static func outcomeWord(_ status: String) -> String? {
         if status.hasPrefix("Answer sent") { return "Sent to the agent" }
-        for word in ["Inserted", "Pasted", "Sent", "Copied", "Saved", "Exported"] where status.hasPrefix(word) { return word }
+        for word in ["Inserted", "Typed", "Pasted", "Sent", "Copied", "Saved", "Exported"] where status.hasPrefix(word) { return word }
         if status.hasPrefix("Ready. Review") { return "Done" }
         return nil
     }
@@ -209,7 +209,7 @@ enum AppIcons {
         guard let cg = image.cgImage(forProposedRect: &rect, context: nil, hints: nil),
               let mono = CIFilter(name: "CIColorMonochrome", parameters: [
                   kCIInputImageKey: CIImage(cgImage: cg),
-                  kCIInputColorKey: CIColor(red: 0xF6 / 255.0, green: 0xE3 / 255.0, blue: 0xC1 / 255.0),
+                  kCIInputColorKey: CIColor(red: 0xF1 / 255.0, green: 0xF3 / 255.0, blue: 0xEC / 255.0),
                   kCIInputIntensityKey: 1.0]),
               let output = mono.outputImage,
               let warmed = warmContext.createCGImage(output, from: output.extent) else { return image }
@@ -309,7 +309,8 @@ enum ModeExamples {
     static let knownAppNames = ["com.apple.Terminal": "Terminal", "com.apple.dt.Xcode": "Xcode"]
 
     /// Three starting points: Email (trigger word, clean-up style), Code (Terminal and Xcode, code dictation)
-    /// and Chat (ChatGPT and Claude on the web, insert and press Return).
+    /// and Chat (ChatGPT and Claude on the web). Chat only inserts: sending is the person's decision, never a starting
+    /// default; "Insert and press Return" stays a choice they can make themselves.
     static func make() -> [DictationMode] {
         var email = DictationMode(name: "Email")
         email.triggerWord = "email"
@@ -319,7 +320,6 @@ enum ModeExamples {
         code.codeDictation = true
         var chat = DictationMode(name: "Chat")
         chat.websites = ["chatgpt.com", "claude.ai"]
-        chat.output = .insertAndReturn
         return [email, code, chat]
     }
 

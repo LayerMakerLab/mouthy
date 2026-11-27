@@ -143,6 +143,7 @@ private struct ProbeView: View {
     /// Also receives each level (the hub gets its level through presentDictation, as NotchDictationBridge does).
     var forward: ((Float) -> Void)?
     func start() {
+        stop()   // one timer, however often a row starts it
         timer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -195,6 +196,9 @@ func animationCostOfEveryAnimatedNotchElement() throws {
     defer { try? FileManager.default.removeItem(at: support) }
     let model = AppModel(store: LocalStore(directory: support), enablesHotkey: false)
     model.selectedPage = "Dictate"
+    // The recording island (hub off) while its one line of live words changes: the widest placement, a corner pill.
+    let islandPresenter = IslandPresenter()
+    let islandCorner = RecordingPlacement.island(screen: NSRect(x: 0, y: 0, width: 2560, height: 1440), visible: NSRect(x: 0, y: 60, width: 2560, height: 1350), notchLeft: nil, notchRight: nil, notchHeight: 0, corner: .bottomRight)
     let elements: [(String, AnyView)] = [
         ("baseline (empty black window)", AnyView(Color.black)),
         ("music ears alone (EqualizerBars playing)", AnyView(EqualizerBars(playing: true, tint: MouthyTheme.glow).frame(width: 40, height: 32))),
@@ -208,7 +212,10 @@ func animationCostOfEveryAnimatedNotchElement() throws {
         ("indeterminate progress (file transcribing)", AnyView(ProgressView().progressViewStyle(MouthyBarProgressStyle()).frame(width: 320))),
         ("loading skeleton (notch tab)", AnyView(Text("Loading the weather for Lisbon").notchSkeleton(loading: true))),
         ("whole hub dictating over music, level every 80 ms", AnyView(NotchRootView(hub: dictating, geometryOverride: geometry))),
+        ("whole hub dictating with the words said so far, a new word every 240 ms", AnyView(NotchRootView(hub: dictating, geometryOverride: geometry))),
         ("active mode ring (Modes page while dictating)", AnyView(ActiveGlowRing().frame(width: 220, height: 120))),
+        ("AI usage ring awake (AwakeGlow breathing)", AnyView(ServiceRing(service: .claude, limits: ServiceLimits(week: UsageLimit(percent: 25, resets: nil), fiveHour: nil), awake: true))),
+        ("AI usage ring asleep (still)", AnyView(ServiceRing(service: .claude, limits: ServiceLimits(week: UsageLimit(percent: 25, resets: nil), fiveHour: nil), awake: false))),
         ("music panel open, playing with synced lyrics", AnyView(NotchRootView(hub: panels, geometryOverride: geometry))),
         ("timers panel, stopwatch running", AnyView(NotchRootView(hub: panels, geometryOverride: geometry))),
         ("closed hub, focus timer ears", AnyView(NotchRootView(hub: timerHub, geometryOverride: geometry))),
@@ -216,15 +223,32 @@ func animationCostOfEveryAnimatedNotchElement() throws {
         ("timers panel, focus running", AnyView(NotchRootView(hub: panels, geometryOverride: geometry))),
         ("main window Dictate page listening, level every 80 ms", AnyView(WorkspaceView(model: model))),
         ("main window Dictate page listening, level and clock", AnyView(WorkspaceView(model: model))),
+        ("recording island (hub off) in a corner, live words", AnyView(RecordingIsland(model: model, presenter: islandPresenter, geometry: islandCorner))),
     ]
     var over: [String] = []
     // MOUTHY_CPU_ONLY=<substring> measures only the matching elements.
     let only = ProcessInfo.processInfo.environment["MOUTHY_CPU_ONLY"]
     for (name, view) in elements where only.map({ name.contains($0) }) ?? true {
         if name.hasPrefix("dictation waveform, level") { driver.start() }
-        if name.hasPrefix("whole hub dictating") {
+        if name.hasPrefix("whole hub dictating over music") {
             dictating.presentDictation(NotchDictation(target: "Notes", level: 0.3))
             driver.forward = { dictating.presentDictation(NotchDictation(target: "Notes", level: $0)) }
+            driver.start()
+        }
+        if name.hasPrefix("whole hub dictating with the words") {
+            // The transcript card under the band: the level keeps ticking and every third tick adds a word, about
+            // as often as live recognition does. A long dictation that stays just under the length where its start
+            // begins to move for the whole reading (it grows by about 230 units), so every word lays out the most
+            // text the card ever does.
+            let sentence = "Pick up oat milk and the good bread on the way home, and call the vet about Friday."
+            var words = Array(repeating: sentence, count: (TranscriptCard.tailLimit - 280) / (sentence.count + 1)).joined(separator: " ")
+            var ticks = 0
+            dictating.presentDictation(NotchDictation(target: "Notes", level: 0.3, partialText: words))
+            driver.forward = {
+                ticks += 1
+                if ticks % 3 == 0 { words += " word" }
+                dictating.presentDictation(NotchDictation(target: "Notes", level: $0, partialText: words))
+            }
             driver.start()
         }
         if name.hasPrefix("music panel") { panels.selectedID = MusicTab.shared.id }
@@ -234,6 +258,20 @@ func animationCostOfEveryAnimatedNotchElement() throws {
         if name.hasSuffix("1-minute timer ears") {
             TimersTab.shared.countdownMinutes = 1
             TimersTab.shared.start(.countdown)
+        }
+        if name.hasPrefix("recording island") {
+            model.phase = .listening
+            islandPresenter.presented = true
+            // A new word every 240 ms, as in the hub row above. Its limit is the ordinary 1%: the line is short.
+            var words = "Pick up oat milk and the good bread on the way home"
+            var ticks = 0
+            model.liveText = words
+            driver.forward = {
+                model.level = $0
+                ticks += 1
+                if ticks % 3 == 0 { words += " word"; model.liveText = words }
+            }
+            driver.start()
         }
         if name.hasPrefix("main window") {
             model.phase = .listening
@@ -253,9 +291,12 @@ func animationCostOfEveryAnimatedNotchElement() throws {
         let percent = hostedCPUPercent(view, seconds: 10, size: name.hasPrefix("main window") ? CGSize(width: 1080, height: 760) : hubWindowSize)
         print(String(format: "CPU %@: %.2f%% (WindowServer %@)", name, percent,
                      lastWindowServerPercent.map { String(format: "%.1f%%", $0) } ?? "unread"))
-        if percent > 1.0 { over.append(name) }
+        // New words are new text to lay out and draw, several times a second: that is work, not motion, and it gets
+        // its own limit. On the M5 it reads about 3.5% at the longest text the card ever lays out (the hub redrawing
+        // for a word, card or no card, is over 1% of that); a text morph on every word read about 100%.
+        if percent > (name.contains("a new word every") ? 4.0 : 1.0) { over.append(name) }
     }
-    #expect(over.isEmpty, "over 1% CPU: \(over.joined(separator: ", "))")
+    #expect(over.isEmpty, "over its CPU limit: \(over.joined(separator: ", "))")
 }
 
 /// The near-zero readings above are Core Animation running in the render server, not motion that stopped.

@@ -20,6 +20,12 @@ private func cases(_ key: String) -> [[String: Any]] { fixtures[key] as? [[Strin
     for c in cases("backtrack") { #expect(Backtrack.apply(c["text"] as! String) == c["expected"] as! String) }
     for c in cases("spokenPunctuation") { #expect(SpokenPunctuation.apply(c["text"] as! String) == c["expected"] as! String) }
 }
+@Test func sharedSpokenJoiners() {
+    #expect(!cases("spokenJoiners").isEmpty)
+    for c in cases("spokenJoiners") {
+        #expect(SpokenJoiners.apply(c["text"] as! String, vocabulary: c["vocabulary"] as? String ?? "") == c["expected"] as! String, "\(c["text"]!)")
+    }
+}
 @Test func sharedProcess() {
     for c in cases("process") {
         let rules = (c["replacements"] as! [[String: String]]).map { Replacement(phrase: $0["phrase"]!, replacement: $0["replacement"]!) }

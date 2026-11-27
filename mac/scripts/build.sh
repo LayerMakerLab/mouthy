@@ -57,6 +57,17 @@ done
 xcrun coremlcompiler compile Resources/Models/WeSpeakerResNet34LM.mlpackage "$app/Contents/Resources/" >/dev/null
 [[ -f "$app/Contents/Resources/WeSpeakerResNet34LM.mlmodelc/coremldata.bin" ]] || {
     print -u2 'The speaker model (Resources/Models/WeSpeakerResNet34LM.mlpackage) did not compile into the app.'; exit 1; }
+# Mouthy's own voice (agent questions read aloud): three Core ML models and the phoneme lexicon, app only, like the
+# speaker model. The models are large and kept out of git (Resources/Models/MouthyVoice*.mlpackage, made by the
+# voice's conversion script); without them the app reads aloud with the system voice.
+voice_models=(Resources/Models/MouthyVoice{Encoder,Flow,Vocoder}.mlpackage(N))
+if (( ${#voice_models} == 3 )); then
+    for model in $voice_models; do xcrun coremlcompiler compile "$model" "$app/Contents/Resources/" >/dev/null; done
+    cp Resources/Voice/lexicon.tsv "$app/Contents/Resources/lexicon.tsv"
+    [[ -f "$app/Contents/Resources/MouthyVoiceVocoder.mlmodelc/coremldata.bin" ]] || { print -u2 "Mouthy's voice did not compile into the app."; exit 1; }
+else
+    print -u2 "Note: Mouthy's voice models are not in Resources/Models; this build reads aloud with the system voice."
+fi
 # MouthyKit's resource bundle carries the giraffe (Mascot/poses, heads, menubar, Mouthy.usdz); without it the
 # app falls back to SF Symbols, so a build that lost it is a broken build.
 mascot=("$app"/Contents/Resources/*_MouthyKit.bundle{/Contents/Resources,}/Mascot(N/))

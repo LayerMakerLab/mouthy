@@ -215,3 +215,34 @@ public enum SpeakerMask {
         return verdicts
     }
 }
+
+/// The words a recognizer writes for a sound that is no speech: a breath, a hand on the case, a key. The voice mask
+/// keeps half a second either side of speech as it was recorded (word edges live there), so such a sound right after
+/// the last word still reaches the recognizer, and at a stop it is recognized as the newest words.
+public enum NoiseWords {
+    static let sounds: Set<String> = ["yeah", "yep", "yup", "uh", "um", "mm", "hmm", "mhm", "oh", "ah", "huh"]
+
+    /// Whether `text` is nothing but one or two such words ("Yeah.", "Uh, yeah."). A number is a word ("Um, 5.").
+    public static func only(_ text: String) -> Bool {
+        let words = text.lowercased().split { !$0.isLetter && !$0.isNumber }
+        return (1...2).contains(words.count) && words.allSatisfy { sounds.contains(String($0)) }
+    }
+
+    /// Whether the newest words at a stop are a sound and not speech: nothing but such words, the voice detector
+    /// heard no voice anywhere in the audio after the last recognized sound (`voice`: its probability for each
+    /// 256 ms), and that audio holds no voiced sound (`voiced`, by `SpeechPauses`: a spoken "oh" is voiced, a breath,
+    /// a rustle or a key is not; the detector alone can miss a short word that falls across two pieces). A spoken
+    /// "yeah" fails both and stays. Without a detector the words stay.
+    public static func isNoise(_ text: String, voice: [Float]?, voiced: Bool, keep: Float) -> Bool {
+        guard only(text), !voiced, let voice, !voice.isEmpty else { return false }
+        return voice.allSatisfy { $0 < keep }
+    }
+
+    /// Whether a voiced sound begins in `samples` (16 kHz) at or after `from`. The audio before it sets the room's
+    /// level, as it does while recording.
+    public static func voicedSound(in samples: [Float], from: Int) -> Bool {
+        var pauses = SpeechPauses()
+        pauses.feed(samples)
+        return pauses.wordOnsets.contains { $0 >= from - SpeechPauses.frame }
+    }
+}

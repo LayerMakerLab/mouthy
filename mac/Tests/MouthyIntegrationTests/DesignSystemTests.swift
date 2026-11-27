@@ -18,11 +18,11 @@ import Testing
     }
     let dark = Dictionary(uniqueKeysWithValues: MouthyTheme.tokens.map { ($0.name, $0.hex) })
     let light = Dictionary(uniqueKeysWithValues: MouthyTheme.lightTokens.map { ($0.name, $0.hex) })
-    // The notch is dark cocoa with cream ink; windows are sunlit cream with cocoa ink; orange is the same in both.
-    #expect(dark["night"] == 0x140C07 && dark["cream"] == 0xF6E3C1)
-    #expect(light["night"] == 0xFFF4E3 && light["cream"] == 0x2B1A10)
-    #expect(dark["orange"] == 0xE08A2E && light["orange"] == 0xE08A2E)
-    #expect(light["onOrange"] == 0x140C07, "ink on orange stays dark")
+    // The notch is charcoal with soft white ink; windows are paper with near-black ink; the accent is the same in both.
+    #expect(dark["night"] == 0x171717 && dark["cream"] == 0xF2F2EE)
+    #expect(light["night"] == 0xF5F5F1 && light["cream"] == 0x171717)
+    #expect(dark["orange"] == 0xC2F04E && light["orange"] == 0xC2F04E)
+    #expect(light["onOrange"] == 0x131B08, "ink on the accent stays dark")
 }
 
 @Test func motionResolvesToAShortEaseWithReduceMotion() {
@@ -255,4 +255,25 @@ struct DesignSampler: View {
     if let url = try renderOffscreen(WorkspaceView(model: model), size: CGSize(width: 1080, height: 760), name: "shell-Dictate-listening", settle: 1.0,
                                      afterAppear: { model.status = "Inserted into Notes." }) { assertNoBlue(url) }
     model.phase = .idle
+}
+
+@MainActor @Test func mainWindowButtonsStartWhereTheWordmarkDoes() throws {
+    // Off screen, never on a display and never key.
+    let window = try #require(AppDelegate.mainWindow(for: Color.clear) as? MainWindow)
+    window.setFrame(NSRect(x: -10000, y: -10000, width: 1080, height: 760), display: false)
+    defer { window.contentView = nil; window.close() }
+    func buttons() -> [NSButton] { [.closeButton, .miniaturizeButton, .zoomButton].compactMap { window.standardWindowButton($0) } }
+    func placed() -> Bool {
+        let frames = buttons().map(\.frame)
+        guard frames.count == 3, let container = buttons()[0].superview else { return false }
+        // In a row from the wordmark's left edge, evenly apart, all inside the title bar that draws and tracks them.
+        return frames[0].minX == MainWindow.buttonLeading && frames[1].minX - frames[0].minX == frames[2].minX - frames[1].minX
+            && frames[1].minX > frames[0].maxX && frames.allSatisfy { container.bounds.contains($0) }
+    }
+    window.placeButtons()
+    #expect(placed())
+    // The system lays the buttons out again when the window changes size; they are put back.
+    window.setFrame(NSRect(x: -10000, y: -10000, width: 1300, height: 900), display: false)
+    RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+    #expect(placed())
 }

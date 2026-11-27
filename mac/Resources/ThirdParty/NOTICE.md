@@ -10,6 +10,13 @@ Model license: CC BY 4.0, https://creativecommons.org/licenses/by/4.0/
 The conversion is supplied by FluidInference; Mouthy does not alter model weights.
 Models download separately and run locally. No inference audio is sent to a model host.
 
+NVIDIA Parakeet Realtime EOU 120M model, converted to Core ML by FluidInference, used by "Show words instantly":
+https://huggingface.co/nvidia/parakeet_realtime_eou_120m-v1
+https://huggingface.co/FluidInference/parakeet-realtime-eou-120m-coreml
+Model license: NVIDIA Open Model License,
+https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/
+Mouthy does not alter model weights. The model downloads separately, on explicit request, and runs locally.
+
 WeSpeaker ResNet34-LM speaker model, trained on VoxCeleb, used by "Only my voice":
 https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM (commit f0c48c298fd835726c27956a5d617bad7115627e)
 WeSpeaker: https://github.com/wenet-e2e/wespeaker. VoxCeleb (A. Nagrani, J. S. Chung, A. Zisserman and others, University
@@ -41,3 +48,13 @@ Mouthy's bridge (Sources/CSherpaOnnx) includes the unmodified sherpa-onnx C API 
 Sparkle 2.10.0 (MIT, with the bundled bsdiff and other notices in Sparkle-LICENSE.txt) checks for and installs
 updates in the Mouthy app only; it is embedded as Contents/Frameworks/Sparkle.framework:
 https://github.com/sparkle-project/Sparkle/tree/2.10.0
+
+# Mouthy's voice
+
+Mouthy reads agent questions aloud in its own voice, trained for Mouthy. The models use the Matcha-TTS architecture
+(Shivam Mehta, MIT, Matcha-TTS-LICENSE.txt) and the Vocos vocoder architecture (Charactr Inc., MIT,
+Vocos-LICENSE.txt); the weights are Mouthy's. Text is turned into phonemes with a Swift port of misaki's English
+rules and its US dictionaries (hexgrad, Apache-2.0, misaki-LICENSE.txt), shipped as Contents/Resources/lexicon.tsv:
+https://github.com/shivammehta25/Matcha-TTS
+https://github.com/gemelo-ai/vocos
+https://github.com/hexgrad/misaki

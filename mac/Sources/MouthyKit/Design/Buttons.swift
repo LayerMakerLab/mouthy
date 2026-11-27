@@ -18,13 +18,13 @@ struct MouthyPrimaryButtonStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .font(.system(size: height > 44 ? 16 : 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(enabled ? MouthyTheme.onOrange : MouthyTheme.cream)
+                .foregroundStyle(enabled ? MouthyTheme.onOrange : MouthyTheme.cream2)
                 .labelStyle(.titleAndIcon)
                 .padding(.horizontal, 22)
                 .frame(minHeight: height)
                 .background {
-                    // Disabled: the fill fades, the label turns cream, so a dimmed parent never fades the text twice.
-                    Capsule(style: .circular).fill(MouthyTheme.primaryFill).opacity(enabled ? 1 : 0.45)
+                    // Disabled: a quiet neutral fill with dim ink (the accent faded over the backdrop read as olive).
+                    Capsule(style: .circular).fill(enabled ? AnyShapeStyle(MouthyTheme.primaryFill) : AnyShapeStyle(MouthyTheme.raised))
                         .overlay(Capsule(style: .circular).strokeBorder(LinearGradient(colors: [MouthyTheme.cream.opacity(0.35), .clear], startPoint: .top, endPoint: .center), lineWidth: 1))
                         .shadow(color: MouthyTheme.orange.opacity(enabled ? 0.35 : 0), radius: 12, y: 4)
                 }
